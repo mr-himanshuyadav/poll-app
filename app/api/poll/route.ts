@@ -1,7 +1,5 @@
-                                                                              return NextResponse.json({ success: true, poll: global.activePoll });
-              import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-// Global memory store for serverless live state
 declare global {
   var activePoll: {
     id: string;
@@ -23,8 +21,6 @@ if (!global.activePoll) {
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
   return NextResponse.json(global.activePoll);
 }
 
@@ -38,9 +34,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, poll: global.activePoll });
   }
 
-  // Create a new poll
   global.activePoll = {
-    id: Math.random().toString(36.substring(2, 9)),
+    id: Math.random().toString(36).substring(2, 9),
     question: body.question,
     type: body.type,
     options: body.options || [],
@@ -48,16 +43,4 @@ export async function POST(request: Request) {
   };
 
   return NextResponse.json(global.activePoll);
-}                                                                  }
-
-                                                                                  // Create a new poll
-                                                                                    global.activePoll = {
-                                                                                        id: Math.random().toString(36.substring(2, 9)),
-                                                                                            question: body.question,
-                                                                                                type: body.type,
-                                                                                                    options: body.options || [],
-                                                                                                        votes: {},
-                                                                                                          };
-
-                                                                                                            return NextResponse.json(global.activePoll);
-                                                                                                            }
+}
