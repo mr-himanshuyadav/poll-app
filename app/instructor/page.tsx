@@ -72,6 +72,9 @@ export default function InstructorDashboard() {
   const [showSessionDialog, setShowSessionDialog] =
     useState(false);
 
+  const [isCreatingInstantSession, setIsCreatingInstantSession] =
+    useState(false);
+
   const [sessionName, setSessionName] =
     useState("");
 
@@ -192,7 +195,7 @@ export default function InstructorDashboard() {
     if (createError || !data) {
       setError(
         createError?.message ??
-          "Unable to create quiz module.",
+        "Unable to create quiz module.",
       );
 
       setIsCreating(false);
@@ -249,7 +252,7 @@ export default function InstructorDashboard() {
       const randomIndex =
         Math.floor(
           Math.random() *
-            characters.length,
+          characters.length,
         );
 
       code +=
@@ -392,7 +395,7 @@ export default function InstructorDashboard() {
     const {
       data: templateQuestions,
       error:
-        templateQuestionsError,
+      templateQuestionsError,
     } =
       await supabase
         .from("questions")
@@ -508,6 +511,113 @@ export default function InstructorDashboard() {
     setIsCreatingSession(false);
   };
 
+  const createInstantSession = async () => {
+    if (isCreatingInstantSession) {
+      return;
+    }
+
+    setIsCreatingInstantSession(true);
+    setError(null);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      router.replace("/login");
+      setIsCreatingInstantSession(false);
+      return;
+    }
+
+    let createdSession: CreatedSession | null = null;
+
+    for (
+      let attempt = 0;
+      attempt < 5;
+      attempt++
+    ) {
+      const joinCode = generateJoinCode();
+
+      const {
+        data,
+        error: createError,
+      } = await supabase
+        .from("sessions")
+        .insert({
+          template_id: null,
+
+          instructor_id:
+            user.id,
+
+          name: "Instant Session",
+
+          join_code:
+            joinCode,
+
+          status: "ready",
+
+          participant_mode:
+            "anonymous",
+
+          results_mode:
+            "on_command",
+
+          allow_late_join:
+            true,
+
+          allow_answer_change:
+            false,
+
+          is_offline: false,
+
+          active_question_id:
+            null,
+        })
+        .select(
+          "id, join_code",
+        )
+        .single();
+
+      if (
+        !createError &&
+        data
+      ) {
+        createdSession =
+          data as CreatedSession;
+
+        break;
+      }
+
+      if (
+        createError &&
+        !createError.message
+          .toLowerCase()
+          .includes("duplicate")
+      ) {
+        setError(
+          createError.message,
+        );
+
+        break;
+      }
+    }
+
+    if (!createdSession) {
+      setError(
+        "Unable to generate a unique session code. Please try again.",
+      );
+
+      setIsCreatingInstantSession(false);
+      return;
+    }
+
+    router.push(
+      `/instructor/studio/${createdSession.id}`,
+    );
+
+    setIsCreatingInstantSession(false);
+  };
+
   const closeSessionDialog = () => {
     if (isCreatingSession) {
       return;
@@ -562,16 +672,29 @@ export default function InstructorDashboard() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-              Create and manage your reusable classroom question modules.
+              Create reusable classroom question modules or start an instant live session.
             </p>
           </div>
 
-          <Button
-            variant="outline"
-            onClick={signOut}
-          >
-            Sign Out
-          </Button>
+
+
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={createInstantSession}
+              disabled={isCreatingInstantSession}
+            >
+              {isCreatingInstantSession
+                ? "Starting..."
+                : "Start Instant Session"}
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={signOut}
+            >
+              Sign Out
+            </Button>
+          </div>
         </header>
 
         {error &&
@@ -592,7 +715,7 @@ export default function InstructorDashboard() {
                 <p className="text-sm text-muted-foreground">
                   {templates.length}{" "}
                   {templates.length ===
-                  1
+                    1
                     ? "module"
                     : "modules"}
                 </p>
@@ -619,14 +742,14 @@ export default function InstructorDashboard() {
               <div className="rounded-2xl border border-dashed bg-white p-10 text-center shadow-sm dark:bg-slate-900">
                 <h3 className="text-lg font-semibold">
                   {templates.length ===
-                  0
+                    0
                     ? "No quiz modules yet"
                     : "No matching modules"}
                 </h3>
 
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                   {templates.length ===
-                  0
+                    0
                     ? "Create your first module using the panel on the right."
                     : "Try a different search term."}
                 </p>
@@ -1006,7 +1129,7 @@ export default function InstructorDashboard() {
                   <p className="mt-1 break-all text-sm font-medium">
                     {
                       typeof window !==
-                      "undefined"
+                        "undefined"
                         ? `${window.location.origin}/join/${createdSession.join_code}`
                         : `/join/${createdSession.join_code}`
                     }
@@ -1018,7 +1141,7 @@ export default function InstructorDashboard() {
                     <QRCodeSVG
                       value={
                         typeof window !==
-                        "undefined"
+                          "undefined"
                           ? `${window.location.origin}/join/${createdSession.join_code}`
                           : `/join/${createdSession.join_code}`
                       }

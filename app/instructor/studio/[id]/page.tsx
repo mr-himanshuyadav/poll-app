@@ -39,8 +39,8 @@ export default function LiveStudio({
   params,
 }: {
   params:
-    | Promise<{ id: string }>
-    | { id: string };
+  | Promise<{ id: string }>
+  | { id: string };
 }) {
   const resolvedParams =
     params instanceof Promise
@@ -82,6 +82,37 @@ export default function LiveStudio({
 
   const [error, setError] =
     useState<string | null>(null);
+
+  const [showQuestionComposer, setShowQuestionComposer] =
+    useState(false);
+
+  const [newQuestionText, setNewQuestionText] =
+    useState("");
+
+  const [newQuestionType, setNewQuestionType] =
+    useState<"multiple_choice" | "scale">(
+      "multiple_choice",
+    );
+
+  const [newQuestionOptions, setNewQuestionOptions] =
+    useState<string[]>([
+      "Option 1",
+      "Option 2",
+    ]);
+
+  const [newQuestionResultsMode, setNewQuestionResultsMode] =
+    useState<"live" | "on_command" | "hidden">(
+      "on_command",
+    );
+
+  const [isCreatingQuestion, setIsCreatingQuestion] =
+    useState(false);
+
+  const [editingQuestionId, setEditingQuestionId] =
+    useState<string | null>(null);
+
+  const [isSavingQuestion, setIsSavingQuestion] =
+    useState(false);
 
   /*
    * ---------------------------------------------
@@ -263,7 +294,7 @@ export default function LiveStudio({
     ) {
       setError(
         sessionError?.message ??
-          "Session not found.",
+        "Session not found.",
       );
 
       setIsLoading(false);
@@ -309,7 +340,7 @@ export default function LiveStudio({
       ) {
         setError(
           templateError?.message ??
-            "Template not found.",
+          "Template not found.",
         );
 
         setIsLoading(false);
@@ -446,7 +477,7 @@ export default function LiveStudio({
             const changedQuestion =
               (
                 payload.eventType ===
-                "DELETE"
+                  "DELETE"
                   ? payload.old
                   : payload.new
               ) as SessionQuestion;
@@ -505,7 +536,7 @@ export default function LiveStudio({
                   current.map(
                     (question) =>
                       question.id ===
-                      changedQuestion.id
+                        changedQuestion.id
                         ? changedQuestion
                         : question,
                   ),
@@ -748,7 +779,7 @@ export default function LiveStudio({
 
     for (
       const option of
-        activeQuestion.options
+      activeQuestion.options
     ) {
       tally[option] =
         activeResponses.filter(
@@ -813,7 +844,7 @@ export default function LiveStudio({
       ) {
         setError(
           updateError?.message ??
-            "Unable to update joining settings.",
+          "Unable to update joining settings.",
         );
 
         setIsUpdatingParticipants(
@@ -831,6 +862,381 @@ export default function LiveStudio({
         false,
       );
     };
+
+  /*
+ * ---------------------------------------------
+ * CREATE SESSION QUESTION
+ * ---------------------------------------------
+ */
+
+  const createSessionQuestion = async () => {
+    if (
+      !session ||
+      isCreatingQuestion
+    ) {
+      return;
+    }
+
+    const trimmedText =
+      newQuestionText.trim();
+
+    if (!trimmedText) {
+      setError(
+        "Please enter a question.",
+      );
+      return;
+    }
+
+    const cleanedOptions =
+      newQuestionOptions
+        .map((option) => option.trim())
+        .filter(Boolean);
+
+    if (
+      newQuestionType ===
+      "multiple_choice" &&
+      cleanedOptions.length < 2
+    ) {
+      setError(
+        "A multiple-choice question needs at least two options.",
+      );
+      return;
+    }
+
+    setIsCreatingQuestion(true);
+    setError(null);
+
+    const nextPosition =
+      questions.length === 0
+        ? 1
+        : Math.max(
+          ...questions.map(
+            (question) =>
+              question.position,
+          ),
+        ) + 1;
+
+    const now =
+      new Date().toISOString();
+
+    const options =
+      newQuestionType === "scale"
+        ? cleanedOptions
+        : cleanedOptions;
+
+    const {
+      data,
+      error: createError,
+    } = await supabase
+      .from("session_questions")
+      .insert({
+        session_id: session.id,
+
+        source_question_id: null,
+
+        text: trimmedText,
+
+        type: newQuestionType,
+
+        options,
+
+        config:
+          newQuestionType === "scale"
+            ? {
+              min: 1,
+              max:
+                options.length > 0
+                  ? options.length
+                  : 5,
+            }
+            : {},
+
+        position: nextPosition,
+
+        status: "draft",
+
+        results_mode:
+          newQuestionResultsMode,
+
+        results_visible: false,
+
+        created_at: now,
+
+        updated_at: now,
+      })
+      .select("*")
+      .single();
+
+    if (
+      createError ||
+      !data
+    ) {
+      setError(
+        createError?.message ??
+        "Unable to create question.",
+      );
+
+      setIsCreatingQuestion(false);
+      return;
+    }
+
+    const createdQuestion =
+      data as SessionQuestion;
+
+    setQuestions((current) =>
+      [...current, createdQuestion].sort(
+        (a, b) =>
+          a.position - b.position,
+      ),
+    );
+
+    setNewQuestionText("");
+
+    setNewQuestionOptions([
+      "Option 1",
+      "Option 2",
+    ]);
+
+    setNewQuestionType(
+      "multiple_choice",
+    );
+
+    setNewQuestionResultsMode(
+      "on_command",
+    );
+
+    setShowQuestionComposer(false);
+
+    setIsCreatingQuestion(false);
+  };
+
+  const startEditingQuestion = (
+    question: SessionQuestion,
+  ) => {
+    if (question.status === "active") {
+      setError(
+        "Close the active question before editing it.",
+      );
+      return;
+    }
+
+    setEditingQuestionId(
+      question.id,
+    );
+
+    setNewQuestionText(
+      question.text,
+    );
+
+    setNewQuestionType(
+      question.type === "scale"
+        ? "scale"
+        : "multiple_choice",
+    );
+
+    setNewQuestionOptions(
+      question.options.length > 0
+        ? [...question.options]
+        : ["Option 1", "Option 2"],
+    );
+
+    setNewQuestionResultsMode(
+      question.results_mode,
+    );
+
+    setShowQuestionComposer(true);
+
+    setError(null);
+  };
+
+  const saveEditedQuestion = async () => {
+    if (
+      !session ||
+      !editingQuestionId ||
+      isSavingQuestion
+    ) {
+      return;
+    }
+
+    const trimmedText =
+      newQuestionText.trim();
+
+    if (!trimmedText) {
+      setError(
+        "Please enter a question.",
+      );
+      return;
+    }
+
+    const cleanedOptions =
+      newQuestionOptions
+        .map((option) => option.trim())
+        .filter(Boolean);
+
+    if (
+      newQuestionType ===
+      "multiple_choice" &&
+      cleanedOptions.length < 2
+    ) {
+      setError(
+        "A multiple-choice question needs at least two options.",
+      );
+      return;
+    }
+
+    const currentQuestion =
+      questions.find(
+        (question) =>
+          question.id ===
+          editingQuestionId,
+      );
+
+    if (!currentQuestion) {
+      setError(
+        "Question no longer exists.",
+      );
+      return;
+    }
+
+    if (
+      currentQuestion.status ===
+      "active"
+    ) {
+      setError(
+        "Close the active question before editing it.",
+      );
+      return;
+    }
+
+    setIsSavingQuestion(true);
+    setError(null);
+
+    const now =
+      new Date().toISOString();
+
+    const {
+      data,
+      error: updateError,
+    } = await supabase
+      .from("session_questions")
+      .update({
+        text: trimmedText,
+
+        type: newQuestionType,
+
+        options:
+          cleanedOptions,
+
+        config:
+          newQuestionType === "scale"
+            ? {
+              min: 1,
+              max:
+                cleanedOptions.length > 0
+                  ? cleanedOptions.length
+                  : 5,
+            }
+            : {},
+
+        results_mode:
+          newQuestionResultsMode,
+
+        updated_at: now,
+      })
+      .eq(
+        "id",
+        editingQuestionId,
+      )
+      .eq(
+        "session_id",
+        session.id,
+      )
+      .select("*")
+      .single();
+
+    if (
+      updateError ||
+      !data
+    ) {
+      setError(
+        updateError?.message ??
+        "Unable to update question.",
+      );
+
+      setIsSavingQuestion(false);
+      return;
+    }
+
+    const updatedQuestion =
+      data as SessionQuestion;
+
+    setQuestions((current) =>
+      current.map(
+        (question) =>
+          question.id ===
+            updatedQuestion.id
+            ? updatedQuestion
+            : question,
+      ),
+    );
+
+    setEditingQuestionId(null);
+
+    setNewQuestionText("");
+
+    setNewQuestionOptions([
+      "Option 1",
+      "Option 2",
+    ]);
+
+    setNewQuestionType(
+      "multiple_choice",
+    );
+
+    setNewQuestionResultsMode(
+      "on_command",
+    );
+
+    setShowQuestionComposer(false);
+
+    setIsSavingQuestion(false);
+  };
+
+  const updateNewQuestionOption = (
+    index: number,
+    value: string,
+  ) => {
+    setNewQuestionOptions(
+      (current) =>
+        current.map(
+          (option, optionIndex) =>
+            optionIndex === index
+              ? value
+              : option,
+        ),
+    );
+  };
+
+  const addNewQuestionOption = () => {
+    setNewQuestionOptions(
+      (current) => [
+        ...current,
+        `Option ${current.length + 1}`,
+      ],
+    );
+  };
+
+  const removeNewQuestionOption = (
+    index: number,
+  ) => {
+    setNewQuestionOptions(
+      (current) =>
+        current.filter(
+          (_, optionIndex) =>
+            optionIndex !== index,
+        ),
+    );
+  };
 
   /*
    * ---------------------------------------------
@@ -862,11 +1268,11 @@ export default function LiveStudio({
       if (
         session.active_question_id &&
         session.active_question_id !==
-          question.id
+        question.id
       ) {
         const {
           error:
-            previousQuestionError,
+          previousQuestionError,
         } = await supabase
           .from(
             "session_questions",
@@ -943,7 +1349,7 @@ export default function LiveStudio({
       ) {
         setError(
           questionError?.message ??
-            "Unable to activate question.",
+          "Unable to activate question.",
         );
 
         setIsUpdating(false);
@@ -984,7 +1390,7 @@ export default function LiveStudio({
       ) {
         setError(
           sessionError?.message ??
-            "Unable to update session.",
+          "Unable to update session.",
         );
 
         setIsUpdating(false);
@@ -1091,7 +1497,7 @@ export default function LiveStudio({
       ) {
         setError(
           questionError?.message ??
-            "Unable to close question.",
+          "Unable to close question.",
         );
 
         setIsUpdating(false);
@@ -1122,7 +1528,7 @@ export default function LiveStudio({
       ) {
         setError(
           sessionError?.message ??
-            "Unable to update session.",
+          "Unable to update session.",
         );
 
         setIsUpdating(false);
@@ -1134,7 +1540,7 @@ export default function LiveStudio({
           current.map(
             (question) =>
               question.id ===
-              questionId
+                questionId
                 ? (updatedQuestion as SessionQuestion)
                 : question,
           ),
@@ -1155,15 +1561,19 @@ export default function LiveStudio({
 
   const revealResults =
     async () => {
+      const currentSession = session;
+      const currentQuestion = activeQuestion;
+
       if (
-        !activeQuestion ||
+        !currentSession ||
+        !currentQuestion ||
         isUpdating
       ) {
         return;
       }
 
       if (
-        activeQuestion.results_mode ===
+        currentQuestion.results_mode ===
         "hidden"
       ) {
         return;
@@ -1188,11 +1598,11 @@ export default function LiveStudio({
           })
           .eq(
             "id",
-            activeQuestion.id,
+            currentQuestion.id,
           )
           .eq(
             "session_id",
-            session.id,
+            currentSession.id,
           )
           .select("*")
           .single();
@@ -1203,7 +1613,7 @@ export default function LiveStudio({
       ) {
         setError(
           updateError?.message ??
-            "Unable to reveal results.",
+          "Unable to reveal results.",
         );
 
         setIsUpdating(false);
@@ -1215,7 +1625,7 @@ export default function LiveStudio({
           current.map(
             (question) =>
               question.id ===
-              activeQuestion.id
+                currentQuestion.id
                 ? (updatedQuestion as SessionQuestion)
                 : question,
           ),
@@ -1232,15 +1642,19 @@ export default function LiveStudio({
 
   const hideResults =
     async () => {
+      const currentSession = session;
+      const currentQuestion = activeQuestion;
+
       if (
-        !activeQuestion ||
+        !currentSession ||
+        !currentQuestion ||
         isUpdating
       ) {
         return;
       }
 
       if (
-        activeQuestion.results_mode ===
+        currentQuestion.results_mode ===
         "live"
       ) {
         return;
@@ -1265,11 +1679,11 @@ export default function LiveStudio({
           })
           .eq(
             "id",
-            activeQuestion.id,
+            currentQuestion.id,
           )
           .eq(
             "session_id",
-            session.id,
+            currentSession.id,
           )
           .select("*")
           .single();
@@ -1280,7 +1694,7 @@ export default function LiveStudio({
       ) {
         setError(
           updateError?.message ??
-            "Unable to hide results.",
+          "Unable to hide results.",
         );
 
         setIsUpdating(false);
@@ -1292,7 +1706,7 @@ export default function LiveStudio({
           current.map(
             (question) =>
               question.id ===
-              activeQuestion.id
+                currentQuestion.id
                 ? (updatedQuestion as SessionQuestion)
                 : question,
           ),
@@ -1360,7 +1774,7 @@ export default function LiveStudio({
       ) {
         setError(
           updateError?.message ??
-            "Unable to update session.",
+          "Unable to update session.",
         );
 
         setIsUpdating(false);
@@ -1433,7 +1847,7 @@ export default function LiveStudio({
       ) {
         setError(
           updateError?.message ??
-            "Unable to end session.",
+          "Unable to end session.",
         );
 
         setIsUpdating(false);
@@ -1588,7 +2002,7 @@ export default function LiveStudio({
                 disabled={
                   isUpdating ||
                   session.status ===
-                    "completed"
+                  "completed"
                 }
                 onClick={() =>
                   void endSession()
@@ -1640,7 +2054,7 @@ export default function LiveStudio({
 
                   <p className="mt-1 font-semibold">
                     {session.participant_mode ===
-                    "anonymous"
+                      "anonymous"
                       ? "Anonymous"
                       : "Name + Roll Number"}
                   </p>
@@ -1653,10 +2067,10 @@ export default function LiveStudio({
 
                   <p className="mt-1 font-semibold">
                     {session.results_mode ===
-                    "live"
+                      "live"
                       ? "Live"
                       : session.results_mode ===
-                          "on_command"
+                        "on_command"
                         ? "On Command"
                         : "Hidden"}
                   </p>
@@ -1681,7 +2095,7 @@ export default function LiveStudio({
                     disabled={
                       isUpdating ||
                       session.status ===
-                        "completed"
+                      "completed"
                     }
                     onCheckedChange={(
                       checked,
@@ -1832,10 +2246,10 @@ export default function LiveStudio({
 
                           <p className="mt-1 text-sm text-muted-foreground">
                             {activeQuestion.results_mode ===
-                            "live"
+                              "live"
                               ? "Results are automatically visible to students."
                               : activeQuestion.results_mode ===
-                                  "hidden"
+                                "hidden"
                                 ? "Results cannot be shown to students."
                                 : activeQuestion.results_visible
                                   ? "Results are currently visible to students."
@@ -1847,55 +2261,55 @@ export default function LiveStudio({
 
                         {activeQuestion.results_mode ===
                           "live" && (
-                          <Badge>
-                            Automatically Visible
-                          </Badge>
-                        )}
+                            <Badge>
+                              Automatically Visible
+                            </Badge>
+                          )}
 
                         {/* HIDDEN MODE */}
 
                         {activeQuestion.results_mode ===
                           "hidden" && (
-                          <Badge variant="secondary">
-                            Permanently Hidden
-                          </Badge>
-                        )}
+                            <Badge variant="secondary">
+                              Permanently Hidden
+                            </Badge>
+                          )}
 
                         {/* ON COMMAND MODE */}
 
                         {activeQuestion.results_mode ===
                           "on_command" && (
-                          <Button
-                            disabled={
-                              isUpdating
-                            }
-                            variant={
-                              activeQuestion.results_visible
-                                ? "outline"
-                                : "default"
-                            }
-                            onClick={() => {
-                              if (
-                                activeQuestion.results_visible
-                              ) {
-                                void hideResults();
-                              } else {
-                                void revealResults();
+                            <Button
+                              disabled={
+                                isUpdating
                               }
-                            }}
-                          >
-                            {activeQuestion.results_visible
-                              ? "Hide Results"
-                              : "Reveal Results"}
-                          </Button>
-                        )}
+                              variant={
+                                activeQuestion.results_visible
+                                  ? "outline"
+                                  : "default"
+                              }
+                              onClick={() => {
+                                if (
+                                  activeQuestion.results_visible
+                                ) {
+                                  void hideResults();
+                                } else {
+                                  void revealResults();
+                                }
+                              }}
+                            >
+                              {activeQuestion.results_visible
+                                ? "Hide Results"
+                                : "Reveal Results"}
+                            </Button>
+                          )}
                       </div>
                     </div>
 
                     {/* RESULT VISUALIZATION */}
 
                     {activeQuestion.type ===
-                    "multiple_choice" ? (
+                      "multiple_choice" ? (
                       <div className="space-y-4">
                         {activeQuestion.options.map(
                           (
@@ -1904,19 +2318,19 @@ export default function LiveStudio({
                           ) => {
                             const count =
                               activeTally[
-                                option
+                              option
                               ] ??
                               0;
 
                             const percentage =
                               activeResponses.length ===
-                              0
+                                0
                                 ? 0
                                 : Math.round(
-                                    (count /
-                                      activeResponses.length) *
-                                      100,
-                                  );
+                                  (count /
+                                    activeResponses.length) *
+                                  100,
+                                );
 
                             return (
                               <div
@@ -1928,7 +2342,7 @@ export default function LiveStudio({
                                     <span className="mr-2 font-bold text-muted-foreground">
                                       {String.fromCharCode(
                                         65 +
-                                          index,
+                                        index,
                                       )}
                                       .
                                     </span>
@@ -1973,7 +2387,7 @@ export default function LiveStudio({
                           }{" "}
                           response
                           {activeResponses.length ===
-                          1
+                            1
                             ? ""
                             : "s"}{" "}
                           received.
@@ -2010,7 +2424,7 @@ export default function LiveStudio({
 
                           const nextQuestion =
                             questions[
-                              index + 1
+                            index + 1
                             ];
 
                           if (
@@ -2027,19 +2441,251 @@ export default function LiveStudio({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex min-h-[560px] items-center justify-center text-center">
-                    <div>
-                      <h2 className="text-3xl font-bold">
-                        Ready to teach
-                      </h2>
+                  <div className="space-y-6">
 
-                      <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
-                        Choose a question from
-                        the queue on the right
-                        to broadcast it to the
-                        class.
-                      </p>
+                    <div className="flex flex-col gap-4 rounded-2xl border bg-slate-50 p-5 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold">
+                          Ready to teach
+                        </h2>
+
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {session.template_id
+                            ? "Choose a question from the queue or create one for this session."
+                            : "Create a question directly in this instant session."}
+                        </p>
+                      </div>
+
+                      <Button
+                        onClick={() => {
+                          if (showQuestionComposer) {
+                            setShowQuestionComposer(false);
+                            setEditingQuestionId(null);
+                            return;
+                          }
+
+                          setShowQuestionComposer(true);
+                        }}
+                      >
+                        {showQuestionComposer
+                          ? "Cancel"
+                          : editingQuestionId
+                            ? "Edit Question"
+                            : "Create Question"}
+                      </Button>
                     </div>
+
+                    {showQuestionComposer && (
+                      <div className="rounded-2xl border bg-white p-6 shadow-sm dark:bg-slate-900">
+                        <div className="space-y-6">
+
+                          <div>
+                            <h3 className="text-lg font-semibold">
+                              {editingQuestionId
+                                ? "Edit Session Question"
+                                : "New Session Question"}
+                            </h3>
+
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {editingQuestionId
+                                ? "Update this session question before broadcasting it."
+                                : "This question will belong only to this live session."}
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="text-sm font-medium">
+                              Question
+                            </label>
+
+                            <textarea
+                              value={newQuestionText}
+                              onChange={(event) =>
+                                setNewQuestionText(
+                                  event.target.value,
+                                )
+                              }
+                              placeholder="Enter your question..."
+                              className="mt-2 min-h-[120px] w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="text-sm font-medium">
+                              Question Type
+                            </label>
+
+                            <select
+                              value={newQuestionType}
+                              onChange={(event) =>
+                                setNewQuestionType(
+                                  event.target.value as
+                                  | "multiple_choice"
+                                  | "scale",
+                                )
+                              }
+                              className="mt-2 h-10 w-full rounded-xl border bg-background px-3 text-sm"
+                            >
+                              <option value="multiple_choice">
+                                Multiple Choice
+                              </option>
+
+                              <option value="scale">
+                                Scale
+                              </option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <label className="text-sm font-medium">
+                                Options
+                              </label>
+
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={
+                                  addNewQuestionOption
+                                }
+                              >
+                                Add Option
+                              </Button>
+                            </div>
+
+                            <div className="mt-3 space-y-2">
+                              {newQuestionOptions.map(
+                                (option, index) => (
+                                  <div
+                                    key={index}
+                                    className="flex gap-2"
+                                  >
+                                    <input
+                                      value={option}
+                                      onChange={(event) =>
+                                        updateNewQuestionOption(
+                                          index,
+                                          event.target.value,
+                                        )
+                                      }
+                                      className="h-10 min-w-0 flex-1 rounded-xl border bg-background px-3 text-sm"
+                                      placeholder={`Option ${index + 1
+                                        }`}
+                                    />
+
+                                    {newQuestionOptions.length >
+                                      2 && (
+                                        <Button
+                                          type="button"
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() =>
+                                            removeNewQuestionOption(
+                                              index,
+                                            )
+                                          }
+                                        >
+                                          Remove
+                                        </Button>
+                                      )}
+                                  </div>
+                                ),
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-sm font-medium">
+                              Results Mode
+                            </label>
+
+                            <select
+                              value={
+                                newQuestionResultsMode
+                              }
+                              onChange={(event) =>
+                                setNewQuestionResultsMode(
+                                  event.target.value as
+                                  | "live"
+                                  | "on_command"
+                                  | "hidden",
+                                )
+                              }
+                              className="mt-2 h-10 w-full rounded-xl border bg-background px-3 text-sm"
+                            >
+                              <option value="live">
+                                Live Results
+                              </option>
+
+                              <option value="on_command">
+                                Reveal on Command
+                              </option>
+
+                              <option value="hidden">
+                                Hidden Results
+                              </option>
+                            </select>
+                          </div>
+
+                          <div className="flex justify-end gap-2 border-t pt-5">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={
+                                isCreatingQuestion
+                              }
+                              onClick={() =>
+                                setShowQuestionComposer(
+                                  false,
+                                )
+                              }
+                            >
+                              Cancel
+                            </Button>
+
+                            <Button
+                              type="button"
+                              disabled={
+                                isCreatingQuestion ||
+                                isSavingQuestion
+                              }
+                              onClick={() => {
+                                if (editingQuestionId) {
+                                  void saveEditedQuestion();
+                                } else {
+                                  void createSessionQuestion();
+                                }
+                              }}
+                            >
+                              {editingQuestionId
+                                ? isSavingQuestion
+                                  ? "Saving..."
+                                  : "Save Changes"
+                                : isCreatingQuestion
+                                  ? "Creating..."
+                                  : "Create Question"}
+                            </Button>
+                          </div>
+
+                        </div>
+                      </div>
+                    )}
+
+                    {!showQuestionComposer && (
+                      <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed text-center">
+                        <div>
+                          <p className="text-lg font-semibold">
+                            No question is currently live
+                          </p>
+
+                          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                            Create a question above or select a queued question from the right.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 )}
               </CardContent>
@@ -2138,7 +2784,7 @@ export default function LiveStudio({
 
                 <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
                   {participants.length ===
-                  0 ? (
+                    0 ? (
                     <p className="py-4 text-center text-xs text-muted-foreground">
                       No participants yet.
                     </p>
@@ -2150,10 +2796,10 @@ export default function LiveStudio({
                         const isActive =
                           !participant.left_at &&
                           Date.now() -
-                            new Date(
-                              participant.last_seen_at,
-                            ).getTime() <=
-                            activeParticipantThresholdMs;
+                          new Date(
+                            participant.last_seen_at,
+                          ).getTime() <=
+                          activeParticipantThresholdMs;
 
                         return (
                           <div
@@ -2167,16 +2813,15 @@ export default function LiveStudio({
                                 {participant.is_anonymous
                                   ? "Anonymous participant"
                                   : participant.name ??
-                                    "Unnamed participant"}
+                                  "Unnamed participant"}
                               </p>
 
                               <p className="text-xs text-muted-foreground">
                                 {participant.is_anonymous
                                   ? "Anonymous"
-                                  : `Roll ${
-                                      participant.roll_number ??
-                                      "—"
-                                    }`}
+                                  : `Roll ${participant.roll_number ??
+                                  "—"
+                                  }`}
                               </p>
                             </div>
 
@@ -2231,7 +2876,7 @@ export default function LiveStudio({
 
                     const responseCount =
                       responseCountByQuestion[
-                        question.id
+                      question.id
                       ] ?? 0;
 
                     return (
@@ -2239,11 +2884,10 @@ export default function LiveStudio({
                         key={
                           question.id
                         }
-                        className={`rounded-xl border p-3 transition ${
-                          isActive
+                        className={`rounded-xl border p-3 transition ${isActive
                             ? "border-indigo-500 bg-indigo-50 shadow-sm dark:bg-indigo-950/30"
                             : "hover:bg-slate-50 dark:hover:bg-slate-900"
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start gap-3">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold dark:bg-slate-800">
@@ -2262,7 +2906,7 @@ export default function LiveStudio({
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium dark:bg-slate-800">
                                 {question.type ===
-                                "multiple_choice"
+                                  "multiple_choice"
                                   ? "MCQ"
                                   : question.type}
                               </span>
@@ -2276,17 +2920,17 @@ export default function LiveStudio({
 
                               {question.status ===
                                 "closed" && (
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium dark:bg-slate-800">
-                                  Closed
-                                </span>
-                              )}
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium dark:bg-slate-800">
+                                    Closed
+                                  </span>
+                                )}
 
                               {question.source_question_id ===
                                 null && (
-                                <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
-                                  Session
-                                </span>
-                              )}
+                                  <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                    Session
+                                  </span>
+                                )}
                             </div>
 
                             <Button
@@ -2311,6 +2955,20 @@ export default function LiveStudio({
                                 ? "Live Now"
                                 : "Push Live"}
                             </Button>
+                            {question.status !== "active" && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  startEditingQuestion(
+                                    question,
+                                  )
+                                }
+                              >
+                                Edit
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -2320,10 +2978,10 @@ export default function LiveStudio({
 
                 {questions.length ===
                   0 && (
-                  <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                    No questions found.
-                  </div>
-                )}
+                    <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                      No questions found.
+                    </div>
+                  )}
               </CardContent>
             </Card>
 
@@ -2370,20 +3028,18 @@ export default function LiveStudio({
 
                         const displayName =
                           participant?.is_anonymous
-                            ? `Anonymous ${
-                                index +
-                                1
-                              }`
+                            ? `Anonymous ${index +
+                            1
+                            }`
                             : participant?.name ??
-                              `Participant ${
-                                index +
-                                1
-                              }`;
+                            `Participant ${index +
+                            1
+                            }`;
 
                         const roll =
                           participant?.roll_number !==
                             null &&
-                          participant?.roll_number !==
+                            participant?.roll_number !==
                             undefined
                             ? `Roll ${participant.roll_number}`
                             : null;
@@ -2423,11 +3079,11 @@ export default function LiveStudio({
 
                             <div className="mt-2 rounded-lg bg-slate-50 p-3 text-sm font-semibold dark:bg-slate-900">
                               {typeof response.answer ===
-                              "string"
+                                "string"
                                 ? response.answer
                                 : JSON.stringify(
-                                    response.answer,
-                                  )}
+                                  response.answer,
+                                )}
                             </div>
 
                             <p className="mt-2 text-[10px] text-muted-foreground">
