@@ -1202,6 +1202,64 @@ export default function LiveStudio({
     setIsSavingQuestion(false);
   };
 
+  const deleteSessionQuestion = async (
+    question: SessionQuestion,
+  ) => {
+    if (
+      !session ||
+      isUpdating ||
+      question.status === "active"
+    ) {
+      return;
+    }
+
+    const confirmed =
+      window.confirm(
+        "Are you sure you want to delete this question from the session?",
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsUpdating(true);
+    setError(null);
+
+    const {
+      error: deleteError,
+    } = await supabase
+      .from("session_questions")
+      .delete()
+      .eq(
+        "id",
+        question.id,
+      )
+      .eq(
+        "session_id",
+        session.id,
+      );
+
+    if (deleteError) {
+      setError(
+        deleteError.message,
+      );
+
+      setIsUpdating(false);
+      return;
+    }
+
+    setQuestions(
+      (current) =>
+        current.filter(
+          (item) =>
+            item.id !==
+            question.id,
+        ),
+    );
+
+    setIsUpdating(false);
+  };
+
   const updateNewQuestionOption = (
     index: number,
     value: string,
@@ -2885,8 +2943,8 @@ export default function LiveStudio({
                           question.id
                         }
                         className={`rounded-xl border p-3 transition ${isActive
-                            ? "border-indigo-500 bg-indigo-50 shadow-sm dark:bg-indigo-950/30"
-                            : "hover:bg-slate-50 dark:hover:bg-slate-900"
+                          ? "border-indigo-500 bg-indigo-50 shadow-sm dark:bg-indigo-950/30"
+                          : "hover:bg-slate-50 dark:hover:bg-slate-900"
                           }`}
                       >
                         <div className="flex items-start gap-3">
@@ -2967,6 +3025,21 @@ export default function LiveStudio({
                                 }
                               >
                                 Edit
+                              </Button>
+                            )}
+                            {question.status !== "active" && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={isUpdating}
+                                onClick={() =>
+                                  void deleteSessionQuestion(
+                                    question,
+                                  )
+                                }
+                              >
+                                Delete
                               </Button>
                             )}
                           </div>

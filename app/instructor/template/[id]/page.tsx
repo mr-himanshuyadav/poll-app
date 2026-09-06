@@ -32,6 +32,37 @@ type FormState = {
   scaleMax: 5 | 10;
 };
 
+type TemplateSession = {
+  id: string;
+  template_id: string | null;
+  instructor_id: string;
+  name: string;
+  join_code: string;
+  status:
+  | "draft"
+  | "ready"
+  | "live"
+  | "paused"
+  | "completed"
+  | "archived";
+  participant_mode:
+  | "anonymous"
+  | "identified";
+  results_mode:
+  | "live"
+  | "on_command"
+  | "hidden";
+  allow_late_join: boolean;
+  allow_answer_change: boolean;
+  is_offline: boolean;
+  active_question_id: string | null;
+  created_at: string;
+  started_at: string | null;
+  paused_at: string | null;
+  ended_at: string | null;
+  updated_at: string;
+};
+
 const emptyForm: FormState = {
   text: "",
   type: "multiple_choice",
@@ -49,8 +80,14 @@ export default function TemplateEditor({
   const router = useRouter();
 
   const [template, setTemplate] = useState<QuizTemplate | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [form, setForm] = useState<FormState>(emptyForm);
+  const [questions, setQuestions] =
+    useState<Question[]>([]);
+
+  const [sessions, setSessions] =
+    useState<TemplateSession[]>([]);
+
+  const [form, setForm] =
+    useState<FormState>(emptyForm);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -94,6 +131,27 @@ export default function TemplateEditor({
       setQuestions([]);
     } else {
       setQuestions((questionData ?? []) as Question[]);
+    }
+
+    const {
+      data: sessionData,
+      error: sessionError,
+    } = await supabase
+      .from("sessions")
+      .select("*")
+      .eq("template_id", templateId)
+      .eq("instructor_id", user.id)
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (sessionError) {
+      setError(sessionError.message);
+      setSessions([]);
+    } else {
+      setSessions(
+        (sessionData ?? []) as TemplateSession[],
+      );
     }
 
     setTemplate(templateData as QuizTemplate);
@@ -383,6 +441,101 @@ export default function TemplateEditor({
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">
+                  Session History
+                </h2>
+
+                <p className="text-sm text-muted-foreground">
+                  Live sessions previously created from this module.
+                </p>
+              </div>
+
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold dark:bg-slate-800">
+                {sessions.length}{" "}
+                {sessions.length === 1
+                  ? "session"
+                  : "sessions"}
+              </span>
+            </div>
+
+            {sessions.length === 0 ? (
+              <div className="rounded-2xl border border-dashed bg-white p-8 text-center shadow-sm dark:bg-slate-900">
+                <p className="text-sm text-muted-foreground">
+                  No sessions have been created from this module yet.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {sessions.map((session) => {
+                  const createdAt = new Date(
+                    session.created_at,
+                  );
+
+                  const statusLabel =
+                    session.status === "completed"
+                      ? "Completed"
+                      : session.status === "live"
+                        ? "Live"
+                        : session.status === "paused"
+                          ? "Paused"
+                          : session.status === "ready"
+                            ? "Ready"
+                            : session.status;
+
+                  return (
+                    <Card key={session.id}>
+                      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${session.status === "completed"
+                                  ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                  : session.status === "live"
+                                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                    : "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300"
+                                }`}
+                            >
+                              {statusLabel}
+                            </span>
+
+                            <span className="text-xs text-muted-foreground">
+                              {createdAt.toLocaleString()}
+                            </span>
+                          </div>
+
+                          <h3 className="mt-2 truncate font-semibold">
+                            {session.name}
+                          </h3>
+
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Join code:{" "}
+                            <span className="font-semibold">
+                              {session.join_code}
+                            </span>
+                          </p>
+                        </div>
+
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            router.push(
+                              `/instructor/studio/${session.id}`,
+                            )
+                          }
+                        >
+                          Open Studio
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </section>
