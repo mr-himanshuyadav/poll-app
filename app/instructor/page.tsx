@@ -1,151 +1,142 @@
 "use client";
 import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/lib/supabase";
 
 export default function InstructorDashboard() {
-  const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [quizId, setQuizId] = useState<string | null>(null);
-  
-  // Real-time synced states
-  const [isAnonymous, setIsAnonymous] = useState(true);
-  const [isOffline, setIsOffline] = useState(false);
-  const [showLiveResults, setShowLiveResults] = useState(false);
-  
-  const [questionConfig, setQuestionConfig] = useState({
-    quizName: "Class Session",
-    text: "",
-    type: "multiple-choice",
-    options: "Option 1, Option 2",
-    scaleMax: 5
-  });
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleBroadcast = async () => {
-    setIsBroadcasting(true);
-    try {
-      let currentQuizId = quizId;
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
 
-      // 1. Create Quiz if it doesn't exist
-      if (!currentQuizId) {
-        const { data: quizData, error: quizError } = await supabase
-          .from('quizzes')
-          .insert({
-            name: questionConfig.quizName,
-            is_anonymous: isAnonymous,
-            is_offline: isOffline,
-            show_live_results: showLiveResults
-          })
-          .select().single();
+  const fetchTemplates = async () => {
+    setIsLoading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      const { data } = await supabase
+        .from('quiz_templates')
+        .select('*')
+        .eq('instructor_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      setTemplates(data || []);
+    }
+    setIsLoading(false);
+  };
 
-        if (quizError) throw new Error(quizError.message);
-        currentQuizId = quizData.id;
-        setQuizId(currentQuizId);
+  const createTemplate = async () => {
+    if (!newTemplateName) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      const { error } = await supabase.from('quiz_templates').insert({
+        instructor_id: user.id,
+        title: newTemplateName
+      });
+      
+      if (error) alert(error.message);
+      else {
+        setNewTemplateName("");
+        fetchTemplates();
       }
-
-      // 2. Format options
-      const parsedOptions = questionConfig.type === 'multiple-choice' 
-        ? questionConfig.options.split(',').map(o => o.trim())
-        : Array.from({ length: questionConfig.scaleMax }, (_, i) => (i + 1).toString());
-
-      // 3. Create Question
-      const { data: qData, error: qError } = await supabase
-        .from('questions')
-        .insert({
-          quiz_id: currentQuizId,
-          text: questionConfig.text,
-          type: questionConfig.type === 'scale' ? (questionConfig.scaleMax === 10 ? 'scale_10' : 'scale_5') : 'mcq',
-          options: parsedOptions
-        }).select().single();
-
-      if (qError) throw new Error(qError.message);
-
-      // 4. Set Active
-      await supabase.from('quizzes').update({ active_question_id: qData.id }).eq('id', currentQuizId);
-      alert("Question Broadcasted!");
-      setQuestionConfig(prev => ({ ...prev, text: "", options: "" })); // Reset input
-    } catch (error: any) {
-      alert(error.message);
-    } finally {
-      setIsBroadcasting(false);
     }
   };
 
-  const updateQuizSetting = async (field: string, value: boolean) => {
-    if (!quizId) return;
-    await supabase.from('quizzes').update({ [field]: value }).eq('id', quizId);
+  const startLiveSession = async (templateId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase.from('sessions').insert({
+      template_id: templateId,
+      instructor_id: user.id,
+      status: 'live'
+    }).select().single();
+
+    if (error) alert(error.message);
+    else {
+      // Redirect to a dedicated Studio view for this session
+      window.location.href = `/instructor/studio/${data.id}`;
+    }
   };
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Instructor Controls</h1>
-        {quizId && (
-          <Button variant="outline" onClick={() => window.open(`/poll/${quizId}/projector`, '_blank')}>
-            Open Projector Screen ↗
-          </Button>
-        )}
+    <div className="max-w-6xl mx-auto p-6 space-y-8 min-h-screen">
+      <div className="flex justify-between items-end border-b pb-6">
+        <div>
+          <h1 className="text-4xl font-extrabold tracking-tight">Instructor Command Center</h1>
+          <p className="text-muted-foreground mt-2">Manage your teaching modules and live sessions.</p>
+        </div>
+        <Button variant="outline" onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login'; }}>
+          Sign Out
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>Global Quiz Settings</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Quiz Name</Label>
-            <Input value={questionConfig.quizName} disabled={!!quizId} onChange={(e) => setQuestionConfig({...questionConfig, quizName: e.target.value})} />
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex flex-col space-y-2 border p-4 rounded-lg">
-              <Label>Anonymous Mode</Label>
-              <Switch checked={isAnonymous} disabled={!!quizId} onCheckedChange={(c) => setIsAnonymous(c)} />
-            </div>
-            <div className="flex flex-col space-y-2 border p-4 rounded-lg">
-              <Label>Offline (Pause)</Label>
-              <Switch checked={isOffline} onCheckedChange={(c) => { setIsOffline(c); updateQuizSetting('is_offline', c); }} />
-            </div>
-            <div className="flex flex-col space-y-2 border p-4 rounded-lg">
-              <Label>Show Student Results</Label>
-              <Switch checked={showLiveResults} onCheckedChange={(c) => { setShowLiveResults(c); updateQuizSetting('show_live_results', c); }} />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="library" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-3 mb-8">
+          <TabsTrigger value="library">Quiz Library</TabsTrigger>
+          <TabsTrigger value="studio">Live Studio</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader><CardTitle>Push New Question</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Question Text</Label>
-            <Input value={questionConfig.text} onChange={(e) => setQuestionConfig({...questionConfig, text: e.target.value})} />
+        <TabsContent value="library" className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle>Create New Module</CardTitle></CardHeader>
+            <CardContent className="flex gap-4">
+              <Input 
+                placeholder="e.g., Contract Law: Module 1" 
+                value={newTemplateName} 
+                onChange={(e) => setNewTemplateName(e.target.value)} 
+              />
+              <Button onClick={createTemplate}>Create</Button>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {isLoading ? <p>Loading templates...</p> : templates.map(template => (
+              <Card key={template.id} className="flex flex-col justify-between hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <CardTitle>{template.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="flex gap-2">
+                  <Button variant="secondary" className="w-full" onClick={() => window.location.href = `/instructor/template/${template.id}`}>
+                    Edit Questions
+                  </Button>
+                  <Button className="w-full" onClick={() => startLiveSession(template.id)}>
+                    Launch Live
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-          <div className="space-y-2">
-            <Label>Type</Label>
-            <Select value={questionConfig.type} onValueChange={(v) => setQuestionConfig({...questionConfig, type: v as string})}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
-                <SelectItem value="scale">Scale</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          {questionConfig.type === 'multiple-choice' ? (
-             <Input value={questionConfig.options} onChange={(e) => setQuestionConfig({...questionConfig, options: e.target.value})} placeholder="Option 1, Option 2" />
-          ) : (
-            <Select value={questionConfig.scaleMax.toString()} onValueChange={(v) => setQuestionConfig({...questionConfig, scaleMax: parseInt(v as string, 10)})}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="5">1 to 5</SelectItem><SelectItem value="10">1 to 10</SelectItem></SelectContent>
-            </Select>
-          )}
-          <Button className="w-full mt-4" size="lg" onClick={handleBroadcast} disabled={isBroadcasting || !questionConfig.text}>
-            {isBroadcasting ? "Broadcasting..." : "Broadcast Question"}
-          </Button>
-        </CardContent>
-      </Card>
+        </TabsContent>
+
+        <TabsContent value="studio">
+          <Card>
+            <CardHeader><CardTitle>Active Sessions</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Select a template from the Library to launch a new session, or rejoin an active one here.</p>
+              {/* Active sessions list will be populated here */}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="history">
+          <Card>
+            <CardHeader><CardTitle>Past Sessions & Analytics</CardTitle></CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Historical data and student performance metrics will appear here.</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
