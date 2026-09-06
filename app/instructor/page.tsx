@@ -52,12 +52,12 @@ type DashboardSession = {
   name: string;
   join_code: string;
   status:
-  | "draft"
-  | "ready"
-  | "live"
-  | "paused"
-  | "completed"
-  | "archived";
+    | "draft"
+    | "ready"
+    | "live"
+    | "paused"
+    | "completed"
+    | "archived";
   created_at: string;
   started_at: string | null;
   ended_at: string | null;
@@ -93,8 +93,10 @@ export default function InstructorDashboard() {
   const [showSessionDialog, setShowSessionDialog] =
     useState(false);
 
-  const [isCreatingInstantSession, setIsCreatingInstantSession] =
-    useState(false);
+  const [
+    isCreatingInstantSession,
+    setIsCreatingInstantSession,
+  ] = useState(false);
 
   const [sessionName, setSessionName] =
     useState("");
@@ -117,7 +119,7 @@ export default function InstructorDashboard() {
   const [createdSession, setCreatedSession] =
     useState<CreatedSession | null>(null);
 
-  const loadTemplates = async () => {
+  const loadDashboard = async () => {
     setIsLoading(true);
     setError(null);
 
@@ -130,62 +132,62 @@ export default function InstructorDashboard() {
       return;
     }
 
-    const {
-      data,
-      error: fetchError,
-    } = await supabase
-      .from("quiz_templates")
-      .select("*")
-      .eq(
-        "instructor_id",
-        user.id,
-      )
-      .order("updated_at", {
-        ascending: false,
-      });
+    const [
+      templateResult,
+      sessionResult,
+    ] = await Promise.all([
+      supabase
+        .from("quiz_templates")
+        .select("*")
+        .eq("instructor_id", user.id)
+        .order("updated_at", {
+          ascending: false,
+        }),
 
-    if (fetchError) {
+      supabase
+        .from("sessions")
+        .select(
+          `
+            id,
+            template_id,
+            instructor_id,
+            name,
+            join_code,
+            status,
+            created_at,
+            started_at,
+            ended_at
+          `,
+        )
+        .eq("instructor_id", user.id)
+        .order("created_at", {
+          ascending: false,
+        }),
+    ]);
+
+    if (templateResult.error) {
       setError(
-        fetchError.message,
+        templateResult.error.message,
       );
+
       setTemplates([]);
     } else {
       setTemplates(
-        (data ?? []) as QuizTemplate[],
+        (templateResult.data ??
+          []) as QuizTemplate[],
       );
     }
 
-    const {
-      data: sessionData,
-      error: sessionError,
-    } = await supabase
-      .from("sessions")
-      .select(
-        `
-      id,
-      template_id,
-      instructor_id,
-      name,
-      join_code,
-      status,
-      created_at,
-      started_at,
-      ended_at
-    `,
-      )
-      .eq(
-        "instructor_id",
-        user.id,
-      )
-      .order("created_at", {
-        ascending: false,
-      });
+    if (sessionResult.error) {
+      setError(
+        sessionResult.error.message,
+      );
 
-    if (sessionError) {
-      setError(sessionError.message);
+      setSessions([]);
     } else {
       setSessions(
-        (sessionData ?? []) as DashboardSession[],
+        (sessionResult.data ??
+          []) as DashboardSession[],
       );
     }
 
@@ -193,65 +195,25 @@ export default function InstructorDashboard() {
   };
 
   useEffect(() => {
-    void loadTemplates();
+    void loadDashboard();
   }, []);
 
-  const filteredTemplates = useMemo(() => {
-    const query =
-      search.trim().toLowerCase();
+  const filteredTemplates =
+    useMemo(() => {
+      const query =
+        search.trim().toLowerCase();
 
-    if (!query) {
-      return templates;
-    }
+      if (!query) {
+        return templates;
+      }
 
-    return templates.filter(
-      (template) =>
-        template.title
-          .toLowerCase()
-          .includes(query),
-    );
-  }, [templates, search]);
-
-  const deleteSession = async (
-    session: DashboardSession,
-  ) => {
-    const confirmed =
-      window.confirm(
-        `Delete "${session.name}"? All responses, participants, session questions, and session history will be permanently removed.`,
+      return templates.filter(
+        (template) =>
+          template.title
+            .toLowerCase()
+            .includes(query),
       );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setError(null);
-
-    const {
-      error: deleteError,
-    } = await supabase
-      .from("sessions")
-      .delete()
-      .eq("id", session.id)
-      .eq(
-        "instructor_id",
-        session.instructor_id,
-      );
-
-    if (deleteError) {
-      setError(
-        deleteError.message,
-      );
-      return;
-    }
-
-    setSessions(
-      (current) =>
-        current.filter(
-          (item) =>
-            item.id !== session.id,
-        ),
-    );
-  };
+    }, [templates, search]);
 
   const createTemplate = async () => {
     const title =
@@ -281,17 +243,21 @@ export default function InstructorDashboard() {
       await supabase
         .from("quiz_templates")
         .insert({
-          instructor_id: user.id,
+          instructor_id:
+            user.id,
           title,
           description: null,
         })
         .select("*")
         .single();
 
-    if (createError || !data) {
+    if (
+      createError ||
+      !data
+    ) {
       setError(
         createError?.message ??
-        "Unable to create quiz module.",
+          "Unable to create quiz module.",
       );
 
       setIsCreating(false);
@@ -307,6 +273,30 @@ export default function InstructorDashboard() {
 
     setNewTemplateName("");
     setIsCreating(false);
+  };
+
+  const generateJoinCode = () => {
+    const characters =
+      "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    let code = "";
+
+    for (
+      let index = 0;
+      index < 6;
+      index++
+    ) {
+      const randomIndex =
+        Math.floor(
+          Math.random() *
+            characters.length,
+        );
+
+      code +=
+        characters[randomIndex];
+    }
+
+    return code;
   };
 
   const openSessionDialog = (
@@ -332,30 +322,6 @@ export default function InstructorDashboard() {
     setCreatedSession(null);
     setError(null);
     setShowSessionDialog(true);
-  };
-
-  const generateJoinCode = () => {
-    const characters =
-      "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-    let code = "";
-
-    for (
-      let index = 0;
-      index < 6;
-      index++
-    ) {
-      const randomIndex =
-        Math.floor(
-          Math.random() *
-          characters.length,
-        );
-
-      code +=
-        characters[randomIndex];
-    }
-
-    return code;
   };
 
   const createLiveSession = async () => {
@@ -455,9 +421,7 @@ export default function InstructorDashboard() {
         createError &&
         !createError.message
           .toLowerCase()
-          .includes(
-            "duplicate",
-          )
+          .includes("duplicate")
       ) {
         setError(
           createError.message,
@@ -476,22 +440,10 @@ export default function InstructorDashboard() {
       return;
     }
 
-    /*
-     * ------------------------------------------------
-     * CREATE SESSION QUESTION SNAPSHOTS
-     * ------------------------------------------------
-     *
-     * Every template question gets its own copy
-     * inside the new session.
-     *
-     * The original template question remains in
-     * the reusable question bank.
-     */
-
     const {
       data: templateQuestions,
       error:
-      templateQuestionsError,
+        templateQuestionsError,
     } =
       await supabase
         .from("questions")
@@ -554,10 +506,6 @@ export default function InstructorDashboard() {
             position:
               question.position,
 
-            /*
-             * A new live session starts with
-             * all questions waiting in the queue.
-             */
             status: "draft",
 
             results_mode:
@@ -569,20 +517,18 @@ export default function InstructorDashboard() {
         );
 
       const {
-        error: snapshotError,
+        error:
+          snapshotError,
       } =
         await supabase
-          .from("session_questions")
+          .from(
+            "session_questions",
+          )
           .insert(
             sessionQuestions,
           );
 
       if (snapshotError) {
-        /*
-         * The session is not useful without
-         * its question snapshot, so clean it
-         * back up if snapshot creation fails.
-         */
         await supabase
           .from("sessions")
           .delete()
@@ -600,6 +546,27 @@ export default function InstructorDashboard() {
       }
     }
 
+    setSessions(
+      (current) => [
+        {
+          id: createdSession!.id,
+          template_id:
+            selectedTemplate.id,
+          instructor_id:
+            user.id,
+          name: trimmedName,
+          join_code:
+            createdSession!.join_code,
+          status: "ready",
+          created_at:
+            new Date().toISOString(),
+          started_at: null,
+          ended_at: null,
+        },
+        ...current,
+      ],
+    );
+
     setCreatedSession(
       createdSession,
     );
@@ -607,111 +574,183 @@ export default function InstructorDashboard() {
     setIsCreatingSession(false);
   };
 
-  const createInstantSession = async () => {
-    if (isCreatingInstantSession) {
+  const createInstantSession =
+    async () => {
+      if (
+        isCreatingInstantSession
+      ) {
+        return;
+      }
+
+      setIsCreatingInstantSession(
+        true,
+      );
+
+      setError(null);
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.replace("/login");
+        setIsCreatingInstantSession(
+          false,
+        );
+        return;
+      }
+
+      let createdSession:
+        | CreatedSession
+        | null = null;
+
+      for (
+        let attempt = 0;
+        attempt < 5;
+        attempt++
+      ) {
+        const joinCode =
+          generateJoinCode();
+
+        const {
+          data,
+          error: createError,
+        } =
+          await supabase
+            .from("sessions")
+            .insert({
+              template_id: null,
+              instructor_id:
+                user.id,
+              name: "Instant Session",
+              join_code:
+                joinCode,
+              status: "ready",
+              participant_mode:
+                "anonymous",
+              results_mode:
+                "on_command",
+              allow_late_join:
+                true,
+              allow_answer_change:
+                false,
+              is_offline: false,
+              active_question_id:
+                null,
+            })
+            .select(
+              "id, join_code",
+            )
+            .single();
+
+        if (
+          !createError &&
+          data
+        ) {
+          createdSession =
+            data as CreatedSession;
+
+          break;
+        }
+
+        if (
+          createError &&
+          !createError.message
+            .toLowerCase()
+            .includes("duplicate")
+        ) {
+          setError(
+            createError.message,
+          );
+
+          break;
+        }
+      }
+
+      if (!createdSession) {
+        setError(
+          "Unable to generate a unique session code. Please try again.",
+        );
+
+        setIsCreatingInstantSession(
+          false,
+        );
+
+        return;
+      }
+
+      setSessions(
+        (current) => [
+          {
+            id: createdSession!.id,
+            template_id: null,
+            instructor_id:
+              user.id,
+            name: "Instant Session",
+            join_code:
+              createdSession!.join_code,
+            status: "ready",
+            created_at:
+              new Date().toISOString(),
+            started_at: null,
+            ended_at: null,
+          },
+          ...current,
+        ],
+      );
+
+      router.push(
+        `/instructor/studio/${createdSession.id}`,
+      );
+
+      setIsCreatingInstantSession(
+        false,
+      );
+    };
+
+  const deleteSession = async (
+    currentSession: DashboardSession,
+  ) => {
+    const confirmed =
+      window.confirm(
+        `Delete "${currentSession.name}"? All responses, participants, session questions, and session history will be permanently removed.`,
+      );
+
+    if (!confirmed) {
       return;
     }
 
-    setIsCreatingInstantSession(true);
     setError(null);
 
     const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      router.replace("/login");
-      setIsCreatingInstantSession(false);
-      return;
-    }
-
-    let createdSession: CreatedSession | null = null;
-
-    for (
-      let attempt = 0;
-      attempt < 5;
-      attempt++
-    ) {
-      const joinCode = generateJoinCode();
-
-      const {
-        data,
-        error: createError,
-      } = await supabase
-        .from("sessions")
-        .insert({
-          template_id: null,
-
-          instructor_id:
-            user.id,
-
-          name: "Instant Session",
-
-          join_code:
-            joinCode,
-
-          status: "ready",
-
-          participant_mode:
-            "anonymous",
-
-          results_mode:
-            "on_command",
-
-          allow_late_join:
-            true,
-
-          allow_answer_change:
-            false,
-
-          is_offline: false,
-
-          active_question_id:
-            null,
-        })
-        .select(
-          "id, join_code",
-        )
-        .single();
-
-      if (
-        !createError &&
-        data
-      ) {
-        createdSession =
-          data as CreatedSession;
-
-        break;
-      }
-
-      if (
-        createError &&
-        !createError.message
-          .toLowerCase()
-          .includes("duplicate")
-      ) {
-        setError(
-          createError.message,
-        );
-
-        break;
-      }
-    }
-
-    if (!createdSession) {
-      setError(
-        "Unable to generate a unique session code. Please try again.",
+      error: deleteError,
+    } = await supabase
+      .from("sessions")
+      .delete()
+      .eq(
+        "id",
+        currentSession.id,
+      )
+      .eq(
+        "instructor_id",
+        currentSession.instructor_id,
       );
 
-      setIsCreatingInstantSession(false);
+    if (deleteError) {
+      setError(
+        deleteError.message,
+      );
       return;
     }
 
-    router.push(
-      `/instructor/studio/${createdSession.id}`,
+    setSessions(
+      (current) =>
+        current.filter(
+          (item) =>
+            item.id !==
+            currentSession.id,
+        ),
     );
-
-    setIsCreatingInstantSession(false);
   };
 
   const closeSessionDialog = () => {
@@ -754,42 +793,55 @@ export default function InstructorDashboard() {
     router.replace("/login");
   };
 
+  const recentSessions =
+    sessions.slice(0, 10);
+
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <header className="mb-8 flex flex-col gap-4 border-b pb-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.18em] text-indigo-600">
-              Instructor
-            </p>
+        {/* HEADER */}
 
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Command Center
-            </h1>
+        <header className="mb-8 rounded-3xl border bg-white p-6 shadow-sm dark:bg-slate-900">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="mb-3 inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                Instructor Command Center
+              </div>
 
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground sm:text-base">
-              Create reusable classroom question modules or start an instant live session.
-            </p>
-          </div>
+              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
+                Run your classroom from one place
+              </h1>
 
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                Build reusable question modules, launch
+                live sessions, or start an instant session
+                whenever you need to ask something on the fly.
+              </p>
+            </div>
 
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                size="lg"
+                onClick={
+                  createInstantSession
+                }
+                disabled={
+                  isCreatingInstantSession
+                }
+              >
+                {isCreatingInstantSession
+                  ? "Starting..."
+                  : "Start Instant Session"}
+              </Button>
 
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={createInstantSession}
-              disabled={isCreatingInstantSession}
-            >
-              {isCreatingInstantSession
-                ? "Starting..."
-                : "Start Instant Session"}
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={signOut}
-            >
-              Sign Out
-            </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={signOut}
+              >
+                Sign Out
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -800,216 +852,282 @@ export default function InstructorDashboard() {
             </div>
           )}
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <section className="space-y-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">
+        {/* LIBRARY */}
+
+        <section className="mb-10">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-bold">
                   Quiz Library
                 </h2>
 
-                <p className="text-sm text-muted-foreground">
-                  {templates.length}{" "}
-                  {templates.length ===
-                    1
-                    ? "module"
-                    : "modules"}
-                </p>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold dark:bg-slate-800">
+                  {templates.length}
+                </span>
               </div>
 
-              <Input
-                className="w-full sm:max-w-xs"
-                placeholder="Search modules..."
-                value={search}
-                onChange={(event) =>
-                  setSearch(
-                    event.target.value,
-                  )
-                }
-              />
+              <p className="mt-1 text-sm text-muted-foreground">
+                Reusable question modules for future classes.
+              </p>
             </div>
 
-            {isLoading ? (
-              <div className="rounded-2xl border bg-white p-10 text-center text-sm text-muted-foreground shadow-sm dark:bg-slate-900">
-                Loading your quiz library...
-              </div>
-            ) : filteredTemplates.length ===
-              0 ? (
-              <div className="rounded-2xl border border-dashed bg-white p-10 text-center shadow-sm dark:bg-slate-900">
-                <h3 className="text-lg font-semibold">
-                  {templates.length ===
-                    0
-                    ? "No quiz modules yet"
-                    : "No matching modules"}
-                </h3>
+            <Input
+              className="w-full sm:max-w-xs"
+              placeholder="Search modules..."
+              value={search}
+              onChange={(event) =>
+                setSearch(
+                  event.target.value,
+                )
+              }
+            />
+          </div>
 
-                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                  {templates.length ===
-                    0
-                    ? "Create your first module using the panel on the right."
-                    : "Try a different search term."}
-                </p>
+          {isLoading ? (
+            <div className="rounded-2xl border bg-white p-10 text-center text-sm text-muted-foreground shadow-sm dark:bg-slate-900">
+              Loading your classroom...
+            </div>
+          ) : filteredTemplates.length ===
+            0 ? (
+            <div className="rounded-2xl border border-dashed bg-white p-12 text-center shadow-sm dark:bg-slate-900">
+              <h3 className="text-lg font-semibold">
+                {templates.length === 0
+                  ? "No quiz modules yet"
+                  : "No matching modules"}
+              </h3>
+
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                {templates.length === 0
+                  ? "Create your first reusable module below."
+                  : "Try a different search term."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filteredTemplates.map(
+                (template) => (
+                  <Card
+                    key={
+                      template.id
+                    }
+                    className="group flex h-full flex-col overflow-hidden transition-all hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <CardHeader className="pb-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+                          Module
+                        </span>
+
+                        <span className="text-xs text-muted-foreground">
+                          Updated{" "}
+                          {new Date(
+                            template.updated_at,
+                          ).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      <CardTitle className="line-clamp-2 text-xl">
+                        {template.title}
+                      </CardTitle>
+                    </CardHeader>
+
+                    <CardContent className="mt-auto space-y-3">
+                      <Button
+                        className="w-full"
+                        variant="secondary"
+                        onClick={() =>
+                          router.push(
+                            `/instructor/template/${template.id}`,
+                          )
+                        }
+                      >
+                        Open Module
+                      </Button>
+
+                      <Button
+                        className="w-full"
+                        onClick={() =>
+                          openSessionDialog(
+                            template,
+                          )
+                        }
+                      >
+                        Launch Live Session
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ),
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* RECENT SESSIONS */}
+
+        <section className="mb-10">
+          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">
+                Recent Sessions
+              </h2>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                Reopen a previous studio or remove a session you no longer need.
+              </p>
+            </div>
+
+            <span className="text-sm text-muted-foreground">
+              Showing latest{" "}
+              {Math.min(
+                sessions.length,
+                10,
+              )}
+            </span>
+          </div>
+
+          {recentSessions.length ===
+          0 ? (
+            <div className="rounded-2xl border border-dashed bg-white p-12 text-center shadow-sm dark:bg-slate-900">
+              <h3 className="text-lg font-semibold">
+                No sessions yet
+              </h3>
+
+              <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
+                Launch a module or start an instant session
+                to see your classroom sessions here.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border bg-white shadow-sm dark:bg-slate-900">
+              <div className="hidden grid-cols-[1.7fr_1fr_1fr_160px] gap-4 border-b bg-slate-50 px-5 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground dark:bg-slate-950 md:grid">
+                <span>Session</span>
+                <span>Type</span>
+                <span>Created</span>
+                <span className="text-right">Actions</span>
               </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {filteredTemplates.map(
-                  (template) => (
-                    <Card
+
+              <div className="divide-y">
+                {recentSessions.map(
+                  (session) => (
+                    <div
                       key={
-                        template.id
+                        session.id
                       }
-                      className="flex h-full flex-col transition-shadow hover:shadow-md"
+                      className="grid gap-4 px-5 py-4 md:grid-cols-[1.7fr_1fr_1fr_160px] md:items-center"
                     >
-                      <CardHeader className="pb-3">
-                        <div className="mb-2 flex items-center justify-between">
-                          <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
-                            Module
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                              session.status ===
+                              "completed"
+                                ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                : session.status ===
+                                    "live"
+                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+                                  : session.status ===
+                                      "paused"
+                                    ? "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+                                    : "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300"
+                            }`}
+                          >
+                            {session.status}
                           </span>
 
                           <span className="text-xs text-muted-foreground">
-                            {new Date(
-                              template.updated_at,
-                            ).toLocaleDateString()}
+                            Code{" "}
+                            <span className="font-semibold">
+                              {
+                                session.join_code
+                              }
+                            </span>
                           </span>
                         </div>
 
-                        <CardTitle className="line-clamp-2 text-lg">
-                          {
-                            template.title
-                          }
-                        </CardTitle>
-                      </CardHeader>
+                        <h3 className="mt-2 truncate font-semibold">
+                          {session.name}
+                        </h3>
+                      </div>
 
-                      <CardContent className="mt-auto flex gap-2">
+                      <div className="text-sm">
+                        <span className="text-muted-foreground md:hidden">
+                          Type:{" "}
+                        </span>
+
+                        {session.template_id
+                          ? "Template session"
+                          : "Instant session"}
+                      </div>
+
+                      <div className="text-sm text-muted-foreground">
+                        <span className="md:hidden">
+                          Created:{" "}
+                        </span>
+
+                        {new Date(
+                          session.created_at,
+                        ).toLocaleString()}
+                      </div>
+
+                      <div className="flex justify-start gap-2 md:justify-end">
                         <Button
-                          className="flex-1"
-                          variant="secondary"
+                          size="sm"
+                          variant="outline"
                           onClick={() =>
                             router.push(
-                              `/instructor/template/${template.id}`,
+                              `/instructor/studio/${session.id}`,
                             )
                           }
                         >
-                          Edit Questions
+                          Open
                         </Button>
 
                         <Button
-                          className="flex-1"
+                          size="sm"
+                          variant="outline"
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
                           onClick={() =>
-                            openSessionDialog(
-                              template,
+                            void deleteSession(
+                              session,
                             )
                           }
                         >
-                          Launch Live
+                          Delete
                         </Button>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   ),
                 )}
               </div>
-            )}
-          </section>
+            </div>
+          )}
+        </section>
 
-          <section className="mt-8">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">
-                  Recent Sessions
+        {/* CREATE MODULE */}
+
+        <section>
+          <Card className="overflow-hidden">
+            <div className="grid lg:grid-cols-[1fr_380px]">
+              <div className="p-6 sm:p-8">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-600">
+                  Build your library
+                </p>
+
+                <h2 className="mt-2 text-2xl font-bold">
+                  Create a quiz module
                 </h2>
 
-                <p className="text-sm text-muted-foreground">
-                  Your recent live classroom sessions.
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Modules store reusable questions. When
+                  you launch a live session, those questions
+                  are copied into a session snapshot so
+                  later template edits never rewrite history.
                 </p>
               </div>
 
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold dark:bg-slate-800">
-                {sessions.length}
-              </span>
-            </div>
-
-            {sessions.length === 0 ? (
-              <div className="rounded-2xl border border-dashed bg-white p-8 text-center shadow-sm dark:bg-slate-900">
-                <p className="text-sm text-muted-foreground">
-                  No sessions created yet.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {sessions.slice(0, 10).map(
-                  (session) => (
-                    <Card key={session.id}>
-                      <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold dark:bg-slate-800">
-                              {session.status}
-                            </span>
-
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(
-                                session.created_at,
-                              ).toLocaleString()}
-                            </span>
-                          </div>
-
-                          <h3 className="mt-2 font-semibold">
-                            {session.name}
-                          </h3>
-
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {session.template_id
-                              ? "Template session"
-                              : "Instant session"}{" "}
-                            · Code{" "}
-                            <span className="font-semibold">
-                              {session.join_code}
-                            </span>
-                          </p>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() =>
-                              router.push(
-                                `/instructor/studio/${session.id}`,
-                              )
-                            }
-                          >
-                            Open Studio
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                            onClick={() =>
-                              void deleteSession(
-                                session,
-                              )
-                            }
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ),
-                )}
-              </div>
-            )}
-          </section>
-
-          <aside className="lg:sticky lg:top-6 lg:self-start">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>
-                  Create Quiz Module
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
+              <div className="border-t p-6 dark:border-slate-800 lg:border-l lg:border-t-0">
+                <div className="space-y-3">
                   <Label htmlFor="template-name">
                     Module name
                   </Label>
@@ -1017,21 +1135,18 @@ export default function InstructorDashboard() {
                   <Input
                     id="template-name"
                     placeholder="e.g. Physics — Thermodynamics"
-                    value={newTemplateName}
+                    value={
+                      newTemplateName
+                    }
                     disabled={
                       isCreating
                     }
-                    onChange={(
-                      event,
-                    ) =>
+                    onChange={(event) =>
                       setNewTemplateName(
-                        event.target
-                          .value,
+                        event.target.value,
                       )
                     }
-                    onKeyDown={(
-                      event,
-                    ) => {
+                    onKeyDown={(event) => {
                       if (
                         event.key ===
                         "Enter"
@@ -1040,36 +1155,34 @@ export default function InstructorDashboard() {
                       }
                     }}
                   />
+
+                  <Button
+                    className="w-full"
+                    disabled={
+                      isCreating ||
+                      !newTemplateName.trim()
+                    }
+                    onClick={() =>
+                      void createTemplate()
+                    }
+                  >
+                    {isCreating
+                      ? "Creating..."
+                      : "Create Module"}
+                  </Button>
                 </div>
-
-                <Button
-                  className="w-full"
-                  disabled={
-                    isCreating ||
-                    !newTemplateName.trim()
-                  }
-                  onClick={() =>
-                    void createTemplate()
-                  }
-                >
-                  {isCreating
-                    ? "Creating..."
-                    : "Create Module"}
-                </Button>
-
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Modules hold reusable questions. Live classroom sessions
-                  use a snapshot of these questions, so later template edits
-                  do not change historical sessions.
-                </p>
-              </CardContent>
-            </Card>
-          </aside>
-        </div>
+              </div>
+            </div>
+          </Card>
+        </section>
       </div>
 
+      {/* LIVE SESSION DIALOG */}
+
       <Dialog
-        open={showSessionDialog}
+        open={
+          showSessionDialog
+        }
         onOpenChange={(
           open,
         ) => {
@@ -1107,13 +1220,12 @@ export default function InstructorDashboard() {
 
                   <Input
                     id="session-name"
-                    value={sessionName}
-                    onChange={(
-                      event,
-                    ) =>
+                    value={
+                      sessionName
+                    }
+                    onChange={(event) =>
                       setSessionName(
-                        event.target
-                          .value,
+                        event.target.value,
                       )
                     }
                     placeholder="e.g. Physics — Class 12A"
@@ -1157,11 +1269,6 @@ export default function InstructorDashboard() {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-
-                  <p className="text-xs text-muted-foreground">
-                    Identified students will enter their name and roll number
-                    when joining.
-                  </p>
                 </div>
 
                 <div className="space-y-2">
@@ -1312,12 +1419,10 @@ export default function InstructorDashboard() {
                   </p>
 
                   <p className="mt-1 break-all text-sm font-medium">
-                    {
-                      typeof window !==
-                        "undefined"
-                        ? `${window.location.origin}/join/${createdSession.join_code}`
-                        : `/join/${createdSession.join_code}`
-                    }
+                    {typeof window !==
+                    "undefined"
+                      ? `${window.location.origin}/join/${createdSession.join_code}`
+                      : `/join/${createdSession.join_code}`}
                   </p>
                 </div>
 
@@ -1326,7 +1431,7 @@ export default function InstructorDashboard() {
                     <QRCodeSVG
                       value={
                         typeof window !==
-                          "undefined"
+                        "undefined"
                           ? `${window.location.origin}/join/${createdSession.join_code}`
                           : `/join/${createdSession.join_code}`
                       }
@@ -1336,10 +1441,11 @@ export default function InstructorDashboard() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border p-4 text-sm text-muted-foreground">
-                  The session has been created with a snapshot of the
-                  template questions. Changes to the reusable template will
-                  not affect this session.
+                <div className="rounded-xl border p-4 text-sm leading-6 text-muted-foreground">
+                  The session contains a snapshot of the
+                  module questions. Later changes to the
+                  reusable module will not affect this
+                  session.
                 </div>
               </div>
 
