@@ -3,15 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
 import {
   Dialog,
   DialogContent,
@@ -19,7 +22,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
+
 import {
   Select,
   SelectContent,
@@ -27,7 +30,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
+
 import type {
   ParticipantMode,
   QuizTemplate,
@@ -42,29 +48,48 @@ type CreatedSession = {
 export default function InstructorDashboard() {
   const router = useRouter();
 
-  const [templates, setTemplates] = useState<QuizTemplate[]>([]);
-  const [newTemplateName, setNewTemplateName] = useState("");
-  const [search, setSearch] = useState("");
+  const [templates, setTemplates] =
+    useState<QuizTemplate[]>([]);
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
+  const [newTemplateName, setNewTemplateName] =
+    useState("");
 
-  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] =
+    useState("");
+
+  const [isLoading, setIsLoading] =
+    useState(true);
+
+  const [isCreating, setIsCreating] =
+    useState(false);
+
+  const [error, setError] =
+    useState<string | null>(null);
 
   const [selectedTemplate, setSelectedTemplate] =
     useState<QuizTemplate | null>(null);
 
-  const [showSessionDialog, setShowSessionDialog] = useState(false);
+  const [showSessionDialog, setShowSessionDialog] =
+    useState(false);
 
-  const [sessionName, setSessionName] = useState("");
+  const [sessionName, setSessionName] =
+    useState("");
+
   const [participantMode, setParticipantMode] =
     useState<ParticipantMode>("anonymous");
+
   const [resultsMode, setResultsMode] =
     useState<ResultsMode>("on_command");
-  const [allowLateJoin, setAllowLateJoin] = useState(true);
-  const [allowAnswerChange, setAllowAnswerChange] = useState(false);
 
-  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [allowLateJoin, setAllowLateJoin] =
+    useState(true);
+
+  const [allowAnswerChange, setAllowAnswerChange] =
+    useState(false);
+
+  const [isCreatingSession, setIsCreatingSession] =
+    useState(false);
+
   const [createdSession, setCreatedSession] =
     useState<CreatedSession | null>(null);
 
@@ -81,17 +106,29 @@ export default function InstructorDashboard() {
       return;
     }
 
-    const { data, error: fetchError } = await supabase
+    const {
+      data,
+      error: fetchError,
+    } = await supabase
       .from("quiz_templates")
       .select("*")
-      .eq("instructor_id", user.id)
-      .order("updated_at", { ascending: false });
+      .eq(
+        "instructor_id",
+        user.id,
+      )
+      .order("updated_at", {
+        ascending: false,
+      });
 
     if (fetchError) {
-      setError(fetchError.message);
+      setError(
+        fetchError.message,
+      );
       setTemplates([]);
     } else {
-      setTemplates((data ?? []) as QuizTemplate[]);
+      setTemplates(
+        (data ?? []) as QuizTemplate[],
+      );
     }
 
     setIsLoading(false);
@@ -102,19 +139,24 @@ export default function InstructorDashboard() {
   }, []);
 
   const filteredTemplates = useMemo(() => {
-    const query = search.trim().toLowerCase();
+    const query =
+      search.trim().toLowerCase();
 
     if (!query) {
       return templates;
     }
 
-    return templates.filter((template) =>
-      template.title.toLowerCase().includes(query),
+    return templates.filter(
+      (template) =>
+        template.title
+          .toLowerCase()
+          .includes(query),
     );
   }, [templates, search]);
 
   const createTemplate = async () => {
-    const title = newTemplateName.trim();
+    const title =
+      newTemplateName.trim();
 
     if (!title || isCreating) {
       return;
@@ -129,36 +171,62 @@ export default function InstructorDashboard() {
 
     if (!user) {
       router.replace("/login");
-      return;
-    }
-
-    const { data, error: createError } = await supabase
-      .from("quiz_templates")
-      .insert({
-        instructor_id: user.id,
-        title,
-        description: null,
-      })
-      .select("*")
-      .single();
-
-    if (createError) {
-      setError(createError.message);
       setIsCreating(false);
       return;
     }
 
-    setTemplates((current) => [data as QuizTemplate, ...current]);
+    const {
+      data,
+      error: createError,
+    } =
+      await supabase
+        .from("quiz_templates")
+        .insert({
+          instructor_id: user.id,
+          title,
+          description: null,
+        })
+        .select("*")
+        .single();
+
+    if (createError || !data) {
+      setError(
+        createError?.message ??
+          "Unable to create quiz module.",
+      );
+
+      setIsCreating(false);
+      return;
+    }
+
+    setTemplates(
+      (current) => [
+        data as QuizTemplate,
+        ...current,
+      ],
+    );
+
     setNewTemplateName("");
     setIsCreating(false);
   };
 
-  const openSessionDialog = (template: QuizTemplate) => {
+  const openSessionDialog = (
+    template: QuizTemplate,
+  ) => {
     setSelectedTemplate(template);
 
-    setSessionName(template.title);
-    setParticipantMode("anonymous");
-    setResultsMode("on_command");
+    setSessionName(
+      template.title,
+    );
+
+    setParticipantMode(
+      "anonymous",
+    );
+
+    setResultsMode(
+      "on_command",
+    );
+
     setAllowLateJoin(true);
     setAllowAnswerChange(false);
 
@@ -168,16 +236,24 @@ export default function InstructorDashboard() {
   };
 
   const generateJoinCode = () => {
-    const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    const characters =
+      "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
     let code = "";
 
-    for (let index = 0; index < 6; index++) {
-      const randomIndex = Math.floor(
-        Math.random() * characters.length,
-      );
+    for (
+      let index = 0;
+      index < 6;
+      index++
+    ) {
+      const randomIndex =
+        Math.floor(
+          Math.random() *
+            characters.length,
+        );
 
-      code += characters[randomIndex];
+      code +=
+        characters[randomIndex];
     }
 
     return code;
@@ -188,9 +264,13 @@ export default function InstructorDashboard() {
       return;
     }
 
-    const trimmedName = sessionName.trim();
+    const trimmedName =
+      sessionName.trim();
 
-    if (!trimmedName || isCreatingSession) {
+    if (
+      !trimmedName ||
+      isCreatingSession
+    ) {
       return;
     }
 
@@ -203,52 +283,227 @@ export default function InstructorDashboard() {
 
     if (!user) {
       router.replace("/login");
+      setIsCreatingSession(false);
       return;
     }
 
-    let created = false;
+    let createdSession:
+      | CreatedSession
+      | null = null;
 
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const joinCode = generateJoinCode();
+    for (
+      let attempt = 0;
+      attempt < 5;
+      attempt++
+    ) {
+      const joinCode =
+        generateJoinCode();
 
-      const { data, error: createError } = await supabase
-        .from("sessions")
-        .insert({
-          template_id: selectedTemplate.id,
-          instructor_id: user.id,
-          name: trimmedName,
-          join_code: joinCode,
-          status: "ready",
-          participant_mode: participantMode,
-          results_mode: resultsMode,
-          allow_late_join: allowLateJoin,
-          allow_answer_change: allowAnswerChange,
-          is_offline: false,
-          active_question_id: null,
-        })
-        .select("id, join_code")
-        .single();
+      const {
+        data,
+        error: createError,
+      } =
+        await supabase
+          .from("sessions")
+          .insert({
+            template_id:
+              selectedTemplate.id,
 
-      if (!createError && data) {
-        setCreatedSession(data);
-        created = true;
+            instructor_id:
+              user.id,
+
+            name:
+              trimmedName,
+
+            join_code:
+              joinCode,
+
+            status: "ready",
+
+            participant_mode:
+              participantMode,
+
+            results_mode:
+              resultsMode,
+
+            allow_late_join:
+              allowLateJoin,
+
+            allow_answer_change:
+              allowAnswerChange,
+
+            is_offline: false,
+
+            active_question_id:
+              null,
+          })
+          .select(
+            "id, join_code",
+          )
+          .single();
+
+      if (
+        !createError &&
+        data
+      ) {
+        createdSession =
+          data as CreatedSession;
+
         break;
       }
 
       if (
         createError &&
-        !createError.message.toLowerCase().includes("duplicate")
+        !createError.message
+          .toLowerCase()
+          .includes(
+            "duplicate",
+          )
       ) {
-        setError(createError.message);
+        setError(
+          createError.message,
+        );
+
         break;
       }
     }
 
-    if (!created && !error) {
+    if (!createdSession) {
       setError(
         "Unable to generate a unique session code. Please try again.",
       );
+
+      setIsCreatingSession(false);
+      return;
     }
+
+    /*
+     * ------------------------------------------------
+     * CREATE SESSION QUESTION SNAPSHOTS
+     * ------------------------------------------------
+     *
+     * Every template question gets its own copy
+     * inside the new session.
+     *
+     * The original template question remains in
+     * the reusable question bank.
+     */
+
+    const {
+      data: templateQuestions,
+      error:
+        templateQuestionsError,
+    } =
+      await supabase
+        .from("questions")
+        .select("*")
+        .eq(
+          "template_id",
+          selectedTemplate.id,
+        )
+        .order("position", {
+          ascending: true,
+        })
+        .order("created_at", {
+          ascending: true,
+        });
+
+    if (
+      templateQuestionsError
+    ) {
+      await supabase
+        .from("sessions")
+        .delete()
+        .eq(
+          "id",
+          createdSession.id,
+        );
+
+      setError(
+        templateQuestionsError.message,
+      );
+
+      setIsCreatingSession(false);
+      return;
+    }
+
+    if (
+      templateQuestions &&
+      templateQuestions.length > 0
+    ) {
+      const sessionQuestions =
+        templateQuestions.map(
+          (question) => ({
+            session_id:
+              createdSession!.id,
+
+            source_question_id:
+              question.id,
+
+            text:
+              question.text,
+
+            type:
+              question.type,
+
+            options:
+              question.options,
+
+            config:
+              question.config,
+
+            position:
+              question.position,
+
+            /*
+             * A new live session starts with
+             * all questions waiting in the queue.
+             */
+            status: "draft",
+
+            results_mode:
+              question.results_mode,
+
+            results_visible:
+              false,
+          }),
+        );
+
+      const {
+        error: snapshotError,
+      } =
+        await supabase
+          .from("session_questions")
+          .insert(
+            sessionQuestions,
+          );
+
+      if (snapshotError) {
+        /*
+         * The session is not useful without
+         * its question snapshot, so clean it
+         * back up if snapshot creation fails.
+         */
+        await supabase
+          .from("sessions")
+          .delete()
+          .eq(
+            "id",
+            createdSession.id,
+          );
+
+        setError(
+          snapshotError.message,
+        );
+
+        setIsCreatingSession(false);
+        return;
+      }
+    }
+
+    setCreatedSession(
+      createdSession,
+    );
 
     setIsCreatingSession(false);
   };
@@ -270,7 +525,10 @@ export default function InstructorDashboard() {
     }
 
     setShowSessionDialog(false);
-    router.push(`/instructor/studio/${createdSession.id}`);
+
+    router.push(
+      `/instructor/studio/${createdSession.id}`,
+    );
   };
 
   const openStudioNewTab = () => {
@@ -308,26 +566,35 @@ export default function InstructorDashboard() {
             </p>
           </div>
 
-          <Button variant="outline" onClick={signOut}>
+          <Button
+            variant="outline"
+            onClick={signOut}
+          >
             Sign Out
           </Button>
         </header>
 
-        {error && !showSessionDialog && (
-          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error &&
+          !showSessionDialog && (
+            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <section className="space-y-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-xl font-semibold">Quiz Library</h2>
+                <h2 className="text-xl font-semibold">
+                  Quiz Library
+                </h2>
 
                 <p className="text-sm text-muted-foreground">
                   {templates.length}{" "}
-                  {templates.length === 1 ? "module" : "modules"}
+                  {templates.length ===
+                  1
+                    ? "module"
+                    : "modules"}
                 </p>
               </div>
 
@@ -335,7 +602,11 @@ export default function InstructorDashboard() {
                 className="w-full sm:max-w-xs"
                 placeholder="Search modules..."
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) =>
+                  setSearch(
+                    event.target.value,
+                  )
+                }
               />
             </div>
 
@@ -343,67 +614,80 @@ export default function InstructorDashboard() {
               <div className="rounded-2xl border bg-white p-10 text-center text-sm text-muted-foreground shadow-sm dark:bg-slate-900">
                 Loading your quiz library...
               </div>
-            ) : filteredTemplates.length === 0 ? (
+            ) : filteredTemplates.length ===
+              0 ? (
               <div className="rounded-2xl border border-dashed bg-white p-10 text-center shadow-sm dark:bg-slate-900">
                 <h3 className="text-lg font-semibold">
-                  {templates.length === 0
+                  {templates.length ===
+                  0
                     ? "No quiz modules yet"
                     : "No matching modules"}
                 </h3>
 
                 <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                  {templates.length === 0
+                  {templates.length ===
+                  0
                     ? "Create your first module using the panel on the right."
                     : "Try a different search term."}
                 </p>
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {filteredTemplates.map((template) => (
-                  <Card
-                    key={template.id}
-                    className="flex h-full flex-col transition-shadow hover:shadow-md"
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
-                          Module
-                        </span>
+                {filteredTemplates.map(
+                  (template) => (
+                    <Card
+                      key={
+                        template.id
+                      }
+                      className="flex h-full flex-col transition-shadow hover:shadow-md"
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+                            Module
+                          </span>
 
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(
-                            template.updated_at,
-                          ).toLocaleDateString()}
-                        </span>
-                      </div>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(
+                              template.updated_at,
+                            ).toLocaleDateString()}
+                          </span>
+                        </div>
 
-                      <CardTitle className="line-clamp-2 text-lg">
-                        {template.title}
-                      </CardTitle>
-                    </CardHeader>
+                        <CardTitle className="line-clamp-2 text-lg">
+                          {
+                            template.title
+                          }
+                        </CardTitle>
+                      </CardHeader>
 
-                    <CardContent className="mt-auto flex gap-2">
-                      <Button
-                        className="flex-1"
-                        variant="secondary"
-                        onClick={() =>
-                          router.push(
-                            `/instructor/template/${template.id}`,
-                          )
-                        }
-                      >
-                        Edit Questions
-                      </Button>
+                      <CardContent className="mt-auto flex gap-2">
+                        <Button
+                          className="flex-1"
+                          variant="secondary"
+                          onClick={() =>
+                            router.push(
+                              `/instructor/template/${template.id}`,
+                            )
+                          }
+                        >
+                          Edit Questions
+                        </Button>
 
-                      <Button
-                        className="flex-1"
-                        onClick={() => openSessionDialog(template)}
-                      >
-                        Launch Live
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <Button
+                          className="flex-1"
+                          onClick={() =>
+                            openSessionDialog(
+                              template,
+                            )
+                          }
+                        >
+                          Launch Live
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ),
+                )}
               </div>
             )}
           </section>
@@ -411,7 +695,9 @@ export default function InstructorDashboard() {
           <aside className="lg:sticky lg:top-6 lg:self-start">
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Create Quiz Module</CardTitle>
+                <CardTitle>
+                  Create Quiz Module
+                </CardTitle>
               </CardHeader>
 
               <CardContent className="space-y-4">
@@ -424,12 +710,24 @@ export default function InstructorDashboard() {
                     id="template-name"
                     placeholder="e.g. Physics — Thermodynamics"
                     value={newTemplateName}
-                    disabled={isCreating}
-                    onChange={(event) =>
-                      setNewTemplateName(event.target.value)
+                    disabled={
+                      isCreating
                     }
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
+                    onChange={(
+                      event,
+                    ) =>
+                      setNewTemplateName(
+                        event.target
+                          .value,
+                      )
+                    }
+                    onKeyDown={(
+                      event,
+                    ) => {
+                      if (
+                        event.key ===
+                        "Enter"
+                      ) {
                         void createTemplate();
                       }
                     }}
@@ -438,15 +736,23 @@ export default function InstructorDashboard() {
 
                 <Button
                   className="w-full"
-                  disabled={isCreating || !newTemplateName.trim()}
-                  onClick={() => void createTemplate()}
+                  disabled={
+                    isCreating ||
+                    !newTemplateName.trim()
+                  }
+                  onClick={() =>
+                    void createTemplate()
+                  }
                 >
-                  {isCreating ? "Creating..." : "Create Module"}
+                  {isCreating
+                    ? "Creating..."
+                    : "Create Module"}
                 </Button>
 
                 <p className="text-xs leading-5 text-muted-foreground">
                   Modules hold reusable questions. Live classroom sessions
-                  use these questions without changing the original library.
+                  use a snapshot of these questions, so later template edits
+                  do not change historical sessions.
                 </p>
               </CardContent>
             </Card>
@@ -456,7 +762,9 @@ export default function InstructorDashboard() {
 
       <Dialog
         open={showSessionDialog}
-        onOpenChange={(open) => {
+        onOpenChange={(
+          open,
+        ) => {
           if (!open) {
             closeSessionDialog();
           }
@@ -478,7 +786,9 @@ export default function InstructorDashboard() {
                   </p>
 
                   <p className="mt-1 font-semibold">
-                    {selectedTemplate?.title}
+                    {
+                      selectedTemplate?.title
+                    }
                   </p>
                 </div>
 
@@ -490,23 +800,40 @@ export default function InstructorDashboard() {
                   <Input
                     id="session-name"
                     value={sessionName}
-                    onChange={(event) =>
-                      setSessionName(event.target.value)
+                    onChange={(
+                      event,
+                    ) =>
+                      setSessionName(
+                        event.target
+                          .value,
+                      )
                     }
                     placeholder="e.g. Physics — Class 12A"
-                    disabled={isCreatingSession}
+                    disabled={
+                      isCreatingSession
+                    }
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Student identity</Label>
+                  <Label>
+                    Student identity
+                  </Label>
 
                   <Select
-                    value={participantMode}
-                    onValueChange={(value) =>
-                      setParticipantMode(value as ParticipantMode)
+                    value={
+                      participantMode
                     }
-                    disabled={isCreatingSession}
+                    onValueChange={(
+                      value,
+                    ) =>
+                      setParticipantMode(
+                        value as ParticipantMode,
+                      )
+                    }
+                    disabled={
+                      isCreatingSession
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -530,14 +857,24 @@ export default function InstructorDashboard() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Student results</Label>
+                  <Label>
+                    Student results
+                  </Label>
 
                   <Select
-                    value={resultsMode}
-                    onValueChange={(value) =>
-                      setResultsMode(value as ResultsMode)
+                    value={
+                      resultsMode
                     }
-                    disabled={isCreatingSession}
+                    onValueChange={(
+                      value,
+                    ) =>
+                      setResultsMode(
+                        value as ResultsMode,
+                      )
+                    }
+                    disabled={
+                      isCreatingSession
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -571,9 +908,15 @@ export default function InstructorDashboard() {
                   </div>
 
                   <Switch
-                    checked={allowLateJoin}
-                    onCheckedChange={setAllowLateJoin}
-                    disabled={isCreatingSession}
+                    checked={
+                      allowLateJoin
+                    }
+                    disabled={
+                      isCreatingSession
+                    }
+                    onCheckedChange={
+                      setAllowLateJoin
+                    }
                   />
                 </div>
 
@@ -584,15 +927,20 @@ export default function InstructorDashboard() {
                     </p>
 
                     <p className="text-xs text-muted-foreground">
-                      Students can change their answer before the question
-                      closes.
+                      Students can change an answer after submitting it.
                     </p>
                   </div>
 
                   <Switch
-                    checked={allowAnswerChange}
-                    onCheckedChange={setAllowAnswerChange}
-                    disabled={isCreatingSession}
+                    checked={
+                      allowAnswerChange
+                    }
+                    disabled={
+                      isCreatingSession
+                    }
+                    onCheckedChange={
+                      setAllowAnswerChange
+                    }
                   />
                 </div>
 
@@ -606,17 +954,23 @@ export default function InstructorDashboard() {
               <DialogFooter>
                 <Button
                   variant="outline"
-                  onClick={closeSessionDialog}
-                  disabled={isCreatingSession}
+                  disabled={
+                    isCreatingSession
+                  }
+                  onClick={
+                    closeSessionDialog
+                  }
                 >
                   Cancel
                 </Button>
 
                 <Button
-                  onClick={() => void createLiveSession()}
                   disabled={
                     isCreatingSession ||
                     !sessionName.trim()
+                  }
+                  onClick={() =>
+                    void createLiveSession()
                   }
                 >
                   {isCreatingSession
@@ -629,43 +983,74 @@ export default function InstructorDashboard() {
             <>
               <DialogHeader>
                 <DialogTitle>
-                  Session Ready
+                  Live Session Ready
                 </DialogTitle>
               </DialogHeader>
 
-              <div className="space-y-6 text-center">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Students can join with this code
+              <div className="space-y-6">
+                <div className="rounded-2xl border bg-slate-50 p-5 text-center dark:bg-slate-900">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    Join Code
                   </p>
 
-                  <p className="mt-2 text-5xl font-black tracking-[0.2em]">
-                    {createdSession.join_code}
+                  <p className="mt-2 text-4xl font-black tracking-[0.2em]">
+                    {
+                      createdSession.join_code
+                    }
+                  </p>
+
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Students can join at:
+                  </p>
+
+                  <p className="mt-1 break-all text-sm font-medium">
+                    {
+                      typeof window !==
+                      "undefined"
+                        ? `${window.location.origin}/join/${createdSession.join_code}`
+                        : `/join/${createdSession.join_code}`
+                    }
                   </p>
                 </div>
 
-                <div className="mx-auto w-fit rounded-2xl border bg-white p-4 shadow-sm">
-                  <QRCodeSVG
-                    value={`${window.location.origin}/join/${createdSession.join_code}`}
-                    size={240}
-                  />
+                <div className="flex justify-center">
+                  <div className="rounded-2xl border bg-white p-4">
+                    <QRCodeSVG
+                      value={
+                        typeof window !==
+                        "undefined"
+                          ? `${window.location.origin}/join/${createdSession.join_code}`
+                          : `/join/${createdSession.join_code}`
+                      }
+                      size={220}
+                      includeMargin
+                    />
+                  </div>
                 </div>
 
-                <p className="text-sm text-muted-foreground">
-                  Scan the QR code or use the six-character join code.
-                </p>
+                <div className="rounded-xl border p-4 text-sm text-muted-foreground">
+                  The session has been created with a snapshot of the
+                  template questions. Changes to the reusable template will
+                  not affect this session.
+                </div>
               </div>
 
-              <DialogFooter className="grid grid-cols-2 gap-2 sm:flex">
+              <DialogFooter className="flex-col gap-2 sm:flex-row">
                 <Button
                   variant="outline"
-                  onClick={openStudioNewTab}
+                  onClick={
+                    openStudioNewTab
+                  }
                 >
-                  Open Studio
+                  Open Studio in New Tab
                 </Button>
 
-                <Button onClick={enterStudio}>
-                  Enter Studio
+                <Button
+                  onClick={
+                    enterStudio
+                  }
+                >
+                  Enter Live Studio
                 </Button>
               </DialogFooter>
             </>

@@ -20,9 +20,14 @@ export type QuestionType =
   | "short_text"
   | "rating";
 
-export type ResultsMode = "live" | "on_command" | "hidden";
+export type ResultsMode =
+  | "live"
+  | "on_command"
+  | "hidden";
 
-export type ParticipantMode = "anonymous" | "identified";
+export type ParticipantMode =
+  | "anonymous"
+  | "identified";
 
 export type SessionEventType =
   | "session_created"
@@ -75,9 +80,27 @@ export interface Question {
   closed_at: string | null;
 }
 
+export interface SessionQuestion {
+  id: string;
+  session_id: string;
+  source_question_id: string | null;
+  text: string;
+  type: QuestionType;
+  options: string[];
+  config: QuestionConfig;
+  position: number;
+  status: QuestionStatus;
+  results_mode: ResultsMode;
+  results_visible: boolean;
+  created_at: string;
+  updated_at: string;
+  activated_at: string | null;
+  closed_at: string | null;
+}
+
 export interface Session {
   id: string;
-  template_id: string;
+  template_id: string | null;
   instructor_id: string;
   name: string;
   join_code: string;

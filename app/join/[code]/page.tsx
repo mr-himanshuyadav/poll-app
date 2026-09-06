@@ -1,6 +1,12 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import {
+  use,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import { supabase } from "@/lib/supabase";
 
 import {
@@ -18,8 +24,8 @@ import { Label } from "@/components/ui/label";
 import type {
   Participant,
   PollResponse,
-  Question,
   Session,
+  SessionQuestion,
 } from "@/lib/types";
 
 type StoredParticipant = {
@@ -41,24 +47,33 @@ export default function JoinPage({
     | { code: string };
 }) {
   const resolvedParams =
-    params instanceof Promise ? use(params) : params;
+    params instanceof Promise
+      ? use(params)
+      : params;
 
-  const code = resolvedParams.code.toUpperCase();
+  const code =
+    resolvedParams.code.toUpperCase();
 
   const [session, setSession] =
     useState<Session | null>(null);
 
   const [question, setQuestion] =
-    useState<Question | null>(null);
+    useState<SessionQuestion | null>(
+      null,
+    );
 
   const [participant, setParticipant] =
-    useState<StoredParticipant | null>(null);
+    useState<StoredParticipant | null>(
+      null,
+    );
 
   const [selectedAnswer, setSelectedAnswer] =
     useState("");
 
   const [existingResponse, setExistingResponse] =
-    useState<PollResponse | null>(null);
+    useState<PollResponse | null>(
+      null,
+    );
 
   const [responseCount, setResponseCount] =
     useState(0);
@@ -69,7 +84,9 @@ export default function JoinPage({
   const [averageValue, setAverageValue] =
     useState<number | null>(null);
 
-  const [name, setName] = useState("");
+  const [name, setName] =
+    useState("");
+
   const [rollNumber, setRollNumber] =
     useState("");
 
@@ -108,15 +125,23 @@ export default function JoinPage({
     }
 
     try {
-      return JSON.stringify(answer);
+      return JSON.stringify(
+        answer,
+      );
     } catch {
       return String(answer);
     }
   };
 
+  /*
+   * ---------------------------------------------
+   * LOAD RESULTS
+   * ---------------------------------------------
+   */
+
   const loadResults = async (
     currentSessionId: string,
-    currentQuestion: Question,
+    currentQuestion: SessionQuestion,
   ) => {
     if (!currentQuestion.results_visible) {
       setResponseCount(0);
@@ -133,7 +158,10 @@ export default function JoinPage({
       .select(
         "id, answer, participant_id",
       )
-      .eq("quiz_id", currentSessionId)
+      .eq(
+        "quiz_id",
+        currentSessionId,
+      )
       .eq(
         "question_id",
         currentQuestion.id,
@@ -161,6 +189,10 @@ export default function JoinPage({
       return;
     }
 
+    /*
+     * MULTIPLE CHOICE
+     */
+
     if (
       currentQuestion.type ===
       "multiple_choice"
@@ -179,7 +211,9 @@ export default function JoinPage({
 
       for (const row of rows) {
         const answer =
-          answerToString(row.answer);
+          answerToString(
+            row.answer,
+          );
 
         counts[answer] =
           (counts[answer] ?? 0) + 1;
@@ -206,13 +240,22 @@ export default function JoinPage({
           },
         );
 
-      setResultEntries(entries);
+      setResultEntries(
+        entries,
+      );
+
       setAverageValue(null);
+
       return;
     }
 
+    /*
+     * TRUE / FALSE
+     */
+
     if (
-      currentQuestion.type === "true_false"
+      currentQuestion.type ===
+      "true_false"
     ) {
       const counts: Record<
         string,
@@ -224,7 +267,9 @@ export default function JoinPage({
 
       for (const row of rows) {
         const answer =
-          answerToString(row.answer);
+          answerToString(
+            row.answer,
+          );
 
         const normalized =
           answer.toLowerCase();
@@ -244,31 +289,43 @@ export default function JoinPage({
         {
           option: "True",
           count: counts.True,
-          percentage: Math.round(
-            (counts.True /
-              rows.length) *
-              100,
-          ),
+          percentage:
+            Math.round(
+              (counts.True /
+                rows.length) *
+                100,
+            ),
         },
         {
           option: "False",
           count: counts.False,
-          percentage: Math.round(
-            (counts.False /
-              rows.length) *
-              100,
-          ),
+          percentage:
+            Math.round(
+              (counts.False /
+                rows.length) *
+                100,
+            ),
         },
       ];
 
-      setResultEntries(entries);
+      setResultEntries(
+        entries,
+      );
+
       setAverageValue(null);
+
       return;
     }
 
+    /*
+     * SCALE / RATING
+     */
+
     if (
-      currentQuestion.type === "scale" ||
-      currentQuestion.type === "rating"
+      currentQuestion.type ===
+        "scale" ||
+      currentQuestion.type ===
+        "rating"
     ) {
       const numericValues =
         rows
@@ -280,7 +337,8 @@ export default function JoinPage({
           );
 
       if (
-        numericValues.length === 0
+        numericValues.length ===
+        0
       ) {
         setAverageValue(null);
         setResultEntries([]);
@@ -292,7 +350,8 @@ export default function JoinPage({
           (sum, value) =>
             sum + value,
           0,
-        ) / numericValues.length;
+        ) /
+        numericValues.length;
 
       setAverageValue(
         Math.round(
@@ -305,14 +364,21 @@ export default function JoinPage({
         number
       > = {};
 
-      for (const value of numericValues) {
-        const key = String(value);
+      for (
+        const value of numericValues
+      ) {
+        const key =
+          String(value);
+
         counts[key] =
-          (counts[key] ?? 0) + 1;
+          (counts[key] ?? 0) +
+          1;
       }
 
       const entries =
-        Object.entries(counts)
+        Object.entries(
+          counts,
+        )
           .sort(
             ([a], [b]) =>
               Number(a) -
@@ -331,13 +397,22 @@ export default function JoinPage({
             }),
           );
 
-      setResultEntries(entries);
+      setResultEntries(
+        entries,
+      );
+
       return;
     }
 
     setResultEntries([]);
     setAverageValue(null);
   };
+
+  /*
+   * ---------------------------------------------
+   * LOAD QUESTION
+   * ---------------------------------------------
+   */
 
   const loadQuestion = async (
     questionId: string | null,
@@ -357,7 +432,24 @@ export default function JoinPage({
       setResponseCount(0);
       setResultEntries([]);
       setAverageValue(null);
-      setIsEditingResponse(false);
+      setIsEditingResponse(
+        false,
+      );
+
+      return;
+    }
+
+    if (!activeSession?.id) {
+      setQuestion(null);
+      setExistingResponse(null);
+      setSelectedAnswer("");
+      setResponseCount(0);
+      setResultEntries([]);
+      setAverageValue(null);
+      setIsEditingResponse(
+        false,
+      );
+
       return;
     }
 
@@ -365,9 +457,13 @@ export default function JoinPage({
       data: questionData,
       error: questionError,
     } = await supabase
-      .from("questions")
+      .from("session_questions")
       .select("*")
       .eq("id", questionId)
+      .eq(
+        "session_id",
+        activeSession.id,
+      )
       .single();
 
     if (
@@ -380,18 +476,22 @@ export default function JoinPage({
       setResponseCount(0);
       setResultEntries([]);
       setAverageValue(null);
-      setIsEditingResponse(false);
+      setIsEditingResponse(
+        false,
+      );
+
       return;
     }
 
     const currentQuestion =
-      questionData as Question;
+      questionData as SessionQuestion;
 
-    setQuestion(currentQuestion);
+    setQuestion(
+      currentQuestion,
+    );
 
     if (
-      activeSession?.id &&
-      currentParticipant?.participantId
+      activeParticipant?.participantId
     ) {
       const {
         data: responseData,
@@ -408,7 +508,7 @@ export default function JoinPage({
         )
         .eq(
           "participant_id",
-          currentParticipant.participantId,
+          activeParticipant.participantId,
         )
         .maybeSingle();
 
@@ -426,7 +526,10 @@ export default function JoinPage({
           ),
         );
       } else {
-        setExistingResponse(null);
+        setExistingResponse(
+          null,
+        );
+
         setSelectedAnswer("");
       }
     } else {
@@ -434,15 +537,21 @@ export default function JoinPage({
       setSelectedAnswer("");
     }
 
-    setIsEditingResponse(false);
+    setIsEditingResponse(
+      false,
+    );
 
-    if (activeSession?.id) {
-      await loadResults(
-        activeSession.id,
-        currentQuestion,
-      );
-    }
+    await loadResults(
+      activeSession.id,
+      currentQuestion,
+    );
   };
+
+  /*
+   * ---------------------------------------------
+   * LOAD SESSION
+   * ---------------------------------------------
+   */
 
   const loadSession = async () => {
     setIsLoading(true);
@@ -454,7 +563,10 @@ export default function JoinPage({
     } = await supabase
       .from("sessions")
       .select("*")
-      .eq("join_code", code)
+      .eq(
+        "join_code",
+        code,
+      )
       .single();
 
     if (
@@ -464,21 +576,26 @@ export default function JoinPage({
       setError(
         "Session not found. Check the join code.",
       );
+
       setIsLoading(false);
+
       return;
     }
 
     const currentSession =
       data as Session;
 
-    setSession(currentSession);
+    setSession(
+      currentSession,
+    );
 
     let storedParticipant:
       | StoredParticipant
       | null = null;
 
     if (
-      typeof window !== "undefined"
+      typeof window !==
+      "undefined"
     ) {
       const stored =
         window.localStorage.getItem(
@@ -488,7 +605,9 @@ export default function JoinPage({
       if (stored) {
         try {
           const parsed =
-            JSON.parse(stored) as StoredParticipant;
+            JSON.parse(
+              stored,
+            ) as StoredParticipant;
 
           if (
             parsed.participantId &&
@@ -523,9 +642,21 @@ export default function JoinPage({
     setIsLoading(false);
   };
 
+  /*
+   * ---------------------------------------------
+   * INITIAL SESSION LOAD
+   * ---------------------------------------------
+   */
+
   useEffect(() => {
     void loadSession();
   }, [code]);
+
+  /*
+   * ---------------------------------------------
+   * ACTIVE QUESTION LOAD
+   * ---------------------------------------------
+   */
 
   useEffect(() => {
     if (
@@ -537,7 +668,10 @@ export default function JoinPage({
       setResponseCount(0);
       setResultEntries([]);
       setAverageValue(null);
-      setIsEditingResponse(false);
+      setIsEditingResponse(
+        false,
+      );
+
       return;
     }
 
@@ -548,6 +682,12 @@ export default function JoinPage({
     session?.active_question_id,
     participant?.participantId,
   ]);
+
+  /*
+   * ---------------------------------------------
+   * SESSION + QUESTION REALTIME
+   * ---------------------------------------------
+   */
 
   useEffect(() => {
     if (!session?.id) {
@@ -578,24 +718,62 @@ export default function JoinPage({
     const questionChannel =
       supabase
         .channel(
-          `student-question-${session.id}`,
+          `student-session-questions-${session.id}`,
         )
         .on(
           "postgres_changes",
           {
-            event: "UPDATE",
+            event: "*",
             schema: "public",
-            table: "questions",
+            table: "session_questions",
+            filter: `session_id=eq.${session.id}`,
           },
-          (payload) => {
+          async (payload) => {
             const changedQuestion =
-              payload.new as Question;
+              (
+                payload.eventType ===
+                "DELETE"
+                  ? payload.old
+                  : payload.new
+              ) as SessionQuestion;
 
             if (
-              !session.active_question_id ||
-              changedQuestion.id !==
-                session.active_question_id
+              !changedQuestion
             ) {
+              return;
+            }
+
+            if (
+              changedQuestion.id !==
+              session.active_question_id
+            ) {
+              return;
+            }
+
+            if (
+              payload.eventType ===
+              "DELETE"
+            ) {
+              setQuestion(null);
+              setExistingResponse(
+                null,
+              );
+              setSelectedAnswer(
+                "",
+              );
+              setResponseCount(
+                0,
+              );
+              setResultEntries(
+                [],
+              );
+              setAverageValue(
+                null,
+              );
+              setIsEditingResponse(
+                false,
+              );
+
               return;
             }
 
@@ -603,23 +781,46 @@ export default function JoinPage({
               changedQuestion,
             );
 
-            if (
-              session.id &&
-              changedQuestion
-            ) {
-              void loadResults(
-                session.id,
-                changedQuestion,
-              );
-            }
+            await loadResults(
+              session.id,
+              changedQuestion,
+            );
           },
         )
         .subscribe();
 
+    return () => {
+      void supabase.removeChannel(
+        sessionChannel,
+      );
+
+      void supabase.removeChannel(
+        questionChannel,
+      );
+    };
+  }, [
+    session?.id,
+    session?.active_question_id,
+  ]);
+
+  /*
+   * ---------------------------------------------
+   * RESPONSE REALTIME
+   * ---------------------------------------------
+   */
+
+  useEffect(() => {
+    if (
+      !session?.id ||
+      !participant?.participantId
+    ) {
+      return;
+    }
+
     const responseChannel =
       supabase
         .channel(
-          `student-results-${session.id}`,
+          `student-response-${session.id}-${participant.participantId}`,
         )
         .on(
           "postgres_changes",
@@ -634,61 +835,73 @@ export default function JoinPage({
               payload.new as PollResponse;
 
             if (
-              changedResponse.question_id ===
+              changedResponse.question_id !==
               session.active_question_id
             ) {
-              const active =
-                question;
+              return;
+            }
 
-              if (active) {
-                void loadResults(
-                  session.id,
-                  active,
+            if (
+              payload.eventType ===
+                "INSERT" ||
+              payload.eventType ===
+                "UPDATE"
+            ) {
+              if (
+                changedResponse.participant_id ===
+                participant.participantId
+              ) {
+                setExistingResponse(
+                  changedResponse,
+                );
+
+                setSelectedAnswer(
+                  answerToString(
+                    changedResponse.answer,
+                  ),
+                );
+
+                setIsEditingResponse(
+                  false,
                 );
               }
 
+              if (question) {
+                void loadResults(
+                  session.id,
+                  question,
+                );
+              }
+
+              return;
+            }
+
+            if (
+              payload.eventType ===
+              "DELETE"
+            ) {
               if (
-                participant?.participantId &&
                 changedResponse.participant_id ===
-                  participant.participantId
+                participant.participantId
               ) {
-                if (
-                  payload.eventType ===
-                    "INSERT" ||
-                  payload.eventType ===
-                    "UPDATE"
-                ) {
-                  setExistingResponse(
-                    changedResponse,
-                  );
+                setExistingResponse(
+                  null,
+                );
 
-                  setSelectedAnswer(
-                    answerToString(
-                      changedResponse.answer,
-                    ),
-                  );
+                setSelectedAnswer(
+                  "",
+                );
 
-                  setIsEditingResponse(
-                    false,
-                  );
-                }
+                setIsEditingResponse(
+                  false,
+                );
+              }
 
-                if (
-                  payload.eventType ===
-                  "DELETE"
-                ) {
-                  setExistingResponse(
-                    null,
-                  );
-
-                  setSelectedAnswer(
-                    "",
-                  );
-
-                  setIsEditingResponse(
-                    false,
-                  );
-                }
+              if (question) {
+                void loadResults(
+                  session.id,
+                  question,
+                );
               }
             }
           },
@@ -697,23 +910,21 @@ export default function JoinPage({
 
     return () => {
       void supabase.removeChannel(
-        sessionChannel,
-      );
-
-      void supabase.removeChannel(
-        questionChannel,
-      );
-
-      void supabase.removeChannel(
         responseChannel,
       );
     };
   }, [
     session?.id,
     session?.active_question_id,
-    question,
     participant?.participantId,
+    question,
   ]);
+
+  /*
+   * ---------------------------------------------
+   * PARTICIPANT PRESENCE
+   * ---------------------------------------------
+   */
 
   useEffect(() => {
     if (
@@ -748,9 +959,29 @@ export default function JoinPage({
         15000,
       );
 
+    const handleVisibilityChange =
+      () => {
+        if (
+          document.visibilityState ===
+          "visible"
+        ) {
+          void updateLastSeen();
+        }
+      };
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange,
+    );
+
     return () => {
       window.clearInterval(
         heartbeat,
+      );
+
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
       );
     };
   }, [
@@ -758,8 +989,17 @@ export default function JoinPage({
     participant?.participantId,
   ]);
 
+  /*
+   * ---------------------------------------------
+   * JOIN SESSION
+   * ---------------------------------------------
+   */
+
   const joinSession = async () => {
-    if (!session || isJoining) {
+    if (
+      !session ||
+      isJoining
+    ) {
       return;
     }
 
@@ -772,6 +1012,7 @@ export default function JoinPage({
       setError(
         "This session has already ended.",
       );
+
       return;
     }
 
@@ -782,6 +1023,7 @@ export default function JoinPage({
       setError(
         "This session is currently closed to new participants.",
       );
+
       return;
     }
 
@@ -793,6 +1035,7 @@ export default function JoinPage({
         setError(
           "Please enter your name.",
         );
+
         return;
       }
 
@@ -800,12 +1043,15 @@ export default function JoinPage({
         !/^\d{1,2}$/.test(
           rollNumber,
         ) ||
-        Number(rollNumber) < 0 ||
-        Number(rollNumber) > 99
+        Number(rollNumber) <
+          0 ||
+        Number(rollNumber) >
+          99
       ) {
         setError(
           "Roll number must be between 0 and 99.",
         );
+
         return;
       }
     }
@@ -824,21 +1070,26 @@ export default function JoinPage({
       .insert({
         quiz_id: session.id,
         session_token: token,
+
         name:
           session.participant_mode ===
           "identified"
             ? name.trim()
             : null,
+
         roll_number:
           session.participant_mode ===
           "identified"
             ? Number(rollNumber)
             : null,
+
         is_anonymous:
           session.participant_mode ===
           "anonymous",
+
         last_seen_at:
           new Date().toISOString(),
+
         left_at: null,
       })
       .select("*")
@@ -854,29 +1105,37 @@ export default function JoinPage({
       );
 
       setIsJoining(false);
+
       return;
     }
 
     const created =
       data as Participant;
 
-    const stored: StoredParticipant =
-      {
-        participantId:
-          created.id,
-        sessionToken:
-          created.session_token,
-      };
+    const stored:
+      StoredParticipant = {
+      participantId:
+        created.id,
+      sessionToken:
+        created.session_token,
+    };
 
     window.localStorage.setItem(
       storageKey,
-      JSON.stringify(stored),
+      JSON.stringify(
+        stored,
+      ),
     );
 
-    setParticipant(stored);
+    setParticipant(
+      stored,
+    );
+
     setIsJoining(false);
 
-    if (session.active_question_id) {
+    if (
+      session.active_question_id
+    ) {
       await loadQuestion(
         session.active_question_id,
         session,
@@ -884,6 +1143,12 @@ export default function JoinPage({
       );
     }
   };
+
+  /*
+   * ---------------------------------------------
+   * SUBMIT RESPONSE
+   * ---------------------------------------------
+   */
 
   const submitResponse =
     async (): Promise<boolean> => {
@@ -898,13 +1163,16 @@ export default function JoinPage({
       }
 
       if (
-        session.status !== "live" ||
+        session.status !==
+          "live" ||
         session.is_offline ||
-        question.status !== "active"
+        question.status !==
+          "active"
       ) {
         setError(
           "This question is not currently accepting responses.",
         );
+
         return false;
       }
 
@@ -915,6 +1183,7 @@ export default function JoinPage({
         setError(
           "Changing your answer is not allowed for this session.",
         );
+
         return false;
       }
 
@@ -924,10 +1193,17 @@ export default function JoinPage({
       const answer =
         selectedAnswer;
 
-      if (existingResponse) {
+      /*
+       * UPDATE EXISTING RESPONSE
+       */
+
+      if (
+        existingResponse
+      ) {
         const {
           data,
-          error: updateError,
+          error:
+            updateError,
         } = await supabase
           .from("responses")
           .update({
@@ -952,6 +1228,7 @@ export default function JoinPage({
           );
 
           setIsSubmitting(false);
+
           return false;
         }
 
@@ -968,17 +1245,25 @@ export default function JoinPage({
         return true;
       }
 
+      /*
+       * INSERT NEW RESPONSE
+       */
+
       const {
         data,
         error: insertError,
       } = await supabase
         .from("responses")
         .insert({
-          quiz_id: session.id,
+          quiz_id:
+            session.id,
+
           question_id:
             question.id,
+
           participant_id:
             participant.participantId,
+
           answer,
         })
         .select("*")
@@ -988,6 +1273,12 @@ export default function JoinPage({
         insertError ||
         !data
       ) {
+        /*
+         * A duplicate can happen when
+         * realtime or another tab has
+         * already created the response.
+         */
+
         const {
           data: existing,
         } = await supabase
@@ -1032,6 +1323,7 @@ export default function JoinPage({
         );
 
         setIsSubmitting(false);
+
         return false;
       }
 
@@ -1047,6 +1339,12 @@ export default function JoinPage({
 
       return true;
     };
+
+  /*
+   * ---------------------------------------------
+   * RESPONSE EDITING
+   * ---------------------------------------------
+   */
 
   const startEditingResponse =
     () => {
@@ -1101,11 +1399,21 @@ export default function JoinPage({
       }
     };
 
+  /*
+   * ---------------------------------------------
+   * QUESTION INPUT
+   * ---------------------------------------------
+   */
+
   const renderQuestionInput =
     () => {
       if (!question) {
         return null;
       }
+
+      /*
+       * MULTIPLE CHOICE
+       */
 
       if (
         question.type ===
@@ -1144,6 +1452,10 @@ export default function JoinPage({
         );
       }
 
+      /*
+       * SCALE / RATING
+       */
+
       if (
         question.type ===
           "scale" ||
@@ -1167,7 +1479,9 @@ export default function JoinPage({
             {
               length: Math.max(
                 1,
-                max - min + 1,
+                max -
+                  min +
+                  1,
               ),
             },
             (_, index) =>
@@ -1212,6 +1526,10 @@ export default function JoinPage({
         );
       }
 
+      /*
+       * TRUE / FALSE
+       */
+
       if (
         question.type ===
         "true_false"
@@ -1254,12 +1572,18 @@ export default function JoinPage({
 
       return (
         <div className="rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-          This question type is not
-          yet supported in the live
-          student interface.
+          This question type is not yet
+          supported in the live student
+          interface.
         </div>
       );
     };
+
+  /*
+   * ---------------------------------------------
+   * RESULTS
+   * ---------------------------------------------
+   */
 
   const renderResults =
     () => {
@@ -1271,7 +1595,8 @@ export default function JoinPage({
       }
 
       const leadingCount =
-        resultEntries.length > 0
+        resultEntries.length >
+        0
           ? Math.max(
               ...resultEntries.map(
                 (entry) =>
@@ -1306,7 +1631,9 @@ export default function JoinPage({
                 </p>
 
                 <p className="text-lg font-bold">
-                  {averageValue}
+                  {
+                    averageValue
+                  }
                 </p>
               </div>
             )}
@@ -1324,7 +1651,8 @@ export default function JoinPage({
                   const isLeading =
                     entry.count ===
                       leadingCount &&
-                    leadingCount > 0;
+                    leadingCount >
+                      0;
 
                   const isOwnAnswer =
                     existingResponse &&
@@ -1342,7 +1670,9 @@ export default function JoinPage({
                     >
                       <div className="flex items-center justify-between gap-3 text-sm">
                         <span className="min-w-0 truncate font-medium">
-                          {entry.option}
+                          {
+                            entry.option
+                          }
 
                           {isOwnAnswer && (
                             <span className="ml-2 text-xs text-primary">
@@ -1369,9 +1699,7 @@ export default function JoinPage({
                             isLeading
                               ? "bg-primary"
                               : "bg-primary/40",
-                          ].join(
-                            " ",
-                          )}
+                          ].join(" ")}
                           style={{
                             width: `${entry.percentage}%`,
                           }}
@@ -1387,6 +1715,12 @@ export default function JoinPage({
       );
     };
 
+  /*
+   * ---------------------------------------------
+   * LOADING
+   * ---------------------------------------------
+   */
+
   if (isLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
@@ -1396,6 +1730,12 @@ export default function JoinPage({
       </main>
     );
   }
+
+  /*
+   * ---------------------------------------------
+   * INVALID SESSION
+   * ---------------------------------------------
+   */
 
   if (!session) {
     return (
@@ -1417,6 +1757,12 @@ export default function JoinPage({
       </main>
     );
   }
+
+  /*
+   * ---------------------------------------------
+   * COMPLETED SESSION
+   * ---------------------------------------------
+   */
 
   if (
     session.status ===
@@ -1442,6 +1788,12 @@ export default function JoinPage({
       </main>
     );
   }
+
+  /*
+   * ---------------------------------------------
+   * JOIN FORM
+   * ---------------------------------------------
+   */
 
   if (!participant) {
     const joiningLocked =
@@ -1546,7 +1898,9 @@ export default function JoinPage({
             <CardFooter>
               <Button
                 className="w-full"
-                disabled={isJoining}
+                disabled={
+                  isJoining
+                }
                 onClick={() =>
                   void joinSession()
                 }
@@ -1565,7 +1919,14 @@ export default function JoinPage({
   const canAnswer =
     session.status === "live" &&
     !session.is_offline &&
-    question?.status === "active";
+    question?.status ===
+      "active";
+
+  /*
+   * ---------------------------------------------
+   * PARTICIPANT VIEW
+   * ---------------------------------------------
+   */
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 dark:bg-slate-950">
@@ -1625,7 +1986,9 @@ export default function JoinPage({
                   </div>
 
                   <h2 className="text-2xl font-bold">
-                    {question.text}
+                    {
+                      question.text
+                    }
                   </h2>
                 </div>
 
