@@ -1,6 +1,5 @@
 "use client";
-import { useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
+import { useState, useEffect } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,15 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/lib/supabase";
 
 export default function InstructorDashboard() {
-  const [view, setView] = useState<"settings" | "presentation">("settings");
   const [isBroadcasting, setIsBroadcasting] = useState(false);
-  const [quizId, setQuizId] = useState<string>("");
-  const [quizConfig, setQuizConfig] = useState({
-    quizName: "My New Quiz",
-    isAnonymous: true,
-    isOffline: false,
-    showResultsMode: "live",
-    question: "",
+  const [quizId, setQuizId] = useState<string | null>(null);
+  
+  // Real-time synced states
+  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const [showLiveResults, setShowLiveResults] = useState(false);
+  
+  const [questionConfig, setQuestionConfig] = useState({
+    quizName: "Class Session",
+    text: "",
     type: "multiple-choice",
     options: "Option 1, Option 2",
     scaleMax: 5
@@ -27,176 +28,121 @@ export default function InstructorDashboard() {
   const handleBroadcast = async () => {
     setIsBroadcasting(true);
     try {
-      // 1. Create or update the Quiz
-      const { data: quizData, error: quizError } = await supabase
-        .from('quizzes')
-        .insert({
-          name: quizConfig.quizName,
-          is_anonymous: quizConfig.isAnonymous,
-          is_offline: quizConfig.isOffline,
-          show_live_results: quizConfig.showResultsMode === 'live'
-        })
-        .select()
-        .single();
+      let currentQuizId = quizId;
 
-      if (quizError) throw new Error(`Quiz Creation Failed: ${quizError.message}`);
-      setQuizId(quizData.id);
+      // 1. Create Quiz if it doesn't exist
+      if (!currentQuizId) {
+        const { data: quizData, error: quizError } = await supabase
+          .from('quizzes')
+          .insert({
+            name: questionConfig.quizName,
+            is_anonymous: isAnonymous,
+            is_offline: isOffline,
+            show_live_results: showLiveResults
+          })
+          .select().single();
 
-      // 2. Map frontend types to database constraints
-      let dbType = 'mcq';
-      if (quizConfig.type === 'scale') {
-        dbType = quizConfig.scaleMax === 10 ? 'scale_10' : 'scale_5';
+        if (quizError) throw new Error(quizError.message);
+        currentQuizId = quizData.id;
+        setQuizId(currentQuizId);
       }
 
-      // 3. Format options based on type
-      const parsedOptions = quizConfig.type === 'multiple-choice' 
-        ? quizConfig.options.split(',').map(o => o.trim())
-        : Array.from({ length: quizConfig.scaleMax }, (_, i) => (i + 1).toString());
+      // 2. Format options
+      const parsedOptions = questionConfig.type === 'multiple-choice' 
+        ? questionConfig.options.split(',').map(o => o.trim())
+        : Array.from({ length: questionConfig.scaleMax }, (_, i) => (i + 1).toString());
 
-      // 4. Create the Question
-      const { data: questionData, error: questionError } = await supabase
+      // 3. Create Question
+      const { data: qData, error: qError } = await supabase
         .from('questions')
         .insert({
-          quiz_id: quizData.id,
-          text: quizConfig.question,
-          type: dbType, // Sending the corrected type here
+          quiz_id: currentQuizId,
+          text: questionConfig.text,
+          type: questionConfig.type === 'scale' ? (questionConfig.scaleMax === 10 ? 'scale_10' : 'scale_5') : 'mcq',
           options: parsedOptions
-        })
-        .select()
-        .single();
+        }).select().single();
 
-      if (questionError) throw new Error(`Question Creation Failed: ${questionError.message}`);
+      if (qError) throw new Error(qError.message);
 
-      // 5. Set as Active Question
-      const { error: updateError } = await supabase
-        .from('quizzes')
-        .update({ active_question_id: questionData.id })
-        .eq('id', quizData.id);
-
-      if (updateError) throw new Error(`Quiz Update Failed: ${updateError.message}`);
-
-      setView("presentation");
+      // 4. Set Active
+      await supabase.from('quizzes').update({ active_question_id: qData.id }).eq('id', currentQuizId);
+      alert("Question Broadcasted!");
+      setQuestionConfig(prev => ({ ...prev, text: "", options: "" })); // Reset input
     } catch (error: any) {
-      console.error(error);
-      alert(error.message || "An unknown database error occurred. Check your console.");
+      alert(error.message);
     } finally {
       setIsBroadcasting(false);
     }
   };
 
-  const triggerResults = async () => {
-    await supabase
-      .from('quizzes')
-      .update({ show_live_results: true })
-      .eq('id', quizId);
+  const updateQuizSetting = async (field: string, value: boolean) => {
+    if (!quizId) return;
+    await supabase.from('quizzes').update({ [field]: value }).eq('id', quizId);
   };
-
-  if (view === "presentation") {
-    const joinUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/poll/${quizId}`; 
-    
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-slate-50 dark:bg-slate-950">
-        <Card className="w-full max-w-4xl text-center p-8 shadow-lg">
-          <h1 className="text-4xl font-bold mb-4">{quizConfig.quizName}</h1>
-          <p className="text-xl mb-8">Scan to join the live quiz!</p>
-          <div className="flex justify-center mb-8">
-            <QRCodeSVG value={joinUrl} size={300} />
-          </div>
-          <div className="text-2xl font-semibold mb-8">{quizConfig.question}</div>
-          
-          <div className="space-x-4">
-            {quizConfig.showResultsMode === 'on_command' && (
-              <Button size="lg" onClick={triggerResults}>
-                Show Results to Students
-              </Button>
-            )}
-            <Button variant="outline" size="lg" onClick={() => setView("settings")}>End / Back to Setup</Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Quiz Configuration</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Instructor Controls</h1>
+        {quizId && (
+          <Button variant="outline" onClick={() => window.open(`/poll/${quizId}/projector`, '_blank')}>
+            Open Projector Screen ↗
+          </Button>
+        )}
+      </div>
+
       <Card>
-        <CardHeader><CardTitle>General Settings</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Global Quiz Settings</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Quiz Name</Label>
-            <Input value={quizConfig.quizName} onChange={(e) => setQuizConfig({...quizConfig, quizName: e.target.value})} />
+            <Input value={questionConfig.quizName} disabled={!!quizId} onChange={(e) => setQuestionConfig({...questionConfig, quizName: e.target.value})} />
           </div>
-          <div className="flex items-center justify-between border p-4 rounded-lg">
-            <div className="space-y-0.5">
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex flex-col space-y-2 border p-4 rounded-lg">
               <Label>Anonymous Mode</Label>
-              <p className="text-sm text-muted-foreground">If disabled, voters must enter Name & Roll No.</p>
+              <Switch checked={isAnonymous} disabled={!!quizId} onCheckedChange={(c) => setIsAnonymous(c)} />
             </div>
-            <Switch checked={quizConfig.isAnonymous} onCheckedChange={(c) => setQuizConfig({...quizConfig, isAnonymous: c})} />
-          </div>
-          <div className="flex items-center justify-between border p-4 rounded-lg">
-            <div className="space-y-0.5">
-              <Label>Offline Mode</Label>
-              <p className="text-sm text-muted-foreground">Pause accepting new responses.</p>
+            <div className="flex flex-col space-y-2 border p-4 rounded-lg">
+              <Label>Offline (Pause)</Label>
+              <Switch checked={isOffline} onCheckedChange={(c) => { setIsOffline(c); updateQuizSetting('is_offline', c); }} />
             </div>
-            <Switch checked={quizConfig.isOffline} onCheckedChange={(c) => setQuizConfig({...quizConfig, isOffline: c})} />
-          </div>
-          <div className="space-y-2">
-            <Label>Result Visibility on Voter Device</Label>
-            <Select value={quizConfig.showResultsMode} onValueChange={(v) => setQuizConfig({...quizConfig, showResultsMode: v as string})}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="live">Updated Live</SelectItem>
-                <SelectItem value="on_command">On Instructor Command</SelectItem>
-                <SelectItem value="hidden">Do Not Show</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col space-y-2 border p-4 rounded-lg">
+              <Label>Show Student Results</Label>
+              <Switch checked={showLiveResults} onCheckedChange={(c) => { setShowLiveResults(c); updateQuizSetting('show_live_results', c); }} />
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Question Broadcast</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Push New Question</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Question</Label>
-            <Input value={quizConfig.question} onChange={(e) => setQuizConfig({...quizConfig, question: e.target.value})} placeholder="Type your question here..." />
+            <Label>Question Text</Label>
+            <Input value={questionConfig.text} onChange={(e) => setQuestionConfig({...questionConfig, text: e.target.value})} />
           </div>
           <div className="space-y-2">
-            <Label>Question Type</Label>
-            <Select value={quizConfig.type} onValueChange={(v) => setQuizConfig({...quizConfig, type: v as string})}>
+            <Label>Type</Label>
+            <Select value={questionConfig.type} onValueChange={(v) => setQuestionConfig({...questionConfig, type: v as string})}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="multiple-choice">Multiple Choice</SelectItem>
-                <SelectItem value="scale">Scale (Range)</SelectItem>
+                <SelectItem value="scale">Scale</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          
-          {quizConfig.type === 'multiple-choice' ? (
-            <div className="space-y-2">
-              <Label>Options (Comma separated)</Label>
-              <Input value={quizConfig.options} onChange={(e) => setQuizConfig({...quizConfig, options: e.target.value})} placeholder="Option 1, Option 2, Option 3" />
-            </div>
+          {questionConfig.type === 'multiple-choice' ? (
+             <Input value={questionConfig.options} onChange={(e) => setQuestionConfig({...questionConfig, options: e.target.value})} placeholder="Option 1, Option 2" />
           ) : (
-            <div className="space-y-2">
-              <Label>Scale Range</Label>
-              <Select value={quizConfig.scaleMax.toString()} onValueChange={(v) => setQuizConfig({...quizConfig, scaleMax: parseInt(v as string, 10)})}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">1 to 5</SelectItem>
-                  <SelectItem value="10">1 to 10</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Select value={questionConfig.scaleMax.toString()} onValueChange={(v) => setQuestionConfig({...questionConfig, scaleMax: parseInt(v as string, 10)})}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="5">1 to 5</SelectItem><SelectItem value="10">1 to 10</SelectItem></SelectContent>
+            </Select>
           )}
-          <Button 
-            className="w-full mt-4" 
-            size="lg" 
-            onClick={handleBroadcast}
-            disabled={isBroadcasting}
-          >
-            {isBroadcasting ? "Broadcasting..." : "Broadcast & Show QR"}
+          <Button className="w-full mt-4" size="lg" onClick={handleBroadcast} disabled={isBroadcasting || !questionConfig.text}>
+            {isBroadcasting ? "Broadcasting..." : "Broadcast Question"}
           </Button>
         </CardContent>
       </Card>
