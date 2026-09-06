@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 
 declare global {
   var activePoll: {
-      id: string;
-          question: string;
-              type: string;
-                      votes: Record<string, any>;
-                        } | null;
-                        }
+    id: string;
+    question: string;
+    type: string;
+    options: string[]; // Added missing property here
+    votes: Record<string, any>;
+  } | null;
+}
 
 if (!global.activePoll) {
   global.activePoll = {
