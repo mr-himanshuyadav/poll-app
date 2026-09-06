@@ -48,6 +48,12 @@ export default function LiveStudio({
   const [responses, setResponses] =
     useState<ResponseWithParticipant[]>([]);
 
+  const [participants, setParticipants] =
+    useState<Participant[]>([]);
+
+  const [isUpdatingParticipants, setIsUpdatingParticipants] =
+    useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
 
   const [isUpdating, setIsUpdating] = useState(false);
@@ -137,6 +143,30 @@ export default function LiveStudio({
     );
   };
 
+  const loadParticipants = async (
+    currentSessionId: string,
+  ) => {
+    const {
+      data,
+      error: participantError,
+    } = await supabase
+      .from("participants")
+      .select("*")
+      .eq("quiz_id", currentSessionId)
+      .order("joined_at", {
+        ascending: true,
+      });
+
+    if (participantError) {
+      setError(participantError.message);
+      return;
+    }
+
+    setParticipants(
+      (data ?? []) as Participant[],
+    );
+  };
+
   /*
    * ---------------------------------------------
    * LOAD STUDIO
@@ -175,7 +205,7 @@ export default function LiveStudio({
     if (sessionError || !sessionData) {
       setError(
         sessionError?.message ??
-          "Session not found.",
+        "Session not found.",
       );
 
       setIsLoading(false);
@@ -208,7 +238,7 @@ export default function LiveStudio({
     if (templateError || !templateData) {
       setError(
         templateError?.message ??
-          "Template not found.",
+        "Template not found.",
       );
 
       setIsLoading(false);
@@ -256,6 +286,10 @@ export default function LiveStudio({
      */
 
     await loadResponses(
+      currentSession.id,
+    );
+
+    await loadParticipants(
       currentSession.id,
     );
 
@@ -333,7 +367,7 @@ export default function LiveStudio({
           const changedQuestion =
             (
               payload.eventType ===
-              "DELETE"
+                "DELETE"
                 ? payload.old
                 : payload.new
             ) as Question;
@@ -396,7 +430,7 @@ export default function LiveStudio({
               current.map(
                 (question) =>
                   question.id ===
-                  changedQuestion.id
+                    changedQuestion.id
                     ? changedQuestion
                     : question,
               ),
@@ -466,15 +500,15 @@ export default function LiveStudio({
           "postgres_changes",
           {
             event: "*",
-
             schema: "public",
-
             table: "participants",
-
             filter: `quiz_id=eq.${sessionId}`,
           },
-
           () => {
+            void loadParticipants(
+              sessionId,
+            );
+
             void loadResponses(
               sessionId,
             );
@@ -545,6 +579,44 @@ export default function LiveStudio({
     responses,
   ]);
 
+  const activeParticipantThresholdMs =
+    45 * 1000;
+
+  const participantSummary =
+    useMemo(() => {
+      const now = Date.now();
+
+      let active = 0;
+      let inactive = 0;
+
+      for (const participant of participants) {
+        if (participant.left_at) {
+          inactive += 1;
+          continue;
+        }
+
+        const lastSeen =
+          new Date(
+            participant.last_seen_at,
+          ).getTime();
+
+        if (
+          now - lastSeen <=
+          activeParticipantThresholdMs
+        ) {
+          active += 1;
+        } else {
+          inactive += 1;
+        }
+      }
+
+      return {
+        total: participants.length,
+        active,
+        inactive,
+      };
+    }, [participants]);
+
   /*
    * ---------------------------------------------
    * RESPONSE COUNTS
@@ -600,6 +672,45 @@ export default function LiveStudio({
     activeResponses,
   ]);
 
+  const toggleLateJoin = async () => {
+    if (!session || isUpdatingParticipants) {
+      return;
+    }
+
+    setIsUpdatingParticipants(true);
+    setError(null);
+
+    const nextValue =
+      !session.allow_late_join;
+
+    const {
+      data,
+      error: updateError,
+    } = await supabase
+      .from("sessions")
+      .update({
+        allow_late_join: nextValue,
+        updated_at:
+          new Date().toISOString(),
+      })
+      .eq("id", session.id)
+      .select("*")
+      .single();
+
+    if (updateError || !data) {
+      setError(
+        updateError?.message ??
+        "Unable to update joining settings.",
+      );
+
+      setIsUpdatingParticipants(false);
+      return;
+    }
+
+    setSession(data as Session);
+    setIsUpdatingParticipants(false);
+  };
+
   /*
    * ---------------------------------------------
    * PUSH QUESTION LIVE
@@ -627,7 +738,7 @@ export default function LiveStudio({
     if (
       session.active_question_id &&
       session.active_question_id !==
-        question.id
+      question.id
     ) {
       await supabase
         .from("questions")
@@ -726,22 +837,22 @@ export default function LiveStudio({
     setSession((current) =>
       current
         ? {
-            ...current,
+          ...current,
 
-            active_question_id:
-              question.id,
+          active_question_id:
+            question.id,
 
-            status: "live",
+          status: "live",
 
-            is_offline: false,
+          is_offline: false,
 
-            paused_at: null,
+          paused_at: null,
 
-            started_at:
-              current.started_at ?? now,
+          started_at:
+            current.started_at ?? now,
 
-            updated_at: now,
-          }
+          updated_at: now,
+        }
         : current,
     );
 
@@ -859,12 +970,12 @@ export default function LiveStudio({
         current.map((question) =>
           question.id === questionId
             ? {
-                ...question,
+              ...question,
 
-                status: "closed",
+              status: "closed",
 
-                closed_at: now,
-              }
+              closed_at: now,
+            }
             : question,
         ),
       );
@@ -872,13 +983,13 @@ export default function LiveStudio({
       setSession((current) =>
         current
           ? {
-              ...current,
+            ...current,
 
-              active_question_id:
-                null,
+            active_question_id:
+              null,
 
-              updated_at: now,
-            }
+            updated_at: now,
+          }
           : current,
       );
 
@@ -937,12 +1048,12 @@ export default function LiveStudio({
     setQuestions((current) =>
       current.map((question) =>
         question.id ===
-        activeQuestion.id
+          activeQuestion.id
           ? {
-              ...question,
+            ...question,
 
-              results_visible: true,
-            }
+            results_visible: true,
+          }
           : question,
       ),
     );
@@ -1002,12 +1113,12 @@ export default function LiveStudio({
     setQuestions((current) =>
       current.map((question) =>
         question.id ===
-        activeQuestion.id
+          activeQuestion.id
           ? {
-              ...question,
+            ...question,
 
-              results_visible: false,
-            }
+            results_visible: false,
+          }
           : question,
       ),
     );
@@ -1069,18 +1180,18 @@ export default function LiveStudio({
     setSession((current) =>
       current
         ? {
-            ...current,
+          ...current,
 
-            status: nextStatus,
+          status: nextStatus,
 
-            is_offline: paused,
+          is_offline: paused,
 
-            paused_at: paused
-              ? now
-              : null,
+          paused_at: paused
+            ? now
+            : null,
 
-            updated_at: now,
-          }
+          updated_at: now,
+        }
         : current,
     );
 
@@ -1332,7 +1443,7 @@ export default function LiveStudio({
 
                   <p className="mt-1 font-semibold">
                     {session.participant_mode ===
-                    "anonymous"
+                      "anonymous"
                       ? "Anonymous"
                       : "Name + Roll Number"}
                   </p>
@@ -1347,10 +1458,10 @@ export default function LiveStudio({
 
                   <p className="mt-1 font-semibold">
                     {session.results_mode ===
-                    "live"
+                      "live"
                       ? "Live"
                       : session.results_mode ===
-                          "on_command"
+                        "on_command"
                         ? "On Command"
                         : "Hidden"}
                   </p>
@@ -1379,7 +1490,7 @@ export default function LiveStudio({
                     disabled={
                       isUpdating ||
                       session.status ===
-                        "completed"
+                      "completed"
                     }
                     onCheckedChange={(
                       checked,
@@ -1551,10 +1662,10 @@ export default function LiveStudio({
                           <p className="mt-1 text-sm text-muted-foreground">
 
                             {activeQuestion.results_mode ===
-                            "live"
+                              "live"
                               ? "Results are automatically visible to students."
                               : activeQuestion.results_mode ===
-                                  "hidden"
+                                "hidden"
                                 ? "Results cannot be shown to students."
                                 : activeQuestion.results_visible
                                   ? "Results are currently visible to students."
@@ -1569,55 +1680,55 @@ export default function LiveStudio({
                         {activeQuestion.results_mode ===
                           "live" && (
 
-                          <Badge>
-                            Automatically Visible
-                          </Badge>
+                            <Badge>
+                              Automatically Visible
+                            </Badge>
 
-                        )}
+                          )}
 
                         {/* HIDDEN MODE */}
 
                         {activeQuestion.results_mode ===
                           "hidden" && (
 
-                          <Badge variant="secondary">
-                            Permanently Hidden
-                          </Badge>
+                            <Badge variant="secondary">
+                              Permanently Hidden
+                            </Badge>
 
-                        )}
+                          )}
 
                         {/* ON COMMAND MODE */}
 
                         {activeQuestion.results_mode ===
                           "on_command" && (
 
-                          <Button
-                            disabled={isUpdating}
-                            variant={
-                              activeQuestion.results_visible
-                                ? "outline"
-                                : "default"
-                            }
-                            onClick={() => {
-
-                              if (
+                            <Button
+                              disabled={isUpdating}
+                              variant={
                                 activeQuestion.results_visible
-                              ) {
-                                void hideResults();
-                              } else {
-                                void revealResults();
+                                  ? "outline"
+                                  : "default"
                               }
+                              onClick={() => {
 
-                            }}
-                          >
+                                if (
+                                  activeQuestion.results_visible
+                                ) {
+                                  void hideResults();
+                                } else {
+                                  void revealResults();
+                                }
 
-                            {activeQuestion.results_visible
-                              ? "Hide Results"
-                              : "Reveal Results"}
+                              }}
+                            >
 
-                          </Button>
+                              {activeQuestion.results_visible
+                                ? "Hide Results"
+                                : "Reveal Results"}
 
-                        )}
+                            </Button>
+
+                          )}
 
                       </div>
 
@@ -1626,7 +1737,7 @@ export default function LiveStudio({
                     {/* RESULT VISUALIZATION */}
 
                     {activeQuestion.type ===
-                    "multiple_choice" ? (
+                      "multiple_choice" ? (
 
                       <div className="space-y-4">
 
@@ -1638,18 +1749,18 @@ export default function LiveStudio({
 
                             const count =
                               activeTally[
-                                option
+                              option
                               ] ?? 0;
 
                             const percentage =
                               activeResponses.length ===
-                              0
+                                0
                                 ? 0
                                 : Math.round(
-                                    (count /
-                                      activeResponses.length) *
-                                      100,
-                                  );
+                                  (count /
+                                    activeResponses.length) *
+                                  100,
+                                );
 
                             return (
 
@@ -1723,7 +1834,7 @@ export default function LiveStudio({
 
                           response
                           {activeResponses.length ===
-                          1
+                            1
                             ? ""
                             : "s"}{" "}
 
@@ -1762,7 +1873,7 @@ export default function LiveStudio({
 
                           const nextQuestion =
                             questions[
-                              index + 1
+                            index + 1
                             ];
 
                           if (
@@ -1817,6 +1928,136 @@ export default function LiveStudio({
 
           <aside className="min-w-0 space-y-5">
 
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm">
+                    Participants
+                  </CardTitle>
+
+                  <Badge variant="outline">
+                    {participantSummary.active}/
+                    {participantSummary.total} active
+                  </Badge>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg border p-2 text-center">
+                    <div className="text-lg font-bold">
+                      {participantSummary.total}
+                    </div>
+
+                    <div className="text-[10px] text-muted-foreground">
+                      Joined
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border p-2 text-center">
+                    <div className="text-lg font-bold text-green-600">
+                      {participantSummary.active}
+                    </div>
+
+                    <div className="text-[10px] text-muted-foreground">
+                      Active
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border p-2 text-center">
+                    <div className="text-lg font-bold text-muted-foreground">
+                      {participantSummary.inactive}
+                    </div>
+
+                    <div className="text-[10px] text-muted-foreground">
+                      Inactive
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <p className="text-sm font-medium">
+                      Late joining
+                    </p>
+
+                    <p className="text-xs text-muted-foreground">
+                      {session?.allow_late_join
+                        ? "New students can join"
+                        : "Joining is locked"}
+                    </p>
+                  </div>
+
+                  <Switch
+                    checked={session?.allow_late_join ?? false}
+                    disabled={isUpdatingParticipants}
+                    onCheckedChange={() =>
+                      void toggleLateJoin()
+                    }
+                  />
+                </div>
+
+                <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
+                  {participants.length === 0 ? (
+                    <p className="py-4 text-center text-xs text-muted-foreground">
+                      No participants yet.
+                    </p>
+                  ) : (
+                    participants.map((participant) => {
+                      const isActive =
+                        !participant.left_at &&
+                        Date.now() -
+                        new Date(
+                          participant.last_seen_at,
+                        ).getTime() <=
+                        activeParticipantThresholdMs;
+
+                      return (
+                        <div
+                          key={participant.id}
+                          className="flex items-center justify-between rounded-lg border px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium">
+                              {participant.is_anonymous
+                                ? "Anonymous participant"
+                                : participant.name ??
+                                "Unnamed participant"}
+                            </p>
+
+                            <p className="text-xs text-muted-foreground">
+                              {participant.is_anonymous
+                                ? "Anonymous"
+                                : `Roll ${participant.roll_number ??
+                                "—"
+                                }`}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={[
+                                "h-2 w-2 rounded-full",
+                                isActive
+                                  ? "bg-green-500"
+                                  : "bg-slate-300",
+                              ].join(" ")}
+                            />
+
+                            <span className="text-[10px] text-muted-foreground">
+                              {isActive
+                                ? "Active"
+                                : "Away"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* QUESTION QUEUE */}
 
             <Card>
@@ -1845,18 +2086,17 @@ export default function LiveStudio({
 
                     const responseCount =
                       responseCountByQuestion[
-                        question.id
+                      question.id
                       ] ?? 0;
 
                     return (
 
                       <div
                         key={question.id}
-                        className={`rounded-xl border p-3 transition ${
-                          isActive
-                            ? "border-indigo-500 bg-indigo-50 shadow-sm dark:bg-indigo-950/30"
-                            : "hover:bg-slate-50 dark:hover:bg-slate-900"
-                        }`}
+                        className={`rounded-xl border p-3 transition ${isActive
+                          ? "border-indigo-500 bg-indigo-50 shadow-sm dark:bg-indigo-950/30"
+                          : "hover:bg-slate-50 dark:hover:bg-slate-900"
+                          }`}
                       >
 
                         <div className="flex items-start gap-3">
@@ -1880,7 +2120,7 @@ export default function LiveStudio({
                               <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium dark:bg-slate-800">
 
                                 {question.type ===
-                                "multiple_choice"
+                                  "multiple_choice"
                                   ? "MCQ"
                                   : question.type}
 
@@ -1895,11 +2135,11 @@ export default function LiveStudio({
                               {question.status ===
                                 "closed" && (
 
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium dark:bg-slate-800">
-                                  Closed
-                                </span>
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium dark:bg-slate-800">
+                                    Closed
+                                  </span>
 
-                              )}
+                                )}
 
                             </div>
 
@@ -2013,18 +2253,16 @@ export default function LiveStudio({
 
                         const displayName =
                           participant?.is_anonymous
-                            ? `Anonymous ${
-                                index + 1
-                              }`
+                            ? `Anonymous ${index + 1
+                            }`
                             : participant?.name ??
-                              `Participant ${
-                                index + 1
-                              }`;
+                            `Participant ${index + 1
+                            }`;
 
                         const roll =
                           participant?.roll_number !==
                             null &&
-                          participant?.roll_number !==
+                            participant?.roll_number !==
                             undefined
                             ? `Roll ${participant.roll_number}`
                             : null;
@@ -2075,11 +2313,11 @@ export default function LiveStudio({
                             <div className="mt-2 rounded-lg bg-slate-50 p-3 text-sm font-semibold dark:bg-slate-900">
 
                               {typeof response.answer ===
-                              "string"
+                                "string"
                                 ? response.answer
                                 : JSON.stringify(
-                                    response.answer,
-                                  )}
+                                  response.answer,
+                                )}
 
                             </div>
 

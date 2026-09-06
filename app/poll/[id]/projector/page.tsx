@@ -16,6 +16,14 @@ type ResponseRow = {
   updated_at: string;
 };
 
+type ProjectorPhase =
+  | "connecting"
+  | "waiting"
+  | "live"
+  | "paused"
+  | "closed"
+  | "completed";
+
 export default function ProjectorPage({
   params,
 }: {
@@ -30,13 +38,24 @@ export default function ProjectorPage({
 
   const [session, setSession] =
     useState<Session | null>(null);
+
   const [question, setQuestion] =
     useState<Question | null>(null);
+
   const [responses, setResponses] =
     useState<ResponseRow[]>([]);
-  const [error, setError] = useState<string | null>(
-    null,
-  );
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [phase, setPhase] =
+    useState<ProjectorPhase>("connecting");
+
+  /*
+   * ---------------------------------------------
+   * LOAD QUESTION + RESPONSES
+   * ---------------------------------------------
+   */
 
   const loadQuestion = async (
     questionId: string | null,
@@ -47,72 +66,183 @@ export default function ProjectorPage({
       return;
     }
 
-    const { data: questionData } =
-      await supabase
-        .from("questions")
-        .select("*")
-        .eq("id", questionId)
-        .single();
+    const {
+      data: questionData,
+      error: questionError,
+    } = await supabase
+      .from("questions")
+      .select("*")
+      .eq("id", questionId)
+      .single();
 
-    if (!questionData) {
+    if (questionError || !questionData) {
       setQuestion(null);
       setResponses([]);
       return;
     }
 
-    setQuestion(questionData as Question);
+    const currentQuestion =
+      questionData as Question;
 
-    const { data: responseData } =
-      await supabase
-        .from("responses")
-        .select(
-          "id, quiz_id, question_id, participant_id, answer, submitted_at, updated_at",
-        )
-        .eq("quiz_id", sessionId)
-        .eq("question_id", questionId)
-        .order("updated_at", {
-          ascending: true,
-        });
+    setQuestion(currentQuestion);
+
+    /*
+     * Load every existing response for this
+     * exact question.
+     */
+
+    const {
+      data: responseData,
+      error: responseError,
+    } = await supabase
+      .from("responses")
+      .select(
+        `
+          id,
+          quiz_id,
+          question_id,
+          participant_id,
+          answer,
+          submitted_at,
+          updated_at
+        `,
+      )
+      .eq("quiz_id", sessionId)
+      .eq("question_id", questionId)
+      .order("updated_at", {
+        ascending: true,
+      });
+
+    if (responseError) {
+      setResponses([]);
+      return;
+    }
 
     setResponses(
       (responseData ?? []) as ResponseRow[],
     );
   };
 
+  /*
+   * ---------------------------------------------
+   * LOAD SESSION
+   * ---------------------------------------------
+   */
+
   useEffect(() => {
     if (!sessionId) {
       return;
     }
 
+    let cancelled = false;
+
     const loadSession = async () => {
-      const { data, error: sessionError } =
-        await supabase
-          .from("sessions")
-          .select("*")
-          .eq("id", sessionId)
-          .single();
+      setPhase("connecting");
+      setError(null);
+
+      const {
+        data,
+        error: sessionError,
+      } = await supabase
+        .from("sessions")
+        .select("*")
+        .eq("id", sessionId)
+        .single();
+
+      if (cancelled) {
+        return;
+      }
 
       if (sessionError || !data) {
         setError(
           sessionError?.message ??
             "Unable to load session.",
         );
+
+        setPhase("waiting");
         return;
       }
 
-      const currentSession = data as Session;
+      const currentSession =
+        data as Session;
 
       setSession(currentSession);
 
-      await loadQuestion(
-        currentSession.active_question_id,
-      );
+      if (
+        currentSession.status ===
+          "completed" ||
+        currentSession.status ===
+          "archived"
+      ) {
+        setQuestion(null);
+        setResponses([]);
+        setPhase("completed");
+        return;
+      }
+
+      if (
+        currentSession.status ===
+          "paused" ||
+        currentSession.is_offline
+      ) {
+        if (
+          currentSession.active_question_id
+        ) {
+          await loadQuestion(
+            currentSession.active_question_id,
+          );
+        }
+
+        setPhase("paused");
+        return;
+      }
+
+      if (
+        currentSession.active_question_id
+      ) {
+        await loadQuestion(
+          currentSession.active_question_id,
+        );
+
+        setPhase("live");
+      } else {
+        setQuestion(null);
+        setResponses([]);
+        setPhase("waiting");
+      }
     };
 
     void loadSession();
 
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId]);
+
+  /*
+   * ---------------------------------------------
+   * REALTIME SESSION / QUESTION / RESPONSE
+   * ---------------------------------------------
+   *
+   * We use a ref-like state snapshot through
+   * the functional React setters below instead
+   * of relying on a stale question closure.
+   */
+
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+
     const channel = supabase
-      .channel(`projector-live-${sessionId}`)
+      .channel(
+        `projector-live-${sessionId}`,
+      )
+
+      /*
+       * SESSION EVENTS
+       */
+
       .on(
         "postgres_changes",
         {
@@ -127,216 +257,940 @@ export default function ProjectorPage({
 
           setSession(updatedSession);
 
+          /*
+           * Session ended
+           */
+
+          if (
+            updatedSession.status ===
+              "completed" ||
+            updatedSession.status ===
+              "archived"
+          ) {
+            setQuestion(null);
+            setResponses([]);
+            setPhase("completed");
+            return;
+          }
+
+          /*
+           * Session paused
+           */
+
+          if (
+            updatedSession.status ===
+              "paused" ||
+            updatedSession.is_offline
+          ) {
+            setPhase("paused");
+
+            /*
+             * Keep the current question loaded
+             * so it can resume cleanly.
+             */
+
+            if (
+              updatedSession.active_question_id
+            ) {
+              await loadQuestion(
+                updatedSession.active_question_id,
+              );
+            }
+
+            return;
+          }
+
+          /*
+           * Question cleared
+           */
+
+          if (
+            !updatedSession.active_question_id
+          ) {
+            setQuestion(null);
+            setResponses([]);
+            setPhase("waiting");
+            return;
+          }
+
+          /*
+           * Active question changed or session
+           * returned to live.
+           */
+
           await loadQuestion(
             updatedSession.active_question_id,
           );
+
+          setPhase("live");
         },
       )
+
+      /*
+       * QUESTION EVENTS
+       *
+       * This catches results_visible changing,
+       * closing/reopening, etc.
+       */
+
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "UPDATE",
           schema: "public",
-          table: "responses",
-          filter: `quiz_id=eq.${sessionId}`,
+          table: "questions",
         },
         async (payload) => {
-          const changedResponse =
-            payload.eventType === "DELETE"
-              ? payload.old
-              : payload.new;
+          const updatedQuestion =
+            payload.new as Question;
+
+          /*
+           * Only react if this is the current
+           * active question.
+           */
+
+          setQuestion((currentQuestion) => {
+            if (
+              !currentQuestion ||
+              currentQuestion.id !==
+                updatedQuestion.id
+            ) {
+              return currentQuestion;
+            }
+
+            return updatedQuestion;
+          });
+
+          /*
+           * If the active question itself
+           * was closed, update projector state.
+           */
 
           if (
-            !question ||
-            changedResponse.question_id !==
-              question.id
+            updatedQuestion.id ===
+              sessionId &&
+            updatedQuestion.status ===
+              "closed"
           ) {
             return;
           }
 
-          const { data } =
-            await supabase
-              .from("responses")
-              .select(
-                "id, quiz_id, question_id, participant_id, answer, submitted_at, updated_at",
-              )
-              .eq("quiz_id", sessionId)
-              .eq("question_id", question.id)
-              .order("updated_at", {
-                ascending: true,
-              });
+          /*
+           * Refresh responses when question
+           * state changes. This is especially
+           * useful when a question is reopened.
+           */
 
-          setResponses(
-            (data ?? []) as ResponseRow[],
+          setQuestion((currentQuestion) => {
+            if (
+              currentQuestion?.id ===
+              updatedQuestion.id
+            ) {
+              void loadQuestion(
+                updatedQuestion.id,
+              );
+            }
+
+            return updatedQuestion;
+          });
+        },
+      )
+
+      /*
+       * RESPONSE EVENTS
+       *
+       * IMPORTANT:
+       * Do not capture `question` from the
+       * effect closure. Instead, check the
+       * currently rendered question via the
+       * functional state update.
+       */
+
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "responses",
+          filter: `quiz_id=eq.${sessionId}`,
+        },
+        (payload) => {
+          const inserted =
+            payload.new as ResponseRow;
+
+          setQuestion((currentQuestion) => {
+            if (
+              !currentQuestion ||
+              inserted.question_id !==
+                currentQuestion.id
+            ) {
+              return currentQuestion;
+            }
+
+            setResponses((currentResponses) => {
+              const alreadyExists =
+                currentResponses.some(
+                  (response) =>
+                    response.id ===
+                    inserted.id,
+                );
+
+              if (alreadyExists) {
+                return currentResponses;
+              }
+
+              return [
+                ...currentResponses,
+                inserted,
+              ];
+            });
+
+            return currentQuestion;
+          });
+        },
+      )
+
+      /*
+       * RESPONSE UPDATES
+       */
+
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "responses",
+          filter: `quiz_id=eq.${sessionId}`,
+        },
+        (payload) => {
+          const updated =
+            payload.new as ResponseRow;
+
+          setQuestion((currentQuestion) => {
+            if (
+              !currentQuestion ||
+              updated.question_id !==
+                currentQuestion.id
+            ) {
+              return currentQuestion;
+            }
+
+            setResponses((currentResponses) =>
+              currentResponses.map(
+                (response) =>
+                  response.id ===
+                  updated.id
+                    ? updated
+                    : response,
+              ),
+            );
+
+            return currentQuestion;
+          });
+        },
+      )
+
+      /*
+       * RESPONSE DELETE
+       */
+
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "responses",
+          filter: `quiz_id=eq.${sessionId}`,
+        },
+        (payload) => {
+          const deleted =
+            payload.old as ResponseRow;
+
+          setResponses((currentResponses) =>
+            currentResponses.filter(
+              (response) =>
+                response.id !== deleted.id,
+            ),
           );
         },
       )
+
       .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      void supabase.removeChannel(
+        channel,
+      );
     };
   }, [sessionId]);
 
-  const totalResponses = responses.length;
+  /*
+   * ---------------------------------------------
+   * DERIVED DATA
+   * ---------------------------------------------
+   */
+
+  const totalResponses =
+    responses.length;
 
   const tally = useMemo(() => {
-    const counts: Record<string, number> = {};
+    const counts: Record<
+      string,
+      number
+    > = {};
 
     if (!question) {
       return counts;
     }
 
-    for (const option of question.options) {
-      counts[option] = responses.filter(
-        (response) =>
-          response.answer === option,
-      ).length;
+    for (
+      const option of question.options
+    ) {
+      counts[option] =
+        responses.filter(
+          (response) =>
+            response.answer === option,
+        ).length;
     }
 
     return counts;
-  }, [question, responses]);
+  }, [
+    question,
+    responses,
+  ]);
+
+  const leadingOption =
+    useMemo(() => {
+      if (
+        !question ||
+        question.options.length ===
+          0 ||
+        totalResponses === 0
+      ) {
+        return null;
+      }
+
+      let winner =
+        question.options[0];
+
+      let winnerCount =
+        tally[winner] ?? 0;
+
+      for (
+        const option of question.options
+      ) {
+        const count =
+          tally[option] ?? 0;
+
+        if (count > winnerCount) {
+          winner = option;
+          winnerCount = count;
+        }
+      }
+
+      return {
+        option: winner,
+        count: winnerCount,
+      };
+    }, [
+      question,
+      tally,
+      totalResponses,
+    ]);
+
+  /*
+   * ---------------------------------------------
+   * URL
+   * ---------------------------------------------
+   */
 
   const joinUrl =
-    typeof window !== "undefined" && session
+    typeof window !== "undefined" &&
+    session
       ? `${window.location.origin}/join/${session.join_code}`
       : "";
 
+  /*
+   * ---------------------------------------------
+   * RESULT VISIBILITY
+   * ---------------------------------------------
+   */
+
+  const showResults =
+    Boolean(
+      question?.results_visible,
+    );
+
+  /*
+   * ---------------------------------------------
+   * ERROR STATE
+   * ---------------------------------------------
+   */
+
   if (error) {
     return (
-      <main className="flex h-screen items-center justify-center bg-slate-950 text-white">
-        <p className="text-lg font-semibold">
-          {error}
-        </p>
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 p-8 text-white">
+        <div className="text-center">
+
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/50">
+            Live Session
+          </p>
+
+          <h1 className="mt-3 text-3xl font-bold">
+            Unable to connect
+          </h1>
+
+          <p className="mt-3 max-w-lg text-white/60">
+            {error}
+          </p>
+
+        </div>
       </main>
     );
   }
 
-  if (!session) {
+  /*
+   * ---------------------------------------------
+   * CONNECTING STATE
+   * ---------------------------------------------
+   */
+
+  if (
+    phase === "connecting" ||
+    !session
+  ) {
     return (
-      <main className="flex h-screen items-center justify-center bg-slate-950 text-white">
-        <p className="text-2xl font-semibold">
-          Connecting to live session...
-        </p>
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 p-8 text-white">
+
+        <div className="text-center">
+
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+
+            <div className="h-7 w-7 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+
+          </div>
+
+          <h1 className="mt-6 text-3xl font-bold">
+            Connecting to live session...
+          </h1>
+
+        </div>
+
       </main>
     );
   }
+
+  /*
+   * ---------------------------------------------
+   * PROJECTOR UI
+   * ---------------------------------------------
+   */
 
   return (
-    <main className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
-      <aside className="flex w-[30%] flex-col items-center justify-center border-r bg-white p-8 text-center shadow-xl dark:bg-slate-900">
-        <h1 className="text-3xl font-extrabold">
-          {session.name}
-        </h1>
+    <main className="flex h-screen overflow-hidden bg-slate-950 text-white">
 
-        <p className="mt-3 text-lg text-muted-foreground">
-          Scan to join
-        </p>
+      {/* ========================================
+          LEFT INFORMATION PANEL
+         ======================================== */}
 
-        {joinUrl && (
-          <div className="mt-6 rounded-2xl border bg-white p-4">
-            <QRCodeSVG
-              value={joinUrl}
-              size={240}
-            />
-          </div>
-        )}
+      <aside className="flex w-[27%] min-w-[280px] flex-col justify-between border-r border-white/10 bg-slate-900 p-8">
 
-        <div className="mt-6 rounded-full bg-slate-100 px-6 py-3 text-2xl font-black tracking-[0.25em] dark:bg-slate-800">
-          {session.join_code}
-        </div>
+        <div>
 
-        <div className="mt-6 rounded-full bg-indigo-50 px-5 py-2 font-bold text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300">
-          {totalResponses} responses
-        </div>
+          {/* BRAND / SESSION */}
 
-        {session.status === "paused" ||
-        session.is_offline ? (
-          <div className="mt-4 rounded-full bg-yellow-100 px-6 py-2 font-bold text-yellow-800">
-            Session Paused
-          </div>
-        ) : null}
-      </aside>
+          <div>
 
-      <section className="flex w-[70%] flex-col justify-center p-10 lg:p-16">
-        {!question ? (
-          <div className="text-center">
-            <h2 className="text-5xl font-bold">
-              Waiting for instructor
-            </h2>
-
-            <p className="mt-4 text-xl text-muted-foreground">
-              The next question will appear
-              automatically.
-            </p>
-          </div>
-        ) : question.status === "closed" ? (
-          <div className="text-center">
-            <h2 className="text-5xl font-bold">
-              Question Closed
-            </h2>
-
-            <p className="mt-4 text-xl text-muted-foreground">
-              Waiting for the next question.
-            </p>
-          </div>
-        ) : (
-          <div className="mx-auto w-full max-w-5xl">
-            <p className="mb-5 text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">
-              Live Question
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-400">
+              Live Session
             </p>
 
-            <h2 className="text-4xl font-extrabold leading-tight lg:text-6xl">
-              {question.text}
-            </h2>
+            <h1 className="mt-3 text-3xl font-black leading-tight">
+              {session.name}
+            </h1>
 
-            {question.type ===
-              "multiple_choice" && (
-              <div className="mt-12 space-y-6">
-                {question.options.map(
-                  (option) => {
-                    const count =
-                      tally[option] ?? 0;
+          </div>
 
-                    const percentage =
-                      totalResponses === 0
-                        ? 0
-                        : Math.round(
-                            (count /
-                              totalResponses) *
-                              100,
-                          );
+          {/* JOIN */}
 
-                    return (
-                      <div
-                        key={option}
-                        className="space-y-2"
-                      >
-                        <div className="flex items-center justify-between gap-4 text-xl font-bold lg:text-2xl">
-                          <span>{option}</span>
+          <div className="mt-10">
 
-                          <span className="text-muted-foreground">
-                            {percentage}% ({count})
-                          </span>
-                        </div>
+            <p className="text-sm font-semibold text-white/60">
+              Join the session
+            </p>
 
-                        <Progress
-                          value={percentage}
-                          className="h-7"
-                        />
-                      </div>
-                    );
-                  },
-                )}
+            {joinUrl && (
+              <div className="mt-4 rounded-2xl bg-white p-4">
+
+                <QRCodeSVG
+                  value={joinUrl}
+                  size={230}
+                  className="mx-auto h-auto max-w-full"
+                />
+
               </div>
             )}
 
-            <div className="mt-10 text-right text-lg font-semibold text-muted-foreground">
-              Total Responses: {totalResponses}
+            <div className="mt-5 text-center">
+
+              <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+                Join Code
+              </p>
+
+              <p className="mt-2 text-4xl font-black tracking-[0.25em]">
+                {session.join_code}
+              </p>
+
             </div>
+
           </div>
-        )}
+
+        </div>
+
+        {/* SESSION STATUS */}
+
+        <div className="space-y-3">
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+
+            <div className="flex items-center justify-between">
+
+              <span className="text-sm text-white/60">
+                Session
+              </span>
+
+              <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-bold text-emerald-400">
+                {session.status.toUpperCase()}
+              </span>
+
+            </div>
+
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+
+            <div className="flex items-center justify-between">
+
+              <span className="text-sm text-white/60">
+                Responses
+              </span>
+
+              <span className="text-2xl font-black">
+                {totalResponses}
+              </span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </aside>
+
+      {/* ========================================
+          MAIN PROJECTOR AREA
+         ======================================== */}
+
+      <section className="flex min-w-0 flex-1 flex-col">
+
+        {/* TOP STATUS BAR */}
+
+        <div className="flex items-center justify-between border-b border-white/10 px-8 py-5">
+
+          <div className="flex items-center gap-3">
+
+            <span
+              className={`h-3 w-3 rounded-full ${
+                phase === "live"
+                  ? "bg-emerald-400"
+                  : phase === "paused"
+                    ? "bg-yellow-400"
+                    : "bg-white/30"
+              }`}
+            />
+
+            <span className="text-sm font-semibold text-white/70">
+              {phase === "live"
+                ? "Live"
+                : phase === "paused"
+                  ? "Paused"
+                  : phase === "closed"
+                    ? "Question Closed"
+                    : phase === "completed"
+                      ? "Session Ended"
+                      : "Waiting"}
+            </span>
+
+          </div>
+
+          {question && (
+
+            <div className="flex items-center gap-2">
+
+              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/60">
+                {question.results_mode ===
+                "live"
+                  ? "Live Results"
+                  : question.results_mode ===
+                      "on_command"
+                    ? question.results_visible
+                      ? "Results Revealed"
+                      : "Results Hidden"
+                    : "Hidden Results"}
+              </span>
+
+            </div>
+
+          )}
+
+        </div>
+
+        {/* CONTENT */}
+
+        <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-10 lg:p-16">
+
+          {/* WAITING */}
+
+          {phase === "waiting" && (
+            <div className="max-w-3xl text-center">
+
+              <p className="text-sm font-bold uppercase tracking-[0.25em] text-indigo-400">
+                Live Classroom
+              </p>
+
+              <h2 className="mt-6 text-5xl font-black leading-tight lg:text-7xl">
+                Waiting for the instructor
+              </h2>
+
+              <p className="mx-auto mt-6 max-w-2xl text-xl leading-relaxed text-white/50">
+                The next question will appear here
+                automatically.
+              </p>
+
+            </div>
+          )}
+
+          {/* PAUSED */}
+
+          {phase === "paused" && (
+            <div className="max-w-3xl text-center">
+
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-yellow-400/10 text-4xl">
+                ⏸
+              </div>
+
+              <h2 className="mt-7 text-5xl font-black lg:text-7xl">
+                Session Paused
+              </h2>
+
+              <p className="mx-auto mt-6 max-w-2xl text-xl text-white/50">
+                Please wait while the instructor
+                resumes the session.
+              </p>
+
+            </div>
+          )}
+
+          {/* COMPLETED */}
+
+          {phase === "completed" && (
+            <div className="max-w-3xl text-center">
+
+              <p className="text-sm font-bold uppercase tracking-[0.25em] text-indigo-400">
+                Session Complete
+              </p>
+
+              <h2 className="mt-6 text-5xl font-black lg:text-7xl">
+                Thank you
+              </h2>
+
+              <p className="mx-auto mt-6 max-w-2xl text-xl text-white/50">
+                This live session has ended.
+              </p>
+
+              <div className="mx-auto mt-8 inline-flex rounded-full border border-white/10 bg-white/5 px-6 py-3 text-lg font-semibold">
+                {totalResponses} responses recorded
+              </div>
+
+            </div>
+          )}
+
+          {/* QUESTION CLOSED */}
+
+          {phase === "closed" && (
+            <div className="max-w-3xl text-center">
+
+              <p className="text-sm font-bold uppercase tracking-[0.25em] text-indigo-400">
+                Question Complete
+              </p>
+
+              <h2 className="mt-6 text-5xl font-black lg:text-7xl">
+                Waiting for the next question
+              </h2>
+
+            </div>
+          )}
+
+          {/* LIVE QUESTION */}
+
+          {phase === "live" &&
+            question && (
+
+            <div className="w-full max-w-6xl">
+
+              {/* QUESTION */}
+
+              <div className="text-center">
+
+                <p className="text-sm font-bold uppercase tracking-[0.25em] text-indigo-400">
+                  Live Question
+                </p>
+
+                <h2 className="mx-auto mt-6 max-w-6xl text-4xl font-black leading-tight lg:text-6xl">
+                  {question.text}
+                </h2>
+
+              </div>
+
+              {/* RESULTS */}
+
+              {question.type ===
+                "multiple_choice" && (
+                <div className="mt-14 space-y-7">
+
+                  {question.options.map(
+                    (option, index) => {
+
+                      const count =
+                        tally[option] ?? 0;
+
+                      const percentage =
+                        totalResponses ===
+                        0
+                          ? 0
+                          : Math.round(
+                              (count /
+                                totalResponses) *
+                                100,
+                            );
+
+                      return (
+
+                        <div
+                          key={`${question.id}-${index}`}
+                        >
+
+                          <div className="mb-3 flex items-center justify-between gap-6">
+
+                            <div className="min-w-0">
+
+                              <span className="mr-4 text-2xl font-black text-white/30 lg:text-3xl">
+                                {String.fromCharCode(
+                                  65 + index,
+                                )}
+                              </span>
+
+                              <span className="text-2xl font-bold lg:text-3xl">
+                                {option}
+                              </span>
+
+                            </div>
+
+                            {showResults ? (
+
+                              <div className="shrink-0 text-right">
+
+                                <span className="text-2xl font-black lg:text-3xl">
+                                  {percentage}%
+                                </span>
+
+                                <span className="ml-3 text-lg text-white/40">
+                                  {count}
+                                </span>
+
+                              </div>
+
+                            ) : (
+
+                              <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/50">
+                                Responses collected
+                              </span>
+
+                            )}
+
+                          </div>
+
+                          {showResults ? (
+
+                            <Progress
+                              value={
+                                percentage
+                              }
+                              className="h-7 bg-white/10"
+                            />
+
+                          ) : (
+
+                            <div className="h-4 rounded-full bg-white/5" />
+
+                          )}
+
+                        </div>
+
+                      );
+
+                    },
+                  )}
+
+                </div>
+              )}
+
+              {/* SCALE */}
+
+              {question.type ===
+                "scale" && (
+
+                <div className="mt-14">
+
+                  {showResults ? (
+
+                    <div className="space-y-6">
+
+                      {question.options.length >
+                      0 ? (
+
+                        question.options.map(
+                          (
+                            option,
+                            index,
+                          ) => {
+
+                            const count =
+                              tally[
+                                option
+                              ] ?? 0;
+
+                            const percentage =
+                              totalResponses ===
+                              0
+                                ? 0
+                                : Math.round(
+                                    (count /
+                                      totalResponses) *
+                                      100,
+                                  );
+
+                            return (
+
+                              <div
+                                key={`${question.id}-${index}`}
+                              >
+
+                                <div className="mb-2 flex justify-between text-xl font-bold">
+
+                                  <span>
+                                    {option}
+                                  </span>
+
+                                  <span>
+                                    {percentage}% (
+                                    {count})
+                                  </span>
+
+                                </div>
+
+                                <Progress
+                                  value={
+                                    percentage
+                                  }
+                                  className="h-6"
+                                />
+
+                              </div>
+
+                            );
+
+                          },
+                        )
+
+                      ) : (
+
+                        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+
+                          <p className="text-2xl font-bold">
+                            {totalResponses}{" "}
+                            responses
+                          </p>
+
+                        </div>
+
+                      )}
+
+                    </div>
+
+                  ) : (
+
+                    <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+
+                      <p className="text-2xl font-bold">
+                        Responses are being collected
+                      </p>
+
+                      <p className="mt-3 text-lg text-white/40">
+                        Results will appear when
+                        they are revealed.
+                      </p>
+
+                    </div>
+
+                  )}
+
+                </div>
+
+              )}
+
+              {/* RESPONSE FOOTER */}
+
+              <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row">
+
+                <div>
+
+                  <p className="text-sm font-semibold text-white/40">
+                    Total Responses
+                  </p>
+
+                  <p className="mt-1 text-3xl font-black">
+                    {totalResponses}
+                  </p>
+
+                </div>
+
+                {showResults &&
+                  leadingOption && (
+
+                    <div className="text-right">
+
+                      <p className="text-sm font-semibold text-white/40">
+                        Leading Answer
+                      </p>
+
+                      <p className="mt-1 text-xl font-bold">
+                        {leadingOption.option}
+                      </p>
+
+                    </div>
+
+                  )}
+
+              </div>
+
+            </div>
+          )}
+
+        </div>
+
       </section>
+
     </main>
   );
 }
