@@ -6,7 +6,6 @@ declare global {
       id: string;
           question: string;
               type: string;
-                  options: string[];
                       votes: Record<string, any>;
                         } | null;
                         }
