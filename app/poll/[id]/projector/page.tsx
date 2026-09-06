@@ -4,7 +4,7 @@ import { use, useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/lib/supabase";
-import type { Question, Session } from "@/lib/types";
+import type { Session, SessionQuestion } from "@/lib/types";
 
 type ResponseRow = {
   id: string;
@@ -40,7 +40,7 @@ export default function ProjectorPage({
     useState<Session | null>(null);
 
   const [question, setQuestion] =
-    useState<Question | null>(null);
+    useState<SessionQuestion | null>(null);
 
   const [responses, setResponses] =
     useState<ResponseRow[]>([]);
@@ -70,9 +70,10 @@ export default function ProjectorPage({
       data: questionData,
       error: questionError,
     } = await supabase
-      .from("questions")
+      .from("session_questions")
       .select("*")
       .eq("id", questionId)
+      .eq("session_id", sessionId)
       .single();
 
     if (questionError || !questionData) {
@@ -82,13 +83,13 @@ export default function ProjectorPage({
     }
 
     const currentQuestion =
-      questionData as Question;
+      questionData as SessionQuestion;
 
     setQuestion(currentQuestion);
 
     /*
      * Load every existing response for this
-     * exact question.
+     * exact session question.
      */
 
     const {
@@ -223,10 +224,6 @@ export default function ProjectorPage({
    * ---------------------------------------------
    * REALTIME SESSION / QUESTION / RESPONSE
    * ---------------------------------------------
-   *
-   * We use a ref-like state snapshot through
-   * the functional React setters below instead
-   * of relying on a stale question closure.
    */
 
   useEffect(() => {
@@ -338,11 +335,12 @@ export default function ProjectorPage({
         {
           event: "UPDATE",
           schema: "public",
-          table: "questions",
+          table: "session_questions",
+          filter: `session_id=eq.${sessionId}`,
         },
         async (payload) => {
           const updatedQuestion =
-            payload.new as Question;
+            payload.new as SessionQuestion;
 
           /*
            * Only react if this is the current
@@ -368,17 +366,16 @@ export default function ProjectorPage({
 
           if (
             updatedQuestion.id ===
-              sessionId &&
+              question?.id &&
             updatedQuestion.status ===
               "closed"
           ) {
-            return;
+            setPhase("closed");
           }
 
           /*
            * Refresh responses when question
-           * state changes. This is especially
-           * useful when a question is reopened.
+           * state changes.
            */
 
           setQuestion((currentQuestion) => {
