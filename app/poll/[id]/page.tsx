@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -7,34 +7,51 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 
-export default function PollPage({ params }: { params: { id: string } }) {
+export default function PollPage({ params }: { params: any }) {
+  // Unwrap params safely to support both Next.js 14 and 15
+  const resolvedParams = params instanceof Promise ? use(params) : params;
+  const quizId = resolvedParams.id;
+
   const [quiz, setQuiz] = useState<any>(null);
   const [question, setQuestion] = useState<any>(null);
   const [selectedOption, setSelectedOption] = useState<string>("");
   const [hasVoted, setHasVoted] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
-  // Auth state for non-anonymous polls
   const [participantInfo, setParticipantInfo] = useState({ name: "", rollNo: "" });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
+    if (!quizId) return;
+
     const fetchInitialData = async () => {
-      const { data: qz } = await supabase.from('quizzes').select('*').eq('id', params.id).single();
-      if (qz) {
-        setQuiz(qz);
-        setIsAuthenticated(qz.is_anonymous);
-        if (qz.active_question_id) fetchQuestion(qz.active_question_id);
+      try {
+        const { data: qz, error } = await supabase
+          .from('quizzes')
+          .select('*')
+          .eq('id', quizId)
+          .single();
+          
+        if (error) throw error;
+        
+        if (qz) {
+          setQuiz(qz);
+          setIsAuthenticated(qz.is_anonymous);
+          if (qz.active_question_id) fetchQuestion(qz.active_question_id);
+        }
+      } catch (error: any) {
+        console.error("Fetch Error:", error);
+        setErrorMsg(error.message || "Failed to load quiz from database.");
       }
     };
     
     fetchInitialData();
 
-    // Subscribe to real-time updates for this specific quiz
-    const channel = supabase.channel(`quiz-${params.id}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'quizzes', filter: `id=eq.${params.id}` }, 
+    const channel = supabase.channel(`quiz-${quizId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'quizzes', filter: `id=eq.${quizId}` }, 
       (payload) => {
         setQuiz(payload.new);
-        if (payload.new.active_question_id !== quiz?.active_question_id) {
+        if (payload.new.active_question_id) {
           fetchQuestion(payload.new.active_question_id);
           setHasVoted(false);
           setSelectedOption("");
@@ -42,36 +59,40 @@ export default function PollPage({ params }: { params: { id: string } }) {
       }).subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [params.id, quiz?.active_question_id]);
+  }, [quizId]); // Dependency loop fixed
 
   const fetchQuestion = async (questionId: string) => {
-    const { data } = await supabase.from('questions').select('*').eq('id', questionId).single();
+    const { data, error } = await supabase.from('questions').select('*').eq('id', questionId).single();
+    if (error) console.error("Question Fetch Error:", error);
     if (data) setQuestion(data);
   };
 
   const handleJoin = async () => {
     if (participantInfo.name && participantInfo.rollNo.length > 0 && participantInfo.rollNo.length <= 2) {
-      // In a full implementation, you'd insert this into the `participants` table here
       setIsAuthenticated(true);
     }
   };
 
   const handleVote = async () => {
-    if (!selectedOption || !question) return;
+    if (!selectedOption || !question || !quiz) return;
     
-    await supabase.from('responses').insert({
+    const { error } = await supabase.from('responses').insert({
       quiz_id: quiz.id,
       question_id: question.id,
       answer: selectedOption,
-      // participant_id: Include if non-anonymous tracking is fully implemented
     });
+
+    if (error) {
+      alert(`Failed to submit vote: ${error.message}`);
+      return;
+    }
     
     setHasVoted(true);
   };
 
-  if (!quiz) return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+  if (errorMsg) return <div className="flex min-h-screen items-center justify-center text-red-500 font-bold p-4 text-center">{errorMsg}</div>;
+  if (!quiz) return <div className="flex min-h-screen items-center justify-center font-bold">Loading...</div>;
 
-  // Gate for non-anonymous quizzes
   if (!isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4 bg-slate-50 dark:bg-slate-950">
