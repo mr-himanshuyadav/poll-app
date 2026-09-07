@@ -23,13 +23,13 @@ interface ParticipantListProps {
 function isParticipantActive(
     participant: SessionParticipant,
 ): boolean {
-    if (!participant.last_active_at) {
+    if (!participant.last_seen_at) {
         return false;
     }
 
     const lastActive =
         new Date(
-            participant.last_active_at,
+            participant.last_seen_at,
         ).getTime();
 
     if (Number.isNaN(lastActive)) {
@@ -131,9 +131,9 @@ export function ParticipantList({
                                     <Clock3 className="h-3.5 w-3.5" />
 
                                     <span>
-                                        {participant.last_active_at
+                                        {participant.last_seen_at
                                             ? formatRelativeTime(
-                                                  participant.last_active_at,
+                                                  participant.last_seen_at,
                                               )
                                             : "No activity"}
                                     </span>

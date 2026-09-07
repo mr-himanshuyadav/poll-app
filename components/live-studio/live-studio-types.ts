@@ -168,26 +168,14 @@ export interface SessionResponse {
 
 export interface SessionParticipant {
     id: string;
-
-    session_id: string;
-
-    participant_id?: string | null;
-
-    user_id?: string | null;
-
-    name?: string | null;
-
-    display_name?: string | null;
-
-    joined_at?: string | null;
-
-    last_active_at?: string | null;
-
-    created_at?: string | null;
-
-    updated_at?: string | null;
-
-    [key: string]: unknown;
+    quiz_id: string;
+    session_token: string;
+    name: string | null;
+    roll_number: number | null;
+    is_anonymous: boolean;
+    joined_at: string;
+    last_seen_at: string;
+    left_at: string | null;
 }
 
 export interface ParticipantSummary {
@@ -230,22 +218,35 @@ export interface QuestionAnalytics {
 
 export interface SessionAnalytics {
     totalQuestions: number;
-
     totalParticipants: number;
-
     activeParticipants: number;
-
     inactiveParticipants: number;
-
     totalResponses: number;
-
     uniqueResponders: number;
-
     overallParticipationRate: number;
-
     averageResponseTimeMs: number | null;
-
     medianResponseTimeMs: number | null;
+
+    answeredQuestions?: number;
+    averageResponseRate?: number;
+    responseRate?: number;
+
+    questions?: Array<{
+        question_id: string;
+        total_responses: number;
+        response_count?: number;
+        response_rate: number;
+        participation_rate?: number;
+        distribution?: Array<{
+            id?: string;
+            label?: string;
+            option?: string;
+            text?: string;
+            count?: number;
+            responses?: number;
+            percentage?: number;
+        }>;
+    }>;
 }
 
 export interface QuestionFormOption {

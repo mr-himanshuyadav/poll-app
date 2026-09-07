@@ -109,10 +109,8 @@ export function getQuestionPrompt(
     }
 
     return (
-        question.question ??
-        question.prompt ??
-        question.title ??
-        "Untitled question"
+        question.text ??
+"Untitled question"
     );
 }
 
@@ -124,9 +122,7 @@ export function getQuestionTypeLabel(
     }
 
     const type =
-        question.question_type ??
-        question.type ??
-        "";
+    question.type ?? "";
 
     switch (type) {
         case "multiple_choice":

@@ -31,7 +31,6 @@ import {
 
 import {
     LiveStudioTabs,
-    type LiveStudioTab,
 } from "@/components/live-studio/live-studio-tabs";
 
 import {
@@ -99,7 +98,7 @@ export default function LiveStudioPage() {
 
     const sessionCode = useMemo(() => {
         const value =
-            params?.sessionCode;
+            params?.code;
 
         if (Array.isArray(value)) {
             return value[0] ?? "";
@@ -109,7 +108,12 @@ export default function LiveStudioPage() {
     }, [params]);
 
     const [activeTab, setActiveTab] =
-        useState<LiveStudioTab>("live");
+        useState<
+    "live" |
+    "questions" |
+    "participants" |
+    "analytics"
+>("live");
 
     const [
         settingsOpen,

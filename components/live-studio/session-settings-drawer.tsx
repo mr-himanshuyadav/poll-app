@@ -78,9 +78,7 @@ export function SessionSettingsDrawer({
     }
 
     const sessionCode =
-        session?.session_code ??
-        session?.code ??
-        "";
+    session?.join_code ?? "";
 
     const participantUrl =
         typeof window !== "undefined" &&

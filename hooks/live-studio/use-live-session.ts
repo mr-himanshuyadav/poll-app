@@ -67,15 +67,13 @@ export function useLiveSession({
             setError(null);
 
             try {
-                const { data, error } =
-                    await supabase
-                        .from("sessions")
-                        .select("*")
-                        .eq(
-                            "session_code",
-                            sessionCode,
-                        )
-                        .single();
+                
+
+const { data, error } = await supabase
+    .from("sessions")
+    .select("*")
+    .eq("join_code", sessionCode.toUpperCase())
+    .single();
 
                 if (error) {
                     throw error;

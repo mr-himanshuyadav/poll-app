@@ -90,19 +90,19 @@ export function useSessionAnalytics({
                                 },
                             )
                             .eq(
-                                "session_id",
+                                "quiz_id",
                                 sessionId,
                             ),
 
                         supabase
                             .from(
-                                "session_responses",
+                                "responses",
                             )
                             .select(
                                 "id, question_id",
                             )
                             .eq(
-                                "session_id",
+                                "quiz_id",
                                 sessionId,
                             ),
 
@@ -111,14 +111,14 @@ export function useSessionAnalytics({
                                 "session_questions",
                             )
                             .select(
-                                "id, question_order",
+                                "id, position",
                             )
                             .eq(
-                                "session_id",
+                                "quiz_id",
                                 sessionId,
                             )
                             .order(
-                                "question_order",
+                                "position",
                                 {
                                     ascending: true,
                                 },

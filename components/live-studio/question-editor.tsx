@@ -223,30 +223,25 @@ export function QuestionEditor({
         }
 
         const cleanOptions =
-            form.options
-                .filter((option) =>
-                    option.value.trim(),
-                )
-                .map(
-                    (option, index) => ({
-                        id: option.id,
-                        value:
-                            option.value.trim(),
-                        label:
-                            option.value.trim(),
-                        position: index,
-                    }),
-                );
+    form.options
+        .filter(
+            (option) =>
+                option.value.trim(),
+        )
+        .map(
+            (option) =>
+                option.value.trim(),
+        );
 
         const payload: Partial<SessionQuestion> =
             {
                 session_id: sessionId,
 
-                question:
-                    form.question.trim(),
+                text:
+    form.question.trim(),
 
-                question_type:
-                    form.questionType,
+type:
+    form.questionType,
 
                 options:
                     isMultipleChoice

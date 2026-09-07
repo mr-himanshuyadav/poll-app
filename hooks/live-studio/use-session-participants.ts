@@ -80,11 +80,11 @@ export function useSessionParticipants({
                 const { data, error } =
                     await supabase
                         .from(
-                            "session_participants",
+                            "participants",
                         )
                         .select("*")
                         .eq(
-                            "session_id",
+                            "quiz_id",
                             sessionId,
                         )
                         .order(
@@ -139,7 +139,7 @@ export function useSessionParticipants({
                     {
                         event: "INSERT",
                         schema: "public",
-                        table: "session_participants",
+                        table: "participants",
                         filter: `session_id=eq.${sessionId}`,
                     },
                     (payload) => {
@@ -176,7 +176,7 @@ export function useSessionParticipants({
                     {
                         event: "UPDATE",
                         schema: "public",
-                        table: "session_participants",
+                        table: "participants",
                         filter: `session_id=eq.${sessionId}`,
                     },
                     (payload) => {
@@ -204,7 +204,7 @@ export function useSessionParticipants({
                     {
                         event: "DELETE",
                         schema: "public",
-                        table: "session_participants",
+                        table: "participants",
                         filter: `session_id=eq.${sessionId}`,
                     },
                     (payload) => {

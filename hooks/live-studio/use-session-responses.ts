@@ -77,11 +77,11 @@ export function useSessionResponses({
                 const { data, error } =
                     await supabase
                         .from(
-                            "session_responses",
+                            "responses",
                         )
                         .select("*")
                         .eq(
-                            "session_id",
+                            "quiz_id",
                             sessionId,
                         )
                         .order(
@@ -135,8 +135,8 @@ export function useSessionResponses({
                     {
                         event: "INSERT",
                         schema: "public",
-                        table: "session_responses",
-                        filter: `session_id=eq.${sessionId}`,
+                        table: "responses",
+                        filter: `quiz_id=eq.${sessionId}`,
                     },
                     (payload) => {
                         const newResponse =
@@ -174,8 +174,8 @@ export function useSessionResponses({
                     {
                         event: "UPDATE",
                         schema: "public",
-                        table: "session_responses",
-                        filter: `session_id=eq.${sessionId}`,
+                        table: "responses",
+                        filter: `quiz_id=eq.${sessionId}`,
                     },
                     (payload) => {
                         const updatedResponse =
@@ -202,8 +202,8 @@ export function useSessionResponses({
                     {
                         event: "DELETE",
                         schema: "public",
-                        table: "session_responses",
-                        filter: `session_id=eq.${sessionId}`,
+                        table: "responses",
+                        filter: `quiz_id=eq.${sessionId}`,
                     },
                     (payload) => {
                         const deletedResponse =

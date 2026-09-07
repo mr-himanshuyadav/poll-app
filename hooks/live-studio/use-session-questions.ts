@@ -95,7 +95,7 @@ export function useSessionQuestions({
                             sessionId,
                         )
                         .order(
-                            "question_order",
+                            "position",
                             {
                                 ascending: true,
                             },
@@ -144,16 +144,16 @@ export function useSessionQuestions({
                 setError(null);
 
                 try {
-                    const nextOrder =
-                        questions.length;
+                    const nextPosition =
+    questions.length;
 
-                    const payload = {
-                        ...question,
-                        session_id: sessionId,
-                        question_order:
-                            question.question_order ??
-                            nextOrder,
-                    };
+const payload = {
+    ...question,
+    session_id: sessionId,
+    position:
+        question.position ??
+        nextPosition,
+};
 
                     const { data, error } =
                         await supabase
@@ -352,7 +352,7 @@ export function useSessionQuestions({
                             index,
                         ) => ({
                             ...question,
-                            question_order:
+                            position:
                                 index,
                         }),
                     );
@@ -373,7 +373,7 @@ export function useSessionQuestions({
                                         "session_questions",
                                     )
                                     .update({
-                                        question_order:
+                                        position:
                                             index,
                                     })
                                     .eq(
@@ -426,11 +426,11 @@ export function useSessionQuestions({
                 [...questions].sort(
                     (a, b) =>
                         Number(
-                            a.question_order ??
+                            a.position??
                                 0,
                         ) -
                         Number(
-                            b.question_order ??
+                            b.position ??
                                 0,
                         ),
                 ),

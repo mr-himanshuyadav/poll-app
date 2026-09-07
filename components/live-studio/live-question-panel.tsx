@@ -247,10 +247,9 @@ export function LiveQuestionPanel({
                                 index,
                             ) => {
                                 const label =
-                                    option.label ??
-                                    option.text ??
-                                    option.value ??
-                                    "";
+                                    typeof option === "string"
+    ? option
+    : String(option);
 
                                 return (
                                     <div
