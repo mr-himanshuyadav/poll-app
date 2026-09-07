@@ -125,23 +125,23 @@ export function useSessionAnalytics({
                             ),
                     ]);
 
-                    if (
-                        participantsResult.error
-                    ) {
-                        throw participantsResult.error;
-                    }
+                    if (participantsResult.error) {
+    throw new Error(
+        `Participants analytics failed: ${participantsResult.error.message}`,
+    );
+}
 
-                    if (
-                        responsesResult.error
-                    ) {
-                        throw responsesResult.error;
-                    }
+if (responsesResult.error) {
+    throw new Error(
+        `Responses analytics failed: ${responsesResult.error.message}`,
+    );
+}
 
-                    if (
-                        questionsResult.error
-                    ) {
-                        throw questionsResult.error;
-                    }
+if (questionsResult.error) {
+    throw new Error(
+        `Questions analytics failed: ${questionsResult.error.message}`,
+    );
+}
 
                     const totalParticipants =
                         participantsResult.count ??

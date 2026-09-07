@@ -113,9 +113,8 @@ export function LiveQuestionPanel({
         );
 
     const questionType =
-        question.question_type ??
-        question.type ??
-        "multiple_choice";
+    question.type ??
+    "multiple_choice";
 
     const questionStatus =
         getQuestionStatusLabel(
@@ -226,14 +225,6 @@ export function LiveQuestionPanel({
                             question,
                         )}
                     </p>
-
-                    {question.description ? (
-                        <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                            {
-                                question.description
-                            }
-                        </p>
-                    ) : null}
                 </div>
 
                 {questionType ===

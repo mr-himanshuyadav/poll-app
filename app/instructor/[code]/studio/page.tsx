@@ -61,6 +61,7 @@ import {
 import type {
     LiveSession,
     SessionQuestion,
+    StudioTab
 } from "@/components/live-studio/live-studio-types";
 
 import {
@@ -258,12 +259,11 @@ export default function LiveStudioPage() {
             areQuestionsLoading);
 
     const primaryError =
-        sessionError ??
-        questionsError ??
-        participantsError ??
-        responsesError ??
-        analyticsError ??
-        null;
+    sessionError ??
+    questionsError ??
+    participantsError ??
+    responsesError ??
+    null;
 
     const showNotice = useCallback(
         (
@@ -426,7 +426,7 @@ export default function LiveStudioPage() {
             updateSession,
         ],
     );
-    
+
     const handleSaveSettings =
         useCallback(
             async (
