@@ -1,103 +1,164 @@
 "use client";
 
-import { BarChart3, Users } from "lucide-react";
+import {
+    Activity,
+    BarChart3,
+    CheckCircle2,
+    Clock3,
+    Users,
+} from "lucide-react";
 
 import type {
     SessionAnalytics,
-    SessionQuestion,
 } from "./live-studio-types";
 
-import { AnalyticsOverview } from "./analytics-overview";
-import { QuestionAnalytics } from "./question-analytics";
-
-interface AnalyticsWorkspaceProps {
+interface AnalyticsOverviewProps {
     analytics: SessionAnalytics | null;
-
-    questions: SessionQuestion[];
 
     isLoading?: boolean;
 
     isUpdating?: boolean;
 }
 
-export function AnalyticsWorkspace({
+interface AnalyticsMetric {
+    label: string;
+
+    value: string | number;
+
+    description: string;
+
+    icon: React.ReactNode;
+}
+
+export function AnalyticsOverview({
     analytics,
-    questions,
     isLoading = false,
     isUpdating = false,
-}: AnalyticsWorkspaceProps) {
-    const totalQuestions = questions.length;
+}: AnalyticsOverviewProps) {
+    const totalParticipants =
+        analytics?.total_participants ?? 0;
+
+    const totalResponses =
+        analytics?.total_responses ?? 0;
+
+    const answeredQuestions =
+        analytics?.answered_questions ?? 0;
+
+    const averageResponseRate =
+        analytics?.average_response_rate ??
+        analytics?.response_rate ??
+        0;
+
+    const metrics: AnalyticsMetric[] = [
+        {
+            label: "Participants",
+            value: totalParticipants,
+            description:
+                "Total audience members who joined.",
+            icon: (
+                <Users className="h-5 w-5" />
+            ),
+        },
+
+        {
+            label: "Responses",
+            value: totalResponses,
+            description:
+                "Responses received across the session.",
+            icon: (
+                <Activity className="h-5 w-5" />
+            ),
+        },
+
+        {
+            label: "Questions Answered",
+            value: answeredQuestions,
+            description:
+                "Questions that received participant responses.",
+            icon: (
+                <CheckCircle2 className="h-5 w-5" />
+            ),
+        },
+
+        {
+            label: "Response Rate",
+            value: `${Math.round(
+                Number(averageResponseRate),
+            )}%`,
+            description:
+                "Average participant response rate.",
+            icon: (
+                <BarChart3 className="h-5 w-5" />
+            ),
+        },
+    ];
+
+    if (isLoading) {
+        return (
+            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {Array.from({
+                    length: 4,
+                }).map((_, index) => (
+                    <div
+                        key={index}
+                        className="h-[150px] animate-pulse rounded-2xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900"
+                    />
+                ))}
+            </section>
+        );
+    }
 
     return (
-        <div className="mx-auto w-full max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 lg:px-8 md:pb-8">
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <section>
+            <div className="mb-3 flex items-center justify-between">
                 <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                        Session Insights
-                    </p>
+                    <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                        Session Overview
+                    </h2>
 
-                    <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
-                        Analytics
-                    </h1>
-
-                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Understand participation, responses and
-                        question performance across your live session.
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        High-level performance across the live
+                        session.
                     </p>
                 </div>
 
-                <div className="flex gap-3">
-                    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
-                                <Users className="h-4 w-4" />
-                            </div>
+                {isUpdating ? (
+                    <div className="flex items-center gap-2 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                        <Clock3 className="h-3.5 w-3.5 animate-spin" />
 
-                            <div>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                    Participants
-                                </p>
-
-                                <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                                    {analytics?.total_participants ?? 0}
-                                </p>
-                            </div>
-                        </div>
+                        Updating
                     </div>
-
-                    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400">
-                                <BarChart3 className="h-4 w-4" />
-                            </div>
-
-                            <div>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                    Questions
-                                </p>
-
-                                <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                                    {totalQuestions}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                ) : null}
             </div>
 
-            <div className="space-y-6">
-                <AnalyticsOverview
-                    analytics={analytics}
-                    isLoading={isLoading}
-                    isUpdating={isUpdating}
-                />
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {metrics.map((metric) => (
+                    <div
+                        key={metric.label}
+                        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950"
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                                    {metric.label}
+                                </p>
 
-                <QuestionAnalytics
-                    analytics={analytics}
-                    questions={questions}
-                    isLoading={isLoading}
-                />
+                                <p className="mt-3 text-3xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
+                                    {metric.value}
+                                </p>
+                            </div>
+
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                                {metric.icon}
+                            </div>
+                        </div>
+
+                        <p className="mt-4 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            {metric.description}
+                        </p>
+                    </div>
+                ))}
             </div>
-        </div>
+        </section>
     );
 }
