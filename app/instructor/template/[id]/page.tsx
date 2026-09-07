@@ -863,7 +863,7 @@ export default function TemplateEditor({
                                 variant="outline"
                                 onClick={() =>
                                   router.push(
-                                    `/instructor/studio/${session.id}`,
+                                    `/instructor/${session.join_code}/studio}`,
                                   )
                                 }
                               >

@@ -700,7 +700,7 @@ export default function InstructorDashboard() {
       );
 
       router.push(
-        `/instructor/studio/${createdSession.id}`,
+        `/instructor/${createdSession.join_code}/studio`,
       );
 
       setIsCreatingInstantSession(
@@ -772,7 +772,7 @@ export default function InstructorDashboard() {
     setShowSessionDialog(false);
 
     router.push(
-      `/instructor/studio/${createdSession.id}`,
+      `/instructor/${createdSession.join_code}/studio`,
     );
   };
 
@@ -782,7 +782,7 @@ export default function InstructorDashboard() {
     }
 
     window.open(
-      `/instructor/studio/${createdSession.id}`,
+      `/instructor/${createdSession.join_code}/studio`,
       "_blank",
       "noopener,noreferrer",
     );
@@ -1076,7 +1076,7 @@ export default function InstructorDashboard() {
                           variant="outline"
                           onClick={() =>
                             router.push(
-                              `/instructor/studio/${session.id}`,
+                              `/instructor/${session.join_code}/studio`,
                             )
                           }
                         >
@@ -1421,8 +1421,8 @@ export default function InstructorDashboard() {
                   <p className="mt-1 break-all text-sm font-medium">
                     {typeof window !==
                     "undefined"
-                      ? `${window.location.origin}/join/${createdSession.join_code}`
-                      : `/join/${createdSession.join_code}`}
+                      ? `${window.location.origin}/session/${createdSession.join_code}`
+                      : `/session/${createdSession.join_code}`}
                   </p>
                 </div>
 
@@ -1432,8 +1432,8 @@ export default function InstructorDashboard() {
                       value={
                         typeof window !==
                         "undefined"
-                          ? `${window.location.origin}/join/${createdSession.join_code}`
-                          : `/join/${createdSession.join_code}`
+                          ? `${window.location.origin}/session/${createdSession.join_code}`
+                          : `/session/${createdSession.join_code}`
                       }
                       size={220}
                       includeMargin
