@@ -30,17 +30,242 @@ import type {
     SessionQuestion,
 } from "@/lib/types";
 
-type ResponseWithParticipant =
-    PollResponse & {
-        participant?: Participant | null;
-    };
+type ResponseWithParticipant = PollResponse & {
+    participant?: Participant | null;
+};
+
+type ResultsMode = "live" | "on_command" | "hidden";
+type QuestionType = "multiple_choice" | "scale";
+
+type QuestionAnalytics = {
+    question: SessionQuestion;
+    responseCount: number;
+    uniqueResponders: number;
+    responseRate: number;
+    averageResponseTimeMs: number | null;
+    medianResponseTimeMs: number | null;
+    dominantOption: string | null;
+    dominantOptionCount: number;
+    dominantOptionPercentage: number;
+};
+
+type StatCardProps = {
+    label: string;
+    value: string | number;
+    helper?: string;
+    emphasis?: "default" | "success" | "warning" | "danger";
+};
+
+type BarRowProps = {
+    label: string;
+    count: number;
+    total: number;
+    index?: number;
+    suffix?: string;
+};
+
+const ACTIVE_PARTICIPANT_THRESHOLD_MS = 45 * 1000;
+
+function clampPercentage(value: number) {
+    if (!Number.isFinite(value)) {
+        return 0;
+    }
+
+    return Math.min(100, Math.max(0, value));
+}
+
+function formatPercentage(value: number) {
+    return `${Math.round(clampPercentage(value))}%`;
+}
+
+function formatDurationMs(value: number | null) {
+    if (value === null || !Number.isFinite(value)) {
+        return "—";
+    }
+
+    if (value < 1000) {
+        return `${Math.round(value)} ms`;
+    }
+
+    const seconds = value / 1000;
+
+    if (seconds < 60) {
+        return `${seconds.toFixed(1)}s`;
+    }
+
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+
+    return `${minutes}m ${remainingSeconds}s`;
+}
+
+function median(values: number[]) {
+    if (values.length === 0) {
+        return null;
+    }
+
+    const sorted = [...values].sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+
+    if (sorted.length % 2 === 0) {
+        return (sorted[middle - 1] + sorted[middle]) / 2;
+    }
+
+    return sorted[middle];
+}
+
+function getQuestionStatusLabel(status: SessionQuestion["status"]) {
+    switch (status) {
+        case "active":
+            return "LIVE";
+        case "closed":
+            return "CLOSED";
+        default:
+            return "QUEUED";
+    }
+}
+
+function getQuestionStatusClass(status: SessionQuestion["status"]) {
+    switch (status) {
+        case "active":
+            return "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300";
+        case "closed":
+            return "border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400";
+        default:
+            return "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300";
+    }
+}
+
+function getResultsModeLabel(mode: ResultsMode) {
+    switch (mode) {
+        case "live":
+            return "Live";
+        case "on_command":
+            return "On command";
+        case "hidden":
+            return "Hidden";
+        default:
+            return mode;
+    }
+}
+
+function getParticipantLabel(participant: Participant) {
+    if (participant.is_anonymous) {
+        return "Anonymous participant";
+    }
+
+    return participant.name?.trim() || "Unnamed participant";
+}
+
+function isParticipantActive(participant: Participant) {
+    if (participant.left_at) {
+        return false;
+    }
+
+    const lastSeen = new Date(
+        participant.last_seen_at,
+    ).getTime();
+
+    if (!Number.isFinite(lastSeen)) {
+        return false;
+    }
+
+    return (
+        Date.now() - lastSeen <=
+        ACTIVE_PARTICIPANT_THRESHOLD_MS
+    );
+}
+
+function StatCard({
+    label,
+    value,
+    helper,
+    emphasis = "default",
+}: StatCardProps) {
+    const valueClass =
+        emphasis === "success"
+            ? "text-emerald-600 dark:text-emerald-400"
+            : emphasis === "warning"
+              ? "text-amber-600 dark:text-amber-400"
+              : emphasis === "danger"
+                ? "text-red-600 dark:text-red-400"
+                : "text-slate-900 dark:text-white";
+
+    return (
+        <div className="rounded-2xl border bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {label}
+            </p>
+
+            <p className={`mt-2 text-2xl font-bold ${valueClass}`}>
+                {value}
+            </p>
+
+            {helper ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                    {helper}
+                </p>
+            ) : null}
+        </div>
+    );
+}
+
+function BarRow({
+    label,
+    count,
+    total,
+    index,
+    suffix,
+}: BarRowProps) {
+    const percentage =
+        total > 0 ? (count / total) * 100 : 0;
+
+    return (
+        <div className="space-y-2">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                        {index !== undefined ? (
+                            <span className="mr-2 text-xs font-bold text-muted-foreground">
+                                {String.fromCharCode(
+                                    65 + index,
+                                )}
+                                .
+                            </span>
+                        ) : null}
+                        {label}
+                    </p>
+                </div>
+
+                <div className="shrink-0 text-right">
+                    <p className="text-sm font-bold">
+                        {count}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        {formatPercentage(percentage)}
+                        {suffix ? ` ${suffix}` : ""}
+                    </p>
+                </div>
+            </div>
+
+            <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                <div
+                    className="h-full rounded-full bg-indigo-500 transition-all duration-300"
+                    style={{
+                        width: `${clampPercentage(percentage)}%`,
+                    }}
+                />
+            </div>
+        </div>
+    );
+}
 
 export default function LiveStudio({
     params,
 }: {
     params:
-    | Promise<{ code: string }>
-    | { code: string };
+        | Promise<{ code: string }>
+        | { code: string };
 }) {
     const resolvedParams =
         params instanceof Promise
@@ -65,23 +290,21 @@ export default function LiveStudio({
         useState<SessionQuestion[]>([]);
 
     const [responses, setResponses] =
-        useState<ResponseWithParticipant[]>(
-            [],
-        );
+        useState<ResponseWithParticipant[]>([]);
 
     const [participants, setParticipants] =
         useState<Participant[]>([]);
-
-    const [
-        isUpdatingParticipants,
-        setIsUpdatingParticipants,
-    ] = useState(false);
 
     const [isLoading, setIsLoading] =
         useState(true);
 
     const [isUpdating, setIsUpdating] =
         useState(false);
+
+    const [
+        isUpdatingParticipants,
+        setIsUpdatingParticipants,
+    ] = useState(false);
 
     const [error, setError] =
         useState<string | null>(null);
@@ -93,9 +316,7 @@ export default function LiveStudio({
         useState("");
 
     const [newQuestionType, setNewQuestionType] =
-        useState<"multiple_choice" | "scale">(
-            "multiple_choice",
-        );
+        useState<QuestionType>("multiple_choice");
 
     const [newQuestionOptions, setNewQuestionOptions] =
         useState<string[]>([
@@ -103,19 +324,31 @@ export default function LiveStudio({
             "Option 2",
         ]);
 
-    const [newQuestionResultsMode, setNewQuestionResultsMode] =
-        useState<"live" | "on_command" | "hidden">(
-            "on_command",
-        );
+    const [
+        newQuestionResultsMode,
+        setNewQuestionResultsMode,
+    ] = useState<ResultsMode>("on_command");
 
-    const [isCreatingQuestion, setIsCreatingQuestion] =
-        useState(false);
+    const [
+        isCreatingQuestion,
+        setIsCreatingQuestion,
+    ] = useState(false);
 
-    const [editingQuestionId, setEditingQuestionId] =
-        useState<string | null>(null);
+    const [
+        editingQuestionId,
+        setEditingQuestionId,
+    ] = useState<string | null>(null);
 
     const [isSavingQuestion, setIsSavingQuestion] =
         useState(false);
+
+    const [
+        selectedAnalyticsQuestionId,
+        setSelectedAnalyticsQuestionId,
+    ] = useState<string | null>(null);
+
+    const [participantFilter, setParticipantFilter] =
+        useState<"all" | "active" | "away">("all");
 
     /*
      * ---------------------------------------------
@@ -133,15 +366,15 @@ export default function LiveStudio({
             .from("responses")
             .select(
                 `
-          id,
-          quiz_id,
-          question_id,
-          participant_id,
-          answer,
-          submitted_at,
-          updated_at,
-          response_time_ms
-        `,
+                    id,
+                    quiz_id,
+                    question_id,
+                    participant_id,
+                    answer,
+                    submitted_at,
+                    updated_at,
+                    response_time_ms
+                `,
             )
             .eq(
                 "quiz_id",
@@ -152,9 +385,7 @@ export default function LiveStudio({
             });
 
         if (responseError) {
-            setError(
-                responseError.message,
-            );
+            setError(responseError.message);
             return;
         }
 
@@ -187,9 +418,7 @@ export default function LiveStudio({
             );
 
         if (participantError) {
-            setResponses(
-                rawResponses,
-            );
+            setResponses(rawResponses);
             return;
         }
 
@@ -243,9 +472,7 @@ export default function LiveStudio({
             });
 
         if (participantError) {
-            setError(
-                participantError.message,
-            );
+            setError(participantError.message);
             return;
         }
 
@@ -262,7 +489,6 @@ export default function LiveStudio({
 
     const loadStudio = async () => {
         setIsLoading(true);
-
         setError(null);
 
         const {
@@ -280,8 +506,14 @@ export default function LiveStudio({
         } = await supabase
             .from("sessions")
             .select("*")
-            .eq("join_code", sessionCode)
-            .eq("instructor_id", user.id)
+            .eq(
+                "join_code",
+                sessionCode,
+            )
+            .eq(
+                "instructor_id",
+                user.id,
+            )
             .single();
 
         if (
@@ -290,7 +522,7 @@ export default function LiveStudio({
         ) {
             setError(
                 sessionLookupError?.message ??
-                "Session not found.",
+                    "Session not found.",
             );
 
             setIsLoading(false);
@@ -300,24 +532,10 @@ export default function LiveStudio({
         const currentSession =
             sessionLookup as Session;
 
-        setSession(
-            currentSession,
-        );
+        setSession(currentSession);
+        setSessionId(currentSession.id);
 
-        setSessionId(
-            currentSession.id,
-        );
-
-
-        /*
-         * LOAD TEMPLATE
-         *
-         * Instant sessions have no template.
-         */
-
-        if (
-            currentSession.template_id
-        ) {
+        if (currentSession.template_id) {
             const {
                 data: templateData,
                 error: templateError,
@@ -340,11 +558,10 @@ export default function LiveStudio({
             ) {
                 setError(
                     templateError?.message ??
-                    "Template not found.",
+                        "Template not found.",
                 );
 
                 setIsLoading(false);
-
                 return;
             }
 
@@ -354,11 +571,6 @@ export default function LiveStudio({
         } else {
             setTemplate(null);
         }
-
-        /*
-         * LOAD SESSION QUESTION
-         * SNAPSHOTS
-         */
 
         const {
             data: questionData,
@@ -378,10 +590,7 @@ export default function LiveStudio({
             });
 
         if (questionError) {
-            setError(
-                questionError.message,
-            );
-
+            setError(questionError.message);
             setQuestions([]);
         } else {
             setQuestions(
@@ -390,17 +599,9 @@ export default function LiveStudio({
             );
         }
 
-        /*
-         * LOAD RESPONSES
-         */
-
         await loadResponses(
             currentSession.id,
         );
-
-        /*
-         * LOAD PARTICIPANTS
-         */
 
         await loadParticipants(
             currentSession.id,
@@ -408,12 +609,6 @@ export default function LiveStudio({
 
         setIsLoading(false);
     };
-
-    /*
-     * ---------------------------------------------
-     * INITIAL LOAD
-     * ---------------------------------------------
-     */
 
     useEffect(() => {
         void loadStudio();
@@ -429,10 +624,6 @@ export default function LiveStudio({
         if (!sessionId) {
             return;
         }
-
-        /*
-         * SESSION REALTIME
-         */
 
         const sessionChannel =
             supabase
@@ -454,11 +645,6 @@ export default function LiveStudio({
                     },
                 )
                 .subscribe();
-
-        /*
-         * SESSION QUESTIONS
-         * REALTIME
-         */
 
         const questionChannel =
             supabase
@@ -482,15 +668,9 @@ export default function LiveStudio({
                                     : payload.new
                             ) as SessionQuestion;
 
-                        if (
-                            !changedQuestion
-                        ) {
+                        if (!changedQuestion) {
                             return;
                         }
-
-                        /*
-                         * INSERT
-                         */
 
                         if (
                             payload.eventType ===
@@ -498,14 +678,13 @@ export default function LiveStudio({
                         ) {
                             setQuestions(
                                 (current) => {
-                                    const exists =
+                                    if (
                                         current.some(
                                             (question) =>
                                                 question.id ===
                                                 changedQuestion.id,
-                                        );
-
-                                    if (exists) {
+                                        )
+                                    ) {
                                         return current;
                                     }
 
@@ -522,10 +701,6 @@ export default function LiveStudio({
 
                             return;
                         }
-
-                        /*
-                         * UPDATE
-                         */
 
                         if (
                             payload.eventType ===
@@ -545,10 +720,6 @@ export default function LiveStudio({
                             return;
                         }
 
-                        /*
-                         * DELETE
-                         */
-
                         if (
                             payload.eventType ===
                             "DELETE"
@@ -565,10 +736,6 @@ export default function LiveStudio({
                     },
                 )
                 .subscribe();
-
-        /*
-         * RESPONSES REALTIME
-         */
 
         const responseChannel =
             supabase
@@ -590,10 +757,6 @@ export default function LiveStudio({
                     },
                 )
                 .subscribe();
-
-        /*
-         * PARTICIPANTS REALTIME
-         */
 
         const participantChannel =
             supabase
@@ -641,7 +804,7 @@ export default function LiveStudio({
 
     /*
      * ---------------------------------------------
-     * ACTIVE QUESTION
+     * DERIVED SESSION DATA
      * ---------------------------------------------
      */
 
@@ -665,12 +828,6 @@ export default function LiveStudio({
             session?.active_question_id,
         ]);
 
-    /*
-     * ---------------------------------------------
-     * ACTIVE RESPONSES
-     * ---------------------------------------------
-     */
-
     const activeResponses =
         useMemo(() => {
             if (!activeQuestion) {
@@ -687,59 +844,6 @@ export default function LiveStudio({
             responses,
         ]);
 
-    /*
-     * ---------------------------------------------
-     * PARTICIPANT SUMMARY
-     * ---------------------------------------------
-     */
-
-    const activeParticipantThresholdMs =
-        45 * 1000;
-
-    const participantSummary =
-        useMemo(() => {
-            const now = Date.now();
-
-            let active = 0;
-            let inactive = 0;
-
-            for (
-                const participant of participants
-            ) {
-                if (participant.left_at) {
-                    inactive += 1;
-                    continue;
-                }
-
-                const lastSeen =
-                    new Date(
-                        participant.last_seen_at,
-                    ).getTime();
-
-                if (
-                    now - lastSeen <=
-                    activeParticipantThresholdMs
-                ) {
-                    active += 1;
-                } else {
-                    inactive += 1;
-                }
-            }
-
-            return {
-                total:
-                    participants.length,
-                active,
-                inactive,
-            };
-        }, [participants]);
-
-    /*
-     * ---------------------------------------------
-     * RESPONSE COUNTS
-     * ---------------------------------------------
-     */
-
     const responseCountByQuestion =
         useMemo(() => {
             const counts: Record<
@@ -747,9 +851,7 @@ export default function LiveStudio({
                 number
             > = {};
 
-            for (
-                const response of responses
-            ) {
+            for (const response of responses) {
                 counts[
                     response.question_id
                 ] =
@@ -761,253 +863,699 @@ export default function LiveStudio({
             return counts;
         }, [responses]);
 
-    /*
-     * ---------------------------------------------
-     * ACTIVE QUESTION RESULTS
-     * ---------------------------------------------
-     */
+    const uniqueResponseCountByQuestion =
+        useMemo(() => {
+            const participantSets: Record<
+                string,
+                Set<string>
+            > = {};
 
-    const activeTally = useMemo(() => {
-        const tally: Record<
-            string,
-            number
-        > = {};
+            for (const response of responses) {
+                if (!participantSets[response.question_id]) {
+                    participantSets[
+                        response.question_id
+                    ] = new Set();
+                }
 
-        if (!activeQuestion) {
-            return tally;
-        }
-
-        for (
-            const option of
-            activeQuestion.options
-        ) {
-            tally[option] =
-                activeResponses.filter(
-                    (response) =>
-                        response.answer ===
-                        option,
-                ).length;
-        }
-
-        return tally;
-    }, [
-        activeQuestion,
-        activeResponses,
-    ]);
-
-    /*
-     * ---------------------------------------------
-     * TOGGLE LATE JOIN
-     * ---------------------------------------------
-     */
-
-    const toggleLateJoin =
-        async () => {
-            if (
-                !session ||
-                isUpdatingParticipants
-            ) {
-                return;
+                participantSets[
+                    response.question_id
+                ].add(
+                    response.participant_id,
+                );
             }
 
-            setIsUpdatingParticipants(
-                true,
+            const counts: Record<
+                string,
+                number
+            > = {};
+
+            Object.entries(
+                participantSets,
+            ).forEach(
+                ([questionId, set]) => {
+                    counts[questionId] =
+                        set.size;
+                },
             );
 
-            setError(null);
+            return counts;
+        }, [responses]);
 
-            const nextValue =
-                !session.allow_late_join;
+    const participantSummary =
+        useMemo(() => {
+            let active = 0;
+            let inactive = 0;
 
-            const {
-                data,
-                error: updateError,
-            } =
-                await supabase
-                    .from("sessions")
-                    .update({
-                        allow_late_join:
-                            nextValue,
-                        updated_at:
-                            new Date().toISOString(),
-                    })
-                    .eq(
-                        "id",
-                        session.id,
+            for (const participant of participants) {
+                if (
+                    isParticipantActive(
+                        participant,
                     )
-                    .select("*")
-                    .single();
-
-            if (
-                updateError ||
-                !data
-            ) {
-                setError(
-                    updateError?.message ??
-                    "Unable to update joining settings.",
-                );
-
-                setIsUpdatingParticipants(
-                    false,
-                );
-
-                return;
+                ) {
+                    active += 1;
+                } else {
+                    inactive += 1;
+                }
             }
 
-            setSession(
-                data as Session,
-            );
+            return {
+                total: participants.length,
+                active,
+                inactive,
+            };
+        }, [participants]);
 
-            setIsUpdatingParticipants(
-                false,
+    const totalUniqueResponders =
+        useMemo(() => {
+            return new Set(
+                responses.map(
+                    (response) =>
+                        response.participant_id,
+                ),
+            ).size;
+        }, [responses]);
+
+    const overallParticipationRate =
+        useMemo(() => {
+            if (
+                participantSummary.total ===
+                0
+            ) {
+                return 0;
+            }
+
+            return (
+                totalUniqueResponders /
+                participantSummary.total
+            ) * 100;
+        }, [
+            participantSummary.total,
+            totalUniqueResponders,
+        ]);
+
+    const validResponseTimes =
+        useMemo(() => {
+            return responses
+                .map(
+                    (response) =>
+                        response.response_time_ms,
+                )
+                .filter(
+                    (
+                        value,
+                    ): value is number =>
+                        typeof value ===
+                            "number" &&
+                        Number.isFinite(value) &&
+                        value > 0,
+                );
+        }, [responses]);
+
+    const averageResponseTimeMs =
+        useMemo(() => {
+            if (
+                validResponseTimes.length ===
+                0
+            ) {
+                return null;
+            }
+
+            return (
+                validResponseTimes.reduce(
+                    (sum, value) =>
+                        sum + value,
+                    0,
+                ) /
+                validResponseTimes.length
             );
-        };
+        }, [validResponseTimes]);
+
+    const medianResponseTimeMs =
+        useMemo(
+            () =>
+                median(
+                    validResponseTimes,
+                ),
+            [validResponseTimes],
+        );
+
+    const activeResponderIds =
+        useMemo(() => {
+            return new Set(
+                activeResponses.map(
+                    (response) =>
+                        response.participant_id,
+                ),
+            );
+        }, [activeResponses]);
+
+    const activeQuestionResponseRate =
+        useMemo(() => {
+            if (
+                participantSummary.total ===
+                0
+            ) {
+                return 0;
+            }
+
+            return (
+                activeResponderIds.size /
+                participantSummary.total
+            ) * 100;
+        }, [
+            activeResponderIds.size,
+            participantSummary.total,
+        ]);
+
+    const activeQuestionResponseTimes =
+        useMemo(() => {
+            return activeResponses
+                .map(
+                    (response) =>
+                        response.response_time_ms,
+                )
+                .filter(
+                    (
+                        value,
+                    ): value is number =>
+                        typeof value ===
+                            "number" &&
+                        Number.isFinite(value) &&
+                        value > 0,
+                );
+        }, [activeResponses]);
+
+    const activeAverageResponseTimeMs =
+        useMemo(() => {
+            if (
+                activeQuestionResponseTimes.length ===
+                0
+            ) {
+                return null;
+            }
+
+            return (
+                activeQuestionResponseTimes.reduce(
+                    (sum, value) =>
+                        sum + value,
+                    0,
+                ) /
+                activeQuestionResponseTimes.length
+            );
+        }, [
+            activeQuestionResponseTimes,
+        ]);
+
+    const activeMedianResponseTimeMs =
+        useMemo(
+            () =>
+                median(
+                    activeQuestionResponseTimes,
+                ),
+            [activeQuestionResponseTimes],
+        );
+
+    const activeTally =
+        useMemo(() => {
+            const tally: Record<
+                string,
+                number
+            > = {};
+
+            if (!activeQuestion) {
+                return tally;
+            }
+
+            for (
+                const option of activeQuestion.options
+            ) {
+                tally[option] =
+                    activeResponses.filter(
+                        (response) =>
+                            response.answer ===
+                            option,
+                    ).length;
+            }
+
+            return tally;
+        }, [
+            activeQuestion,
+            activeResponses,
+        ]);
+
+    const activeDominantOption =
+        useMemo(() => {
+            if (
+                !activeQuestion ||
+                activeQuestion.options.length ===
+                    0 ||
+                activeResponses.length ===
+                    0
+            ) {
+                return null;
+            }
+
+            let winner:
+                | {
+                      option: string;
+                      count: number;
+                  }
+                | null = null;
+
+            for (
+                const option of activeQuestion.options
+            ) {
+                const count =
+                    activeTally[option] ?? 0;
+
+                if (
+                    !winner ||
+                    count > winner.count
+                ) {
+                    winner = {
+                        option,
+                        count,
+                    };
+                }
+            }
+
+            return winner;
+        }, [
+            activeQuestion,
+            activeResponses.length,
+            activeTally,
+        ]);
+
+    const activeQuestionUnansweredCount =
+        useMemo(() => {
+            return Math.max(
+                0,
+                participantSummary.total -
+                    activeResponderIds.size,
+            );
+        }, [
+            participantSummary.total,
+            activeResponderIds.size,
+        ]);
+
+    const questionAnalytics =
+        useMemo<QuestionAnalytics[]>(() => {
+            return questions.map(
+                (question) => {
+                    const questionResponses =
+                        responses.filter(
+                            (response) =>
+                                response.question_id ===
+                                question.id,
+                        );
+
+                    const responderIds =
+                        new Set(
+                            questionResponses.map(
+                                (response) =>
+                                    response.participant_id,
+                            ),
+                        );
+
+                    const responseTimes =
+                        questionResponses
+                            .map(
+                                (response) =>
+                                    response.response_time_ms,
+                            )
+                            .filter(
+                                (
+                                    value,
+                                ): value is number =>
+                                    typeof value ===
+                                        "number" &&
+                                    Number.isFinite(
+                                        value,
+                                    ) &&
+                                    value > 0,
+                            );
+
+                    let dominantOption:
+                        | string
+                        | null = null;
+
+                    let dominantOptionCount =
+                        0;
+
+                    for (
+                        const option of question.options
+                    ) {
+                        const count =
+                            questionResponses.filter(
+                                (response) =>
+                                    response.answer ===
+                                    option,
+                            ).length;
+
+                        if (
+                            count >
+                            dominantOptionCount
+                        ) {
+                            dominantOption =
+                                option;
+                            dominantOptionCount =
+                                count;
+                        }
+                    }
+
+                    return {
+                        question,
+                        responseCount:
+                            questionResponses.length,
+                        uniqueResponders:
+                            responderIds.size,
+                        responseRate:
+                            participantSummary.total >
+                            0
+                                ? (responderIds.size /
+                                      participantSummary.total) *
+                                  100
+                                : 0,
+                        averageResponseTimeMs:
+                            responseTimes.length >
+                            0
+                                ? responseTimes.reduce(
+                                      (
+                                          sum,
+                                          value,
+                                      ) =>
+                                          sum +
+                                          value,
+                                      0,
+                                  ) /
+                                  responseTimes.length
+                                : null,
+                        medianResponseTimeMs:
+                            median(
+                                responseTimes,
+                            ),
+                        dominantOption,
+                        dominantOptionCount,
+                        dominantOptionPercentage:
+                            questionResponses.length >
+                            0
+                                ? (dominantOptionCount /
+                                      questionResponses.length) *
+                                  100
+                                : 0,
+                    };
+                },
+            );
+        }, [
+            participantSummary.total,
+            questions,
+            responses,
+        ]);
+
+    const selectedAnalyticsQuestion =
+        useMemo(() => {
+            const preferredId =
+                selectedAnalyticsQuestionId ??
+                activeQuestion?.id ??
+                questions[0]?.id ??
+                null;
+
+            return (
+                questionAnalytics.find(
+                    (item) =>
+                        item.question.id ===
+                        preferredId,
+                ) ?? null
+            );
+        }, [
+            activeQuestion?.id,
+            questionAnalytics,
+            questions,
+            selectedAnalyticsQuestionId,
+        ]);
+
+    const filteredParticipants =
+        useMemo(() => {
+            switch (participantFilter) {
+                case "active":
+                    return participants.filter(
+                        isParticipantActive,
+                    );
+
+                case "away":
+                    return participants.filter(
+                        (participant) =>
+                            !isParticipantActive(
+                                participant,
+                            ),
+                    );
+
+                default:
+                    return participants;
+            }
+        }, [
+            participantFilter,
+            participants,
+        ]);
+
+    const recentResponses =
+        useMemo(() => {
+            return [...responses]
+                .sort((a, b) => {
+                    const aTime =
+                        new Date(
+                            a.updated_at ??
+                                a.submitted_at,
+                        ).getTime();
+
+                    const bTime =
+                        new Date(
+                            b.updated_at ??
+                                b.submitted_at,
+                        ).getTime();
+
+                    return bTime - aTime;
+                })
+                .slice(0, 8);
+        }, [responses]);
 
     /*
-   * ---------------------------------------------
-   * CREATE SESSION QUESTION
-   * ---------------------------------------------
-   */
+     * ---------------------------------------------
+     * SESSION ACTIONS
+     * ---------------------------------------------
+     */
 
-    const createSessionQuestion = async () => {
+    const toggleLateJoin = async () => {
         if (
             !session ||
-            isCreatingQuestion
+            isUpdatingParticipants
         ) {
             return;
         }
 
-        const trimmedText =
-            newQuestionText.trim();
-
-        if (!trimmedText) {
-            setError(
-                "Please enter a question.",
-            );
-            return;
-        }
-
-        const cleanedOptions =
-            newQuestionOptions
-                .map((option) => option.trim())
-                .filter(Boolean);
-
-        if (
-            newQuestionType ===
-            "multiple_choice" &&
-            cleanedOptions.length < 2
-        ) {
-            setError(
-                "A multiple-choice question needs at least two options.",
-            );
-            return;
-        }
-
-        setIsCreatingQuestion(true);
+        setIsUpdatingParticipants(true);
         setError(null);
 
-        const nextPosition =
-            questions.length === 0
-                ? 1
-                : Math.max(
-                    ...questions.map(
-                        (question) =>
-                            question.position,
-                    ),
-                ) + 1;
-
-        const now =
-            new Date().toISOString();
-
-        const options =
-            newQuestionType === "scale"
-                ? cleanedOptions
-                : cleanedOptions;
+        const nextValue =
+            !session.allow_late_join;
 
         const {
             data,
-            error: createError,
+            error: updateError,
         } = await supabase
-            .from("session_questions")
-            .insert({
-                session_id: session.id,
-
-                source_question_id: null,
-
-                text: trimmedText,
-
-                type: newQuestionType,
-
-                options,
-
-                config:
-                    newQuestionType === "scale"
-                        ? {
-                            min: 1,
-                            max:
-                                options.length > 0
-                                    ? options.length
-                                    : 5,
-                        }
-                        : {},
-
-                position: nextPosition,
-
-                status: "draft",
-
-                results_mode:
-                    newQuestionResultsMode,
-
-                results_visible: false,
-
-                created_at: now,
-
-                updated_at: now,
+            .from("sessions")
+            .update({
+                allow_late_join:
+                    nextValue,
+                updated_at:
+                    new Date().toISOString(),
             })
+            .eq(
+                "id",
+                session.id,
+            )
             .select("*")
             .single();
 
         if (
-            createError ||
+            updateError ||
             !data
         ) {
             setError(
-                createError?.message ??
-                "Unable to create question.",
+                updateError?.message ??
+                    "Unable to update joining settings.",
             );
 
-            setIsCreatingQuestion(false);
+            setIsUpdatingParticipants(false);
             return;
         }
 
-        const createdQuestion =
-            data as SessionQuestion;
+        setSession(data as Session);
+        setIsUpdatingParticipants(false);
+    };
 
-        setQuestions((current) =>
-            [...current, createdQuestion].sort(
-                (a, b) =>
-                    a.position - b.position,
-            ),
+    const togglePause = async (
+        paused: boolean,
+    ) => {
+        if (
+            !session ||
+            isUpdating
+        ) {
+            return;
+        }
+
+        setIsUpdating(true);
+        setError(null);
+
+        const now =
+            new Date().toISOString();
+
+        const {
+            data: updatedSession,
+            error: updateError,
+        } = await supabase
+            .from("sessions")
+            .update({
+                status:
+                    paused
+                        ? "paused"
+                        : "live",
+                is_offline:
+                    paused,
+                paused_at:
+                    paused
+                        ? now
+                        : null,
+                updated_at: now,
+            })
+            .eq(
+                "id",
+                session.id,
+            )
+            .select("*")
+            .single();
+
+        if (
+            updateError ||
+            !updatedSession
+        ) {
+            setError(
+                updateError?.message ??
+                    "Unable to update session.",
+            );
+
+            setIsUpdating(false);
+            return;
+        }
+
+        setSession(
+            updatedSession as Session,
         );
 
-        setNewQuestionText("");
+        setIsUpdating(false);
+    };
 
+    const endSession = async () => {
+        if (
+            !session ||
+            isUpdating
+        ) {
+            return;
+        }
+
+        const confirmed =
+            window.confirm(
+                "Are you sure you want to end this session?",
+            );
+
+        if (!confirmed) {
+            return;
+        }
+
+        setIsUpdating(true);
+        setError(null);
+
+        const now =
+            new Date().toISOString();
+
+        const {
+            data: updatedSession,
+            error: updateError,
+        } = await supabase
+            .from("sessions")
+            .update({
+                status: "completed",
+                active_question_id:
+                    null,
+                ended_at: now,
+                updated_at: now,
+            })
+            .eq(
+                "id",
+                session.id,
+            )
+            .select("*")
+            .single();
+
+        if (
+            updateError ||
+            !updatedSession
+        ) {
+            setError(
+                updateError?.message ??
+                    "Unable to end session.",
+            );
+
+            setIsUpdating(false);
+            return;
+        }
+
+        setSession(
+            updatedSession as Session,
+        );
+
+        setIsUpdating(false);
+
+        router.push("/instructor");
+    };
+
+    /*
+     * ---------------------------------------------
+     * QUESTION COMPOSER
+     * ---------------------------------------------
+     */
+
+    const resetQuestionComposer = () => {
+        setEditingQuestionId(null);
+        setNewQuestionText("");
         setNewQuestionOptions([
             "Option 1",
             "Option 2",
         ]);
-
         setNewQuestionType(
             "multiple_choice",
         );
-
         setNewQuestionResultsMode(
             "on_command",
         );
-
         setShowQuestionComposer(false);
+    };
 
-        setIsCreatingQuestion(false);
+    const openNewQuestionComposer = () => {
+        setEditingQuestionId(null);
+        setNewQuestionText("");
+        setNewQuestionOptions([
+            "Option 1",
+            "Option 2",
+        ]);
+        setNewQuestionType(
+            "multiple_choice",
+        );
+        setNewQuestionResultsMode(
+            "on_command",
+        );
+        setError(null);
+        setShowQuestionComposer(true);
     };
 
     const startEditingQuestion = (
@@ -1044,220 +1592,8 @@ export default function LiveStudio({
             question.results_mode,
         );
 
+        setError(null);
         setShowQuestionComposer(true);
-
-        setError(null);
-    };
-
-    const saveEditedQuestion = async () => {
-        if (
-            !session ||
-            !editingQuestionId ||
-            isSavingQuestion
-        ) {
-            return;
-        }
-
-        const trimmedText =
-            newQuestionText.trim();
-
-        if (!trimmedText) {
-            setError(
-                "Please enter a question.",
-            );
-            return;
-        }
-
-        const cleanedOptions =
-            newQuestionOptions
-                .map((option) => option.trim())
-                .filter(Boolean);
-
-        if (
-            newQuestionType ===
-            "multiple_choice" &&
-            cleanedOptions.length < 2
-        ) {
-            setError(
-                "A multiple-choice question needs at least two options.",
-            );
-            return;
-        }
-
-        const currentQuestion =
-            questions.find(
-                (question) =>
-                    question.id ===
-                    editingQuestionId,
-            );
-
-        if (!currentQuestion) {
-            setError(
-                "Question no longer exists.",
-            );
-            return;
-        }
-
-        if (
-            currentQuestion.status ===
-            "active"
-        ) {
-            setError(
-                "Close the active question before editing it.",
-            );
-            return;
-        }
-
-        setIsSavingQuestion(true);
-        setError(null);
-
-        const now =
-            new Date().toISOString();
-
-        const {
-            data,
-            error: updateError,
-        } = await supabase
-            .from("session_questions")
-            .update({
-                text: trimmedText,
-
-                type: newQuestionType,
-
-                options:
-                    cleanedOptions,
-
-                config:
-                    newQuestionType === "scale"
-                        ? {
-                            min: 1,
-                            max:
-                                cleanedOptions.length > 0
-                                    ? cleanedOptions.length
-                                    : 5,
-                        }
-                        : {},
-
-                results_mode:
-                    newQuestionResultsMode,
-
-                updated_at: now,
-            })
-            .eq(
-                "id",
-                editingQuestionId,
-            )
-            .eq(
-                "session_id",
-                session.id,
-            )
-            .select("*")
-            .single();
-
-        if (
-            updateError ||
-            !data
-        ) {
-            setError(
-                updateError?.message ??
-                "Unable to update question.",
-            );
-
-            setIsSavingQuestion(false);
-            return;
-        }
-
-        const updatedQuestion =
-            data as SessionQuestion;
-
-        setQuestions((current) =>
-            current.map(
-                (question) =>
-                    question.id ===
-                        updatedQuestion.id
-                        ? updatedQuestion
-                        : question,
-            ),
-        );
-
-        setEditingQuestionId(null);
-
-        setNewQuestionText("");
-
-        setNewQuestionOptions([
-            "Option 1",
-            "Option 2",
-        ]);
-
-        setNewQuestionType(
-            "multiple_choice",
-        );
-
-        setNewQuestionResultsMode(
-            "on_command",
-        );
-
-        setShowQuestionComposer(false);
-
-        setIsSavingQuestion(false);
-    };
-
-    const deleteSessionQuestion = async (
-        question: SessionQuestion,
-    ) => {
-        if (
-            !session ||
-            isUpdating ||
-            question.status === "active"
-        ) {
-            return;
-        }
-
-        const confirmed =
-            window.confirm(
-                "Are you sure you want to delete this question from the session?",
-            );
-
-        if (!confirmed) {
-            return;
-        }
-
-        setIsUpdating(true);
-        setError(null);
-
-        const {
-            error: deleteError,
-        } = await supabase
-            .from("session_questions")
-            .delete()
-            .eq(
-                "id",
-                question.id,
-            )
-            .eq(
-                "session_id",
-                session.id,
-            );
-
-        if (deleteError) {
-            setError(
-                deleteError.message,
-            );
-
-            setIsUpdating(false);
-            return;
-        }
-
-        setQuestions(
-            (current) =>
-                current.filter(
-                    (item) =>
-                        item.id !==
-                        question.id,
-                ),
-        );
-
-        setIsUpdating(false);
     };
 
     const updateNewQuestionOption = (
@@ -1267,8 +1603,12 @@ export default function LiveStudio({
         setNewQuestionOptions(
             (current) =>
                 current.map(
-                    (option, optionIndex) =>
-                        optionIndex === index
+                    (
+                        option,
+                        optionIndex,
+                    ) =>
+                        optionIndex ===
+                        index
                             ? value
                             : option,
                 ),
@@ -1290,15 +1630,371 @@ export default function LiveStudio({
         setNewQuestionOptions(
             (current) =>
                 current.filter(
-                    (_, optionIndex) =>
-                        optionIndex !== index,
+                    (
+                        _,
+                        optionIndex,
+                    ) =>
+                        optionIndex !==
+                        index,
                 ),
         );
     };
 
+    const createSessionQuestion =
+        async () => {
+            if (
+                !session ||
+                isCreatingQuestion
+            ) {
+                return;
+            }
+
+            const trimmedText =
+                newQuestionText.trim();
+
+            if (!trimmedText) {
+                setError(
+                    "Please enter a question.",
+                );
+                return;
+            }
+
+            const cleanedOptions =
+                newQuestionOptions
+                    .map((option) =>
+                        option.trim(),
+                    )
+                    .filter(Boolean);
+
+            if (
+                newQuestionType ===
+                    "multiple_choice" &&
+                cleanedOptions.length < 2
+            ) {
+                setError(
+                    "A multiple-choice question needs at least two options.",
+                );
+                return;
+            }
+
+            if (
+                newQuestionType ===
+                    "scale" &&
+                cleanedOptions.length < 2
+            ) {
+                setError(
+                    "A scale question needs at least two scale points.",
+                );
+                return;
+            }
+
+            setIsCreatingQuestion(true);
+            setError(null);
+
+            const nextPosition =
+                questions.length === 0
+                    ? 1
+                    : Math.max(
+                          ...questions.map(
+                              (
+                                  question,
+                              ) =>
+                                  question.position,
+                          ),
+                      ) + 1;
+
+            const now =
+                new Date().toISOString();
+
+            const {
+                data,
+                error: createError,
+            } = await supabase
+                .from(
+                    "session_questions",
+                )
+                .insert({
+                    session_id:
+                        session.id,
+                    source_question_id:
+                        null,
+                    text: trimmedText,
+                    type:
+                        newQuestionType,
+                    options:
+                        cleanedOptions,
+                    config:
+                        newQuestionType ===
+                        "scale"
+                            ? {
+                                  min: 1,
+                                  max:
+                                      cleanedOptions.length,
+                              }
+                            : {},
+                    position:
+                        nextPosition,
+                    status: "draft",
+                    results_mode:
+                        newQuestionResultsMode,
+                    results_visible:
+                        false,
+                    created_at: now,
+                    updated_at: now,
+                })
+                .select("*")
+                .single();
+
+            if (
+                createError ||
+                !data
+            ) {
+                setError(
+                    createError?.message ??
+                        "Unable to create question.",
+                );
+
+                setIsCreatingQuestion(false);
+                return;
+            }
+
+            const createdQuestion =
+                data as SessionQuestion;
+
+            setQuestions(
+                (current) =>
+                    [
+                        ...current,
+                        createdQuestion,
+                    ].sort(
+                        (a, b) =>
+                            a.position -
+                            b.position,
+                    ),
+            );
+
+            setSelectedAnalyticsQuestionId(
+                createdQuestion.id,
+            );
+
+            resetQuestionComposer();
+            setIsCreatingQuestion(false);
+        };
+
+    const saveEditedQuestion =
+        async () => {
+            if (
+                !session ||
+                !editingQuestionId ||
+                isSavingQuestion
+            ) {
+                return;
+            }
+
+            const trimmedText =
+                newQuestionText.trim();
+
+            if (!trimmedText) {
+                setError(
+                    "Please enter a question.",
+                );
+                return;
+            }
+
+            const cleanedOptions =
+                newQuestionOptions
+                    .map((option) =>
+                        option.trim(),
+                    )
+                    .filter(Boolean);
+
+            if (
+                cleanedOptions.length < 2
+            ) {
+                setError(
+                    "Please provide at least two options.",
+                );
+                return;
+            }
+
+            const currentQuestion =
+                questions.find(
+                    (question) =>
+                        question.id ===
+                        editingQuestionId,
+                );
+
+            if (!currentQuestion) {
+                setError(
+                    "Question no longer exists.",
+                );
+                return;
+            }
+
+            if (
+                currentQuestion.status ===
+                "active"
+            ) {
+                setError(
+                    "Close the active question before editing it.",
+                );
+                return;
+            }
+
+            setIsSavingQuestion(true);
+            setError(null);
+
+            const now =
+                new Date().toISOString();
+
+            const {
+                data,
+                error: updateError,
+            } = await supabase
+                .from(
+                    "session_questions",
+                )
+                .update({
+                    text: trimmedText,
+                    type:
+                        newQuestionType,
+                    options:
+                        cleanedOptions,
+                    config:
+                        newQuestionType ===
+                        "scale"
+                            ? {
+                                  min: 1,
+                                  max:
+                                      cleanedOptions.length,
+                              }
+                            : {},
+                    results_mode:
+                        newQuestionResultsMode,
+                    updated_at: now,
+                })
+                .eq(
+                    "id",
+                    editingQuestionId,
+                )
+                .eq(
+                    "session_id",
+                    session.id,
+                )
+                .select("*")
+                .single();
+
+            if (
+                updateError ||
+                !data
+            ) {
+                setError(
+                    updateError?.message ??
+                        "Unable to update question.",
+                );
+
+                setIsSavingQuestion(false);
+                return;
+            }
+
+            const updatedQuestion =
+                data as SessionQuestion;
+
+            setQuestions(
+                (current) =>
+                    current.map(
+                        (question) =>
+                            question.id ===
+                                updatedQuestion.id
+                                ? updatedQuestion
+                                : question,
+                    ),
+            );
+
+            resetQuestionComposer();
+            setIsSavingQuestion(false);
+        };
+
+    const deleteSessionQuestion =
+        async (
+            question: SessionQuestion,
+        ) => {
+            if (
+                !session ||
+                isUpdating ||
+                question.status ===
+                    "active"
+            ) {
+                return;
+            }
+
+            const confirmed =
+                window.confirm(
+                    "Are you sure you want to delete this question from the session?",
+                );
+
+            if (!confirmed) {
+                return;
+            }
+
+            setIsUpdating(true);
+            setError(null);
+
+            const {
+                error: deleteError,
+            } = await supabase
+                .from(
+                    "session_questions",
+                )
+                .delete()
+                .eq(
+                    "id",
+                    question.id,
+                )
+                .eq(
+                    "session_id",
+                    session.id,
+                );
+
+            if (deleteError) {
+                setError(
+                    deleteError.message,
+                );
+
+                setIsUpdating(false);
+                return;
+            }
+
+            setQuestions(
+                (current) =>
+                    current.filter(
+                        (item) =>
+                            item.id !==
+                            question.id,
+                    ),
+            );
+
+            if (
+                selectedAnalyticsQuestionId ===
+                question.id
+            ) {
+                setSelectedAnalyticsQuestionId(
+                    activeQuestion?.id ??
+                        questions.find(
+                            (item) =>
+                                item.id !==
+                                question.id,
+                        )?.id ??
+                        null,
+                );
+            }
+
+            setIsUpdating(false);
+        };
+
     /*
      * ---------------------------------------------
-     * PUSH QUESTION LIVE
+     * LIVE QUESTION CONTROLS
      * ---------------------------------------------
      */
 
@@ -1319,18 +2015,17 @@ export default function LiveStudio({
             const now =
                 new Date().toISOString();
 
-            /*
-             * CLOSE PREVIOUS QUESTION
-             */
+            const previousQuestionId =
+                session.active_question_id;
 
             if (
-                session.active_question_id &&
-                session.active_question_id !==
-                question.id
+                previousQuestionId &&
+                previousQuestionId !==
+                    question.id
             ) {
                 const {
                     error:
-                    previousQuestionError,
+                        previousQuestionError,
                 } = await supabase
                     .from(
                         "session_questions",
@@ -1342,7 +2037,7 @@ export default function LiveStudio({
                     })
                     .eq(
                         "id",
-                        session.active_question_id,
+                        previousQuestionId,
                     )
                     .eq(
                         "session_id",
@@ -1361,45 +2056,35 @@ export default function LiveStudio({
                 }
             }
 
-            /*
-             * DETERMINE INITIAL
-             * RESULTS VISIBILITY
-             */
-
             const resultsVisible =
                 question.results_mode ===
                 "live";
 
-            /*
-             * ACTIVATE QUESTION
-             */
-
             const {
                 data: updatedQuestion,
                 error: questionError,
-            } =
-                await supabase
-                    .from(
-                        "session_questions",
-                    )
-                    .update({
-                        status: "active",
-                        activated_at: now,
-                        closed_at: null,
-                        results_visible:
-                            resultsVisible,
-                        updated_at: now,
-                    })
-                    .eq(
-                        "id",
-                        question.id,
-                    )
-                    .eq(
-                        "session_id",
-                        session.id,
-                    )
-                    .select("*")
-                    .single();
+            } = await supabase
+                .from(
+                    "session_questions",
+                )
+                .update({
+                    status: "active",
+                    activated_at: now,
+                    closed_at: null,
+                    results_visible:
+                        resultsVisible,
+                    updated_at: now,
+                })
+                .eq(
+                    "id",
+                    question.id,
+                )
+                .eq(
+                    "session_id",
+                    session.id,
+                )
+                .select("*")
+                .single();
 
             if (
                 questionError ||
@@ -1407,40 +2092,36 @@ export default function LiveStudio({
             ) {
                 setError(
                     questionError?.message ??
-                    "Unable to activate question.",
+                        "Unable to activate question.",
                 );
 
                 setIsUpdating(false);
                 return;
             }
 
-            /*
-             * UPDATE SESSION
-             */
-
             const {
                 data: updatedSession,
                 error: sessionError,
-            } =
-                await supabase
-                    .from("sessions")
-                    .update({
-                        active_question_id:
-                            question.id,
-                        status: "live",
-                        is_offline: false,
-                        paused_at: null,
-                        started_at:
-                            session.started_at ??
-                            now,
-                        updated_at: now,
-                    })
-                    .eq(
-                        "id",
-                        session.id,
-                    )
-                    .select("*")
-                    .single();
+            } = await supabase
+                .from("sessions")
+                .update({
+                    active_question_id:
+                        question.id,
+                    status: "live",
+                    is_offline:
+                        false,
+                    paused_at: null,
+                    started_at:
+                        session.started_at ??
+                        now,
+                    updated_at: now,
+                })
+                .eq(
+                    "id",
+                    session.id,
+                )
+                .select("*")
+                .single();
 
             if (
                 sessionError ||
@@ -1448,24 +2129,16 @@ export default function LiveStudio({
             ) {
                 setError(
                     sessionError?.message ??
-                    "Unable to update session.",
+                        "Unable to update session.",
                 );
 
                 setIsUpdating(false);
                 return;
             }
 
-            /*
-             * LOCAL SESSION UPDATE
-             */
-
             setSession(
                 updatedSession as Session,
             );
-
-            /*
-             * LOCAL QUESTION UPDATE
-             */
 
             setQuestions(
                 (current) =>
@@ -1480,7 +2153,7 @@ export default function LiveStudio({
 
                             if (
                                 item.id ===
-                                session.active_question_id
+                                previousQuestionId
                             ) {
                                 return {
                                     ...item,
@@ -1498,14 +2171,12 @@ export default function LiveStudio({
                     ),
             );
 
+            setSelectedAnalyticsQuestionId(
+                question.id,
+            );
+
             setIsUpdating(false);
         };
-
-    /*
-     * ---------------------------------------------
-     * CLOSE ACTIVE QUESTION
-     * ---------------------------------------------
-     */
 
     const closeActiveQuestion =
         async () => {
@@ -1528,26 +2199,25 @@ export default function LiveStudio({
             const {
                 data: updatedQuestion,
                 error: questionError,
-            } =
-                await supabase
-                    .from(
-                        "session_questions",
-                    )
-                    .update({
-                        status: "closed",
-                        closed_at: now,
-                        updated_at: now,
-                    })
-                    .eq(
-                        "id",
-                        questionId,
-                    )
-                    .eq(
-                        "session_id",
-                        session.id,
-                    )
-                    .select("*")
-                    .single();
+            } = await supabase
+                .from(
+                    "session_questions",
+                )
+                .update({
+                    status: "closed",
+                    closed_at: now,
+                    updated_at: now,
+                })
+                .eq(
+                    "id",
+                    questionId,
+                )
+                .eq(
+                    "session_id",
+                    session.id,
+                )
+                .select("*")
+                .single();
 
             if (
                 questionError ||
@@ -1555,7 +2225,7 @@ export default function LiveStudio({
             ) {
                 setError(
                     questionError?.message ??
-                    "Unable to close question.",
+                        "Unable to close question.",
                 );
 
                 setIsUpdating(false);
@@ -1565,20 +2235,19 @@ export default function LiveStudio({
             const {
                 data: updatedSession,
                 error: sessionError,
-            } =
-                await supabase
-                    .from("sessions")
-                    .update({
-                        active_question_id:
-                            null,
-                        updated_at: now,
-                    })
-                    .eq(
-                        "id",
-                        session.id,
-                    )
-                    .select("*")
-                    .single();
+            } = await supabase
+                .from("sessions")
+                .update({
+                    active_question_id:
+                        null,
+                    updated_at: now,
+                })
+                .eq(
+                    "id",
+                    session.id,
+                )
+                .select("*")
+                .single();
 
             if (
                 sessionError ||
@@ -1586,7 +2255,7 @@ export default function LiveStudio({
             ) {
                 setError(
                     sessionError?.message ??
-                    "Unable to update session.",
+                        "Unable to update session.",
                 );
 
                 setIsUpdating(false);
@@ -1611,346 +2280,193 @@ export default function LiveStudio({
             setIsUpdating(false);
         };
 
-    /*
-     * ---------------------------------------------
-     * REVEAL RESULTS
-     * ---------------------------------------------
-     */
+    const revealResults = async () => {
+        if (
+            !session ||
+            !activeQuestion ||
+            isUpdating
+        ) {
+            return;
+        }
 
-    const revealResults =
-        async () => {
-            const currentSession = session;
-            const currentQuestion = activeQuestion;
+        if (
+            activeQuestion.results_mode ===
+            "hidden"
+        ) {
+            return;
+        }
 
-            if (
-                !currentSession ||
-                !currentQuestion ||
-                isUpdating
-            ) {
-                return;
-            }
+        setIsUpdating(true);
+        setError(null);
 
-            if (
-                currentQuestion.results_mode ===
-                "hidden"
-            ) {
-                return;
-            }
+        const {
+            data: updatedQuestion,
+            error: updateError,
+        } = await supabase
+            .from(
+                "session_questions",
+            )
+            .update({
+                results_visible: true,
+                updated_at:
+                    new Date().toISOString(),
+            })
+            .eq(
+                "id",
+                activeQuestion.id,
+            )
+            .eq(
+                "session_id",
+                session.id,
+            )
+            .select("*")
+            .single();
 
-            setIsUpdating(true);
-            setError(null);
-
-            const {
-                data: updatedQuestion,
-                error: updateError,
-            } =
-                await supabase
-                    .from(
-                        "session_questions",
-                    )
-                    .update({
-                        results_visible:
-                            true,
-                        updated_at:
-                            new Date().toISOString(),
-                    })
-                    .eq(
-                        "id",
-                        currentQuestion.id,
-                    )
-                    .eq(
-                        "session_id",
-                        currentSession.id,
-                    )
-                    .select("*")
-                    .single();
-
-            if (
-                updateError ||
-                !updatedQuestion
-            ) {
-                setError(
-                    updateError?.message ??
+        if (
+            updateError ||
+            !updatedQuestion
+        ) {
+            setError(
+                updateError?.message ??
                     "Unable to reveal results.",
-                );
-
-                setIsUpdating(false);
-                return;
-            }
-
-            setQuestions(
-                (current) =>
-                    current.map(
-                        (question) =>
-                            question.id ===
-                                currentQuestion.id
-                                ? (updatedQuestion as SessionQuestion)
-                                : question,
-                    ),
             );
 
             setIsUpdating(false);
-        };
+            return;
+        }
 
-    /*
-     * ---------------------------------------------
-     * HIDE RESULTS
-     * ---------------------------------------------
-     */
+        setQuestions(
+            (current) =>
+                current.map(
+                    (question) =>
+                        question.id ===
+                            activeQuestion.id
+                            ? (updatedQuestion as SessionQuestion)
+                            : question,
+                ),
+        );
 
-    const hideResults =
-        async () => {
-            const currentSession = session;
-            const currentQuestion = activeQuestion;
+        setIsUpdating(false);
+    };
 
-            if (
-                !currentSession ||
-                !currentQuestion ||
-                isUpdating
-            ) {
-                return;
-            }
+    const hideResults = async () => {
+        if (
+            !session ||
+            !activeQuestion ||
+            isUpdating
+        ) {
+            return;
+        }
 
-            if (
-                currentQuestion.results_mode ===
-                "live"
-            ) {
-                return;
-            }
+        if (
+            activeQuestion.results_mode ===
+            "live"
+        ) {
+            return;
+        }
 
-            setIsUpdating(true);
-            setError(null);
+        setIsUpdating(true);
+        setError(null);
 
-            const {
-                data: updatedQuestion,
-                error: updateError,
-            } =
-                await supabase
-                    .from(
-                        "session_questions",
-                    )
-                    .update({
-                        results_visible:
-                            false,
-                        updated_at:
-                            new Date().toISOString(),
-                    })
-                    .eq(
-                        "id",
-                        currentQuestion.id,
-                    )
-                    .eq(
-                        "session_id",
-                        currentSession.id,
-                    )
-                    .select("*")
-                    .single();
+        const {
+            data: updatedQuestion,
+            error: updateError,
+        } = await supabase
+            .from(
+                "session_questions",
+            )
+            .update({
+                results_visible: false,
+                updated_at:
+                    new Date().toISOString(),
+            })
+            .eq(
+                "id",
+                activeQuestion.id,
+            )
+            .eq(
+                "session_id",
+                session.id,
+            )
+            .select("*")
+            .single();
 
-            if (
-                updateError ||
-                !updatedQuestion
-            ) {
-                setError(
-                    updateError?.message ??
+        if (
+            updateError ||
+            !updatedQuestion
+        ) {
+            setError(
+                updateError?.message ??
                     "Unable to hide results.",
-                );
-
-                setIsUpdating(false);
-                return;
-            }
-
-            setQuestions(
-                (current) =>
-                    current.map(
-                        (question) =>
-                            question.id ===
-                                currentQuestion.id
-                                ? (updatedQuestion as SessionQuestion)
-                                : question,
-                    ),
             );
 
             setIsUpdating(false);
-        };
+            return;
+        }
+
+        setQuestions(
+            (current) =>
+                current.map(
+                    (question) =>
+                        question.id ===
+                            activeQuestion.id
+                            ? (updatedQuestion as SessionQuestion)
+                            : question,
+                ),
+        );
+
+        setIsUpdating(false);
+    };
 
     /*
      * ---------------------------------------------
-     * PAUSE SESSION
-     * ---------------------------------------------
-     */
-
-    const togglePause =
-        async (
-            paused: boolean,
-        ) => {
-            if (
-                !session ||
-                isUpdating
-            ) {
-                return;
-            }
-
-            setIsUpdating(true);
-            setError(null);
-
-            const now =
-                new Date().toISOString();
-
-            const nextStatus =
-                paused
-                    ? "paused"
-                    : "live";
-
-            const {
-                data: updatedSession,
-                error: updateError,
-            } =
-                await supabase
-                    .from("sessions")
-                    .update({
-                        status:
-                            nextStatus,
-                        is_offline:
-                            paused,
-                        paused_at:
-                            paused
-                                ? now
-                                : null,
-                        updated_at:
-                            now,
-                    })
-                    .eq(
-                        "id",
-                        session.id,
-                    )
-                    .select("*")
-                    .single();
-
-            if (
-                updateError ||
-                !updatedSession
-            ) {
-                setError(
-                    updateError?.message ??
-                    "Unable to update session.",
-                );
-
-                setIsUpdating(false);
-                return;
-            }
-
-            setSession(
-                updatedSession as Session,
-            );
-
-            setIsUpdating(false);
-        };
-
-    /*
-     * ---------------------------------------------
-     * END SESSION
-     * ---------------------------------------------
-     */
-
-    const endSession =
-        async () => {
-            if (
-                !session ||
-                isUpdating
-            ) {
-                return;
-            }
-
-            const confirmed =
-                window.confirm(
-                    "Are you sure you want to end this session?",
-                );
-
-            if (!confirmed) {
-                return;
-            }
-
-            setIsUpdating(true);
-            setError(null);
-
-            const now =
-                new Date().toISOString();
-
-            const {
-                data: updatedSession,
-                error: updateError,
-            } =
-                await supabase
-                    .from("sessions")
-                    .update({
-                        status:
-                            "completed",
-                        active_question_id:
-                            null,
-                        ended_at:
-                            now,
-                        updated_at:
-                            now,
-                    })
-                    .eq(
-                        "id",
-                        session.id,
-                    )
-                    .select("*")
-                    .single();
-
-            if (
-                updateError ||
-                !updatedSession
-            ) {
-                setError(
-                    updateError?.message ??
-                    "Unable to end session.",
-                );
-
-                setIsUpdating(false);
-                return;
-            }
-
-            setSession(
-                updatedSession as Session,
-            );
-
-            setIsUpdating(false);
-
-            router.push(
-                "/instructor",
-            );
-        };
-
-    /*
-     * ---------------------------------------------
-     * LOADING
+     * LOADING / ERROR
      * ---------------------------------------------
      */
 
     if (isLoading) {
         return (
             <main className="min-h-screen bg-slate-100 p-4 dark:bg-slate-950 sm:p-6">
-                <div className="mx-auto max-w-[1600px] rounded-2xl border bg-white p-10 text-center dark:bg-slate-900">
-                    Loading Live Studio...
+                <div className="mx-auto flex min-h-[70vh] max-w-[1600px] items-center justify-center rounded-3xl border bg-white p-10 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div>
+                        <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-500" />
+                        <p className="text-lg font-semibold">
+                            Loading Live Studio...
+                        </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Connecting to session{" "}
+                            {sessionCode}
+                        </p>
+                    </div>
                 </div>
             </main>
         );
     }
-
-    /*
-     * ---------------------------------------------
-     * ERROR
-     * ---------------------------------------------
-     */
 
     if (!session) {
         return (
             <main className="min-h-screen bg-slate-100 p-4 dark:bg-slate-950 sm:p-6">
-                <div className="mx-auto max-w-[1600px] rounded-2xl border border-red-200 bg-red-50 p-10 text-center text-red-700">
-                    {error ??
-                        "Unable to load session."}
+                <div className="mx-auto flex min-h-[70vh] max-w-[1600px] items-center justify-center rounded-3xl border border-red-200 bg-red-50 p-10 text-center text-red-700">
+                    <div>
+                        <p className="text-lg font-semibold">
+                            Unable to load session
+                        </p>
+                        <p className="mt-2 text-sm">
+                            {error ??
+                                "Session not found."}
+                        </p>
+                        <Button
+                            className="mt-5"
+                            variant="outline"
+                            onClick={() =>
+                                router.push(
+                                    "/instructor",
+                                )
+                            }
+                        >
+                            Back to Dashboard
+                        </Button>
+                    </div>
                 </div>
             </main>
         );
@@ -1958,142 +2474,113 @@ export default function LiveStudio({
 
     /*
      * ---------------------------------------------
-     * RESULTS MODE LABEL
+     * UI HELPERS
      * ---------------------------------------------
      */
 
-    const getResultsModeLabel =
-        () => {
-            if (!activeQuestion) {
-                return "";
-            }
+    const currentQuestionIndex =
+        activeQuestion
+            ? questions.findIndex(
+                  (question) =>
+                      question.id ===
+                      activeQuestion.id,
+              )
+            : -1;
 
-            if (
-                activeQuestion.results_mode ===
-                "live"
-            ) {
-                return "Live Results";
-            }
+    const nextQuestion =
+        currentQuestionIndex >= 0
+            ? questions[
+                  currentQuestionIndex + 1
+              ]
+            : null;
 
-            if (
-                activeQuestion.results_mode ===
-                "hidden"
-            ) {
-                return "Hidden Results";
-            }
+    const previousQuestion =
+        currentQuestionIndex > 0
+            ? questions[
+                  currentQuestionIndex - 1
+              ]
+            : null;
 
-            return "Results on Command";
-        };
+    const currentQuestionVisible =
+        activeQuestion?.results_mode ===
+            "live" ||
+        activeQuestion?.results_visible ===
+            true;
 
-    /*
-     * ---------------------------------------------
-     * UI
-     * ---------------------------------------------
-     */
+    const activeQuestionAnalytics =
+        activeQuestion
+            ? questionAnalytics.find(
+                  (item) =>
+                      item.question.id ===
+                      activeQuestion.id,
+              ) ?? null
+            : null;
 
     return (
         <main className="min-h-screen bg-slate-100 dark:bg-slate-950">
-            <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
+            <div className="mx-auto max-w-[1700px] p-3 sm:p-5 lg:p-6">
                 {/* HEADER */}
 
-                <header className="mb-5 rounded-2xl border bg-white p-5 shadow-sm dark:bg-slate-900">
-                    <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="min-w-0">
-                            <div className="mb-2 flex flex-wrap items-center gap-2">
-                                <Badge>
-                                    {session.status.toUpperCase()}
-                                </Badge>
+                <header className="mb-5 overflow-hidden rounded-3xl border bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div className="border-b px-5 py-5 sm:px-6">
+                        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                            <div className="min-w-0">
+                                <div className="mb-3 flex flex-wrap items-center gap-2">
+                                    <Badge>
+                                        {session.status.toUpperCase()}
+                                    </Badge>
 
-                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold dark:bg-slate-800">
-                                    Join Code:{" "}
-                                    {session.join_code}
-                                </span>
+                                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold dark:bg-slate-800">
+                                        Code{" "}
+                                        {session.join_code}
+                                    </span>
 
-                                <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
-                                    {responses.length}{" "}
-                                    responses
-                                </span>
+                                    <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                        {responses.length}{" "}
+                                        responses
+                                    </span>
 
-                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold dark:bg-slate-800">
-                                    {participantSummary.total}{" "}
-                                    participants
-                                </span>
+                                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">
+                                        {participantSummary.active}{" "}
+                                        active
+                                    </span>
+                                </div>
+
+                                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:gap-3">
+                                    <h1 className="truncate text-2xl font-bold sm:text-3xl">
+                                        {session.name}
+                                    </h1>
+
+                                    <span className="pb-1 text-sm text-muted-foreground">
+                                        {template?.title ??
+                                            "Instant Session"}
+                                    </span>
+                                </div>
+
+                                <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                                    Run the room from one place:
+                                    broadcast questions,
+                                    control visibility,
+                                    monitor participation,
+                                    and watch responses arrive
+                                    in real time.
+                                </p>
                             </div>
 
-                            <h1 className="truncate text-2xl font-bold sm:text-3xl">
-                                {session.name}
-                            </h1>
-
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                {template?.title ??
-                                    "Instant Session"}
-                            </p>
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                            <Button
-                                variant="outline"
-                                onClick={() =>
-                                    router.push(
-                                        "/instructor",
-                                    )
-                                }
-                            >
-                                Back
-                            </Button>
-
-                            <Button
-                                variant="outline"
-                                onClick={() =>
-                                    window.open(
-                                        `/instructor/${session.join_code}/projector`,
-                                        "_blank",
-                                        "noopener,noreferrer",
-                                    )
-                                }
-                            >
-                                Projector
-                            </Button>
-
-                            <Button
-                                variant="destructive"
-                                disabled={
-                                    isUpdating ||
-                                    session.status ===
-                                    "completed"
-                                }
-                                onClick={() =>
-                                    void endSession()
-                                }
-                            >
-                                End Session
-                            </Button>
-                        </div>
-                    </div>
-                </header>
-
-                {error && (
-                    <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                        {error}
-                    </div>
-                )}
-
-                {/* THREE COLUMN LAYOUT */}
-
-                <div className="grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)_380px]">
-                    {/* LEFT COLUMN */}
-
-                    <aside className="space-y-5">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>
-                                    Live Controls
-                                </CardTitle>
-                            </CardHeader>
-
-                            <CardContent className="space-y-4">
+                            <div className="flex flex-wrap gap-2">
                                 <Button
-                                    className="h-11 w-full"
+                                    variant="outline"
+                                    onClick={() =>
+                                        router.push(
+                                            "/instructor",
+                                        )
+                                    }
+                                >
+                                    Back
+                                </Button>
+
+                                <Button
+                                    variant="outline"
                                     onClick={() =>
                                         window.open(
                                             `/instructor/${session.join_code}/projector`,
@@ -2102,249 +2589,364 @@ export default function LiveStudio({
                                         )
                                     }
                                 >
-                                    Open Projector ↗
+                                    Projector ↗
                                 </Button>
 
-                                <div className="rounded-xl border p-4">
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Participation
-                                    </p>
-
-                                    <p className="mt-1 font-semibold">
-                                        {session.participant_mode ===
-                                            "anonymous"
-                                            ? "Anonymous"
-                                            : "Name + Roll Number"}
-                                    </p>
-                                </div>
-
-                                <div className="rounded-xl border p-4">
-                                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                        Results
-                                    </p>
-
-                                    <p className="mt-1 font-semibold">
-                                        {session.results_mode ===
-                                            "live"
-                                            ? "Live"
-                                            : session.results_mode ===
-                                                "on_command"
-                                                ? "On Command"
-                                                : "Hidden"}
-                                    </p>
-                                </div>
-
-                                <div className="flex items-center justify-between rounded-xl border p-4">
-                                    <div>
-                                        <p className="font-medium">
-                                            Pause Polling
-                                        </p>
-
-                                        <p className="text-xs text-muted-foreground">
-                                            Temporarily stop responses.
-                                        </p>
-                                    </div>
-
-                                    <Switch
-                                        checked={
-                                            session.status ===
-                                            "paused"
-                                        }
-                                        disabled={
-                                            isUpdating ||
-                                            session.status ===
+                                <Button
+                                    variant="destructive"
+                                    disabled={
+                                        isUpdating ||
+                                        session.status ===
                                             "completed"
-                                        }
-                                        onCheckedChange={(
-                                            checked,
-                                        ) =>
-                                            void togglePause(
-                                                checked,
-                                            )
-                                        }
-                                    />
-                                </div>
+                                    }
+                                    onClick={() =>
+                                        void endSession()
+                                    }
+                                >
+                                    End Session
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
 
-                                <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-800">
-                                    <p className="text-xs text-muted-foreground">
-                                        Total Responses
-                                    </p>
+                    <div className="grid grid-cols-2 divide-x sm:grid-cols-4 dark:divide-slate-800">
+                        <div className="p-4 sm:px-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Questions
+                            </p>
+                            <p className="mt-1 text-xl font-bold">
+                                {questions.length}
+                            </p>
+                        </div>
 
-                                    <p className="mt-1 text-3xl font-bold">
-                                        {responses.length}
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <div className="p-4 sm:px-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Participation
+                            </p>
+                            <p className="mt-1 text-xl font-bold">
+                                {formatPercentage(
+                                    overallParticipationRate,
+                                )}
+                            </p>
+                        </div>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>
-                                    Session Information
-                                </CardTitle>
-                            </CardHeader>
+                        <div className="p-4 sm:px-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Avg. Response
+                            </p>
+                            <p className="mt-1 text-xl font-bold">
+                                {formatDurationMs(
+                                    averageResponseTimeMs,
+                                )}
+                            </p>
+                        </div>
 
-                            <CardContent className="space-y-3">
-                                <div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Questions
-                                    </p>
+                        <div className="p-4 sm:px-5">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                Room Activity
+                            </p>
+                            <p className="mt-1 text-xl font-bold">
+                                {participantSummary.active}/
+                                {participantSummary.total}
+                            </p>
+                        </div>
+                    </div>
+                </header>
 
-                                    <p className="font-semibold">
-                                        {questions.length}
-                                    </p>
-                                </div>
+                {error ? (
+                    <div className="mb-5 flex items-start justify-between gap-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+                        <div>
+                            <p className="font-semibold">
+                                Studio notice
+                            </p>
+                            <p className="mt-1">
+                                {error}
+                            </p>
+                        </div>
 
-                                <div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Participants
-                                    </p>
+                        <button
+                            type="button"
+                            className="text-xs font-bold opacity-70 hover:opacity-100"
+                            onClick={() =>
+                                setError(null)
+                            }
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                ) : null}
 
-                                    <p className="font-semibold">
-                                        {participantSummary.total}
-                                    </p>
-                                </div>
+                {/* TOP KPI GRID */}
 
-                                <div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Active Participants
-                                    </p>
+                <section className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    <StatCard
+                        label="Students joined"
+                        value={
+                            participantSummary.total
+                        }
+                        helper={`${participantSummary.active} active right now`}
+                    />
 
-                                    <p className="font-semibold">
-                                        {participantSummary.active}
-                                    </p>
-                                </div>
+                    <StatCard
+                        label="Students responding"
+                        value={
+                            totalUniqueResponders
+                        }
+                        helper={`${formatPercentage(
+                            overallParticipationRate,
+                        )} session participation`}
+                        emphasis={
+                            overallParticipationRate >= 70
+                                ? "success"
+                                : "default"
+                        }
+                    />
 
-                                <div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Late Join
-                                    </p>
+                    <StatCard
+                        label="Total responses"
+                        value={responses.length}
+                        helper={`${responses.length === 1 ? "response" : "responses"} across all questions`}
+                    />
 
-                                    <p className="font-semibold">
-                                        {session.allow_late_join
-                                            ? "Enabled"
-                                            : "Disabled"}
-                                    </p>
-                                </div>
+                    <StatCard
+                        label="Average response"
+                        value={formatDurationMs(
+                            averageResponseTimeMs,
+                        )}
+                        helper={`Median ${formatDurationMs(
+                            medianResponseTimeMs,
+                        )}`}
+                    />
 
-                                <div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Answer Changes
-                                    </p>
+                    <StatCard
+                        label="Unanswered now"
+                        value={
+                            activeQuestion
+                                ? activeQuestionUnansweredCount
+                                : "—"
+                        }
+                        helper={
+                            activeQuestion
+                                ? "For the current question"
+                                : "No question live"
+                        }
+                        emphasis={
+                            activeQuestion &&
+                            activeQuestionUnansweredCount >
+                                0
+                                ? "warning"
+                                : "default"
+                        }
+                    />
+                </section>
 
-                                    <p className="font-semibold">
-                                        {session.allow_answer_change
-                                            ? "Allowed"
-                                            : "Locked"}
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </aside>
+                {/* MAIN COMMAND CENTER */}
 
-                    {/* CENTER COLUMN */}
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+                    <section className="min-w-0 space-y-5">
+                        {/* LIVE CONTROL / QUESTION */}
 
-                    <section className="min-w-0">
-                        <Card className="min-h-[720px]">
-                            <CardHeader className="border-b">
-                                <div className="flex items-center justify-between gap-4">
+                        <Card className="overflow-hidden">
+                            <CardHeader className="border-b bg-slate-50/80 dark:border-slate-800 dark:bg-slate-900">
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                                     <div>
-                                        <CardTitle>
-                                            {activeQuestion
-                                                ? "Live Question"
-                                                : "Live Session"}
-                                        </CardTitle>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <CardTitle>
+                                                Live Question
+                                            </CardTitle>
 
-                                        <p className="mt-1 text-sm text-muted-foreground">
-                                            Question controls and live
-                                            result summary.
-                                        </p>
-                                    </div>
-
-                                    {activeQuestion && (
-                                        <Badge>
-                                            {
-                                                activeResponses.length
-                                            }{" "}
-                                            responses
-                                        </Badge>
-                                    )}
-                                </div>
-                            </CardHeader>
-
-                            <CardContent className="p-6">
-                                {activeQuestion ? (
-                                    <div className="space-y-8">
-                                        {/* QUESTION */}
-
-                                        <div>
-                                            <div className="mb-3 flex flex-wrap items-center gap-2">
-                                                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-indigo-600">
-                                                    Current Question
+                                            {activeQuestion ? (
+                                                <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-[11px] font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                                    Question{" "}
+                                                    {currentQuestionIndex +
+                                                        1}
+                                                    /
+                                                    {
+                                                        questions.length
+                                                    }
                                                 </span>
+                                            ) : null}
 
-                                                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold dark:bg-slate-800">
-                                                    {getResultsModeLabel()}
+                                            {activeQuestion ? (
+                                                <span
+                                                    className={`rounded-full border px-2.5 py-1 text-[11px] font-bold ${getQuestionStatusClass(
+                                                        activeQuestion.status,
+                                                    )}`}
+                                                >
+                                                    {getQuestionStatusLabel(
+                                                        activeQuestion.status,
+                                                    )}
                                                 </span>
-                                            </div>
-
-                                            <h2 className="text-2xl font-bold leading-tight lg:text-4xl">
-                                                {activeQuestion.text}
-                                            </h2>
+                                            ) : null}
                                         </div>
 
-                                        {/* RESULTS CONTROL */}
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            {activeQuestion
+                                                ? "This is the question currently visible to students."
+                                                : "No question is currently live. Select one from the queue or create a new question."}
+                                        </p>
+                                    </div>
 
-                                        <div className="rounded-2xl border bg-slate-50 p-4 dark:bg-slate-900">
-                                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                                <div>
-                                                    <p className="font-semibold">
-                                                        Student Results
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() =>
+                                                window.open(
+                                                    `/instructor/${session.join_code}/projector`,
+                                                    "_blank",
+                                                    "noopener,noreferrer",
+                                                )
+                                            }
+                                        >
+                                            Projector ↗
+                                        </Button>
+
+                                        {activeQuestion ? (
+                                            <Button
+                                                variant="outline"
+                                                disabled={
+                                                    isUpdating
+                                                }
+                                                onClick={() =>
+                                                    void closeActiveQuestion()
+                                                }
+                                            >
+                                                Close
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="p-5 sm:p-6">
+                                {activeQuestion ? (
+                                    <div className="space-y-6">
+                                        <div className="rounded-2xl border bg-white p-5 dark:border-slate-800 dark:bg-slate-950">
+                                            <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+                                                        LIVE PROMPT
                                                     </p>
 
-                                                    <p className="mt-1 text-sm text-muted-foreground">
+                                                    <h2 className="mt-2 text-2xl font-bold leading-tight sm:text-3xl">
+                                                        {
+                                                            activeQuestion.text
+                                                        }
+                                                    </h2>
+
+                                                    <div className="mt-4 flex flex-wrap gap-2">
+                                                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold dark:bg-slate-800">
+                                                            {activeQuestion.type ===
+                                                            "multiple_choice"
+                                                                ? "Multiple choice"
+                                                                : "Scale"}
+                                                        </span>
+
+                                                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold dark:bg-slate-800">
+                                                            {
+                                                                activeQuestion.options
+                                                                    .length
+                                                            }{" "}
+                                                            options
+                                                        </span>
+
+                                                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold dark:bg-slate-800">
+                                                            Results:{" "}
+                                                            {getResultsModeLabel(
+                                                                activeQuestion.results_mode,
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid min-w-[250px] grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-2">
+                                                    <div className="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-900">
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Responses
+                                                        </p>
+                                                        <p className="mt-1 text-2xl font-bold">
+                                                            {
+                                                                activeResponses.length
+                                                            }
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-900">
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Rate
+                                                        </p>
+                                                        <p className="mt-1 text-2xl font-bold">
+                                                            {formatPercentage(
+                                                                activeQuestionResponseRate,
+                                                            )}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-900">
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Avg. time
+                                                        </p>
+                                                        <p className="mt-1 text-lg font-bold">
+                                                            {formatDurationMs(
+                                                                activeAverageResponseTimeMs,
+                                                            )}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="rounded-xl bg-slate-50 p-3 text-center dark:bg-slate-900">
+                                                        <p className="text-xs text-muted-foreground">
+                                                            Median
+                                                        </p>
+                                                        <p className="mt-1 text-lg font-bold">
+                                                            {formatDurationMs(
+                                                                activeMedianResponseTimeMs,
+                                                            )}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* RESULT VISUALIZATION */}
+
+                                        <div>
+                                            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                <div>
+                                                    <p className="font-semibold">
+                                                        Response
+                                                        distribution
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
                                                         {activeQuestion.results_mode ===
-                                                            "live"
-                                                            ? "Results are automatically visible to students."
-                                                            : activeQuestion.results_mode ===
-                                                                "hidden"
-                                                                ? "Results cannot be shown to students."
-                                                                : activeQuestion.results_visible
-                                                                    ? "Results are currently visible to students."
-                                                                    : "Results are currently hidden from students."}
+                                                        "hidden"
+                                                            ? "Student-facing results are disabled, but instructor analytics remain available."
+                                                            : currentQuestionVisible
+                                                              ? "Students can currently see these results."
+                                                              : "These results are visible only in the instructor studio."}
                                                     </p>
                                                 </div>
 
-                                                {/* LIVE MODE */}
-
-                                                {activeQuestion.results_mode ===
-                                                    "live" && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {activeQuestion.results_mode ===
+                                                    "live" ? (
                                                         <Badge>
-                                                            Automatically Visible
+                                                            Live results
                                                         </Badge>
-                                                    )}
-
-                                                {/* HIDDEN MODE */}
-
-                                                {activeQuestion.results_mode ===
-                                                    "hidden" && (
+                                                    ) : activeQuestion.results_mode ===
+                                                      "hidden" ? (
                                                         <Badge variant="secondary">
-                                                            Permanently Hidden
+                                                            Hidden
                                                         </Badge>
-                                                    )}
-
-                                                {/* ON COMMAND MODE */}
-
-                                                {activeQuestion.results_mode ===
-                                                    "on_command" && (
+                                                    ) : (
                                                         <Button
-                                                            disabled={
-                                                                isUpdating
-                                                            }
+                                                            size="sm"
                                                             variant={
                                                                 activeQuestion.results_visible
                                                                     ? "outline"
                                                                     : "default"
+                                                            }
+                                                            disabled={
+                                                                isUpdating
                                                             }
                                                             onClick={() => {
                                                                 if (
@@ -2357,105 +2959,120 @@ export default function LiveStudio({
                                                             }}
                                                         >
                                                             {activeQuestion.results_visible
-                                                                ? "Hide Results"
-                                                                : "Reveal Results"}
+                                                                ? "Hide student results"
+                                                                : "Reveal student results"}
                                                         </Button>
                                                     )}
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        {/* RESULT VISUALIZATION */}
-
-                                        {activeQuestion.type ===
-                                            "multiple_choice" ? (
-                                            <div className="space-y-4">
-                                                {activeQuestion.options.map(
-                                                    (
-                                                        option,
-                                                        index,
-                                                    ) => {
-                                                        const count =
-                                                            activeTally[
-                                                            option
-                                                            ] ??
-                                                            0;
-
-                                                        const percentage =
-                                                            activeResponses.length ===
-                                                                0
-                                                                ? 0
-                                                                : Math.round(
-                                                                    (count /
-                                                                        activeResponses.length) *
-                                                                    100,
-                                                                );
-
-                                                        return (
+                                            {activeQuestion.options.length >
+                                            0 ? (
+                                                <div className="space-y-4">
+                                                    {activeQuestion.options.map(
+                                                        (
+                                                            option,
+                                                            index,
+                                                        ) => (
                                                             <div
                                                                 key={`${activeQuestion.id}-${index}`}
-                                                                className="rounded-xl border p-4"
+                                                                className="rounded-2xl border bg-white p-4 dark:border-slate-800 dark:bg-slate-950"
                                                             >
-                                                                <div className="flex items-center justify-between gap-4">
-                                                                    <div className="min-w-0">
-                                                                        <span className="mr-2 font-bold text-muted-foreground">
-                                                                            {String.fromCharCode(
-                                                                                65 +
-                                                                                index,
-                                                                            )}
-                                                                            .
-                                                                        </span>
-
-                                                                        <span className="font-semibold">
-                                                                            {option}
-                                                                        </span>
-                                                                    </div>
-
-                                                                    <div className="shrink-0 text-right">
-                                                                        <p className="font-bold">
-                                                                            {count}
-                                                                        </p>
-
-                                                                        <p className="text-xs text-muted-foreground">
-                                                                            {
-                                                                                percentage
-                                                                            }
-                                                                            %
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                                                                    <div
-                                                                        className="h-full rounded-full bg-indigo-500 transition-all duration-300"
-                                                                        style={{
-                                                                            width: `${percentage}%`,
-                                                                        }}
-                                                                    />
-                                                                </div>
+                                                                <BarRow
+                                                                    label={
+                                                                        option
+                                                                    }
+                                                                    count={
+                                                                        activeTally[
+                                                                            option
+                                                                        ] ??
+                                                                        0
+                                                                    }
+                                                                    total={
+                                                                        activeResponses.length
+                                                                    }
+                                                                    index={
+                                                                        activeQuestion.type ===
+                                                                        "multiple_choice"
+                                                                            ? index
+                                                                            : undefined
+                                                                    }
+                                                                />
                                                             </div>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+                                                    No result
+                                                    options are
+                                                    configured.
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {activeDominantOption ? (
+                                            <div className="grid gap-3 sm:grid-cols-3">
+                                                <div className="rounded-2xl border bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+                                                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                        Leading answer
+                                                    </p>
+                                                    <p className="mt-2 truncate font-bold">
+                                                        {
+                                                            activeDominantOption.option
+                                                        }
+                                                    </p>
+                                                </div>
+
+                                                <div className="rounded-2xl border bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+                                                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                        Leading count
+                                                    </p>
+                                                    <p className="mt-2 text-2xl font-bold">
+                                                        {
+                                                            activeDominantOption.count
+                                                        }
+                                                    </p>
+                                                </div>
+
+                                                <div className="rounded-2xl border bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+                                                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                        Leading share
+                                                    </p>
+                                                    <p className="mt-2 text-2xl font-bold">
+                                                        {formatPercentage(
+                                                            activeResponses.length >
+                                                                0
+                                                                ? (activeDominantOption.count /
+                                                                      activeResponses.length) *
+                                                                      100
+                                                                : 0,
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ) : null}
+
+                                        <div className="grid gap-3 sm:grid-cols-3">
+                                            <Button
+                                                variant="outline"
+                                                disabled={
+                                                    !previousQuestion ||
+                                                    isUpdating
+                                                }
+                                                onClick={() => {
+                                                    if (
+                                                        previousQuestion
+                                                    ) {
+                                                        void pushQuestionLive(
+                                                            previousQuestion,
                                                         );
-                                                    },
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="rounded-xl border bg-slate-50 p-6 text-center dark:bg-slate-900">
-                                                <p className="text-sm text-muted-foreground">
-                                                    {
-                                                        activeResponses.length
-                                                    }{" "}
-                                                    response
-                                                    {activeResponses.length ===
-                                                        1
-                                                        ? ""
-                                                        : "s"}{" "}
-                                                    received.
-                                                </p>
-                                            </div>
-                                        )}
+                                                    }
+                                                }}
+                                            >
+                                                ← Previous
+                                            </Button>
 
-                                        {/* QUESTION CONTROLS */}
-
-                                        <div className="grid gap-3 sm:grid-cols-2">
                                             <Button
                                                 variant="outline"
                                                 disabled={
@@ -2465,26 +3082,15 @@ export default function LiveStudio({
                                                     void closeActiveQuestion()
                                                 }
                                             >
-                                                Close Question
+                                                Close question
                                             </Button>
 
                                             <Button
                                                 disabled={
+                                                    !nextQuestion ||
                                                     isUpdating
                                                 }
                                                 onClick={() => {
-                                                    const index =
-                                                        questions.findIndex(
-                                                            (item) =>
-                                                                item.id ===
-                                                                activeQuestion.id,
-                                                        );
-
-                                                    const nextQuestion =
-                                                        questions[
-                                                        index + 1
-                                                        ];
-
                                                     if (
                                                         nextQuestion
                                                     ) {
@@ -2494,411 +3100,1353 @@ export default function LiveStudio({
                                                     }
                                                 }}
                                             >
-                                                Next Question
+                                                Next question →
                                             </Button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="space-y-6">
+                                    <div className="rounded-3xl border border-dashed p-10 text-center sm:p-16">
+                                        <div className="mx-auto max-w-2xl">
+                                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 text-2xl dark:bg-indigo-950/40">
+                                                +
+                                            </div>
 
-                                        <div className="flex flex-col gap-4 rounded-2xl border bg-slate-50 p-5 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+                                            <h2 className="mt-5 text-2xl font-bold">
+                                                Ready to teach
+                                            </h2>
+
+                                            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+                                                {session.template_id
+                                                    ? "Choose a queued question below or create a session-only question. Nothing is sent to students until you make it live."
+                                                    : "Create a question directly inside this instant session, then broadcast it whenever you are ready."}
+                                            </p>
+
+                                            <div className="mt-6 flex flex-wrap justify-center gap-2">
+                                                <Button
+                                                    onClick={
+                                                        openNewQuestionComposer
+                                                    }
+                                                >
+                                                    Create question
+                                                </Button>
+
+                                                {questions.length >
+                                                0 ? (
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            const firstQuestion =
+                                                                questions.find(
+                                                                    (
+                                                                        item,
+                                                                    ) =>
+                                                                        item.status !==
+                                                                        "closed",
+                                                                ) ??
+                                                                questions[0];
+
+                                                            if (
+                                                                firstQuestion
+                                                            ) {
+                                                                void pushQuestionLive(
+                                                                    firstQuestion,
+                                                                );
+                                                            }
+                                                        }}
+                                                    >
+                                                        Start with first question
+                                                    </Button>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* SESSION CONTROLS */}
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>
+                                    Session Controls
+                                </CardTitle>
+
+                                <p className="text-sm text-muted-foreground">
+                                    Room-level settings that affect
+                                    everyone currently connected.
+                                </p>
+                            </CardHeader>
+
+                            <CardContent>
+                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                    <div className="rounded-2xl border p-4">
+                                        <div className="flex items-center justify-between gap-3">
                                             <div>
-                                                <h2 className="text-2xl font-bold">
-                                                    Ready to teach
-                                                </h2>
+                                                <p className="font-semibold">
+                                                    Polling
+                                                </p>
+                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                    {session.status ===
+                                                    "paused"
+                                                        ? "Responses are paused."
+                                                        : session.status ===
+                                                            "completed"
+                                                          ? "Session is complete."
+                                                          : "Students can respond to the live question."}
+                                                </p>
+                                            </div>
 
-                                                <p className="mt-1 text-sm text-muted-foreground">
-                                                    {session.template_id
-                                                        ? "Choose a question from the queue or create one for this session."
-                                                        : "Create a question directly in this instant session."}
+                                            <Switch
+                                                checked={
+                                                    session.status ===
+                                                    "paused"
+                                                }
+                                                disabled={
+                                                    isUpdating ||
+                                                    session.status ===
+                                                        "completed"
+                                                }
+                                                onCheckedChange={(
+                                                    checked,
+                                                ) =>
+                                                    void togglePause(
+                                                        checked,
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-2xl border p-4">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p className="font-semibold">
+                                                    Late join
+                                                </p>
+                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                    {session.allow_late_join
+                                                        ? "Students may still enter."
+                                                        : "New joins are locked."}
+                                                </p>
+                                            </div>
+
+                                            <Switch
+                                                checked={
+                                                    session.allow_late_join
+                                                }
+                                                disabled={
+                                                    isUpdatingParticipants
+                                                }
+                                                onCheckedChange={() =>
+                                                    void toggleLateJoin()
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="rounded-2xl border p-4">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                            Student access
+                                        </p>
+
+                                        <p className="mt-2 font-bold">
+                                            /session/
+                                            {
+                                                session.join_code
+                                            }
+                                        </p>
+
+                                        <button
+                                            type="button"
+                                            className="mt-2 text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+                                            onClick={async () => {
+                                                try {
+                                                    await navigator.clipboard.writeText(
+                                                        `${window.location.origin}/session/${session.join_code}`,
+                                                    );
+                                                } catch {
+                                                    setError(
+                                                        "Could not copy the student URL.",
+                                                    );
+                                                }
+                                            }}
+                                        >
+                                            Copy student link
+                                        </button>
+                                    </div>
+
+                                    <div className="rounded-2xl border p-4">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                            Session mode
+                                        </p>
+
+                                        <p className="mt-2 font-bold">
+                                            {session.participant_mode ===
+                                            "anonymous"
+                                                ? "Anonymous participation"
+                                                : "Identified participation"}
+                                        </p>
+
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Results:{" "}
+                                            {getResultsModeLabel(
+                                                session.results_mode,
+                                            )}
+                                        </p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* COMPOSER */}
+
+                        {showQuestionComposer ? (
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div>
+                                            <CardTitle>
+                                                {editingQuestionId
+                                                    ? "Edit session question"
+                                                    : "Create session question"}
+                                            </CardTitle>
+
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                {editingQuestionId
+                                                    ? "Changes apply only to this live session question."
+                                                    : "This question belongs only to the current session."}
+                                            </p>
+                                        </div>
+
+                                        <Button
+                                            variant="outline"
+                                            onClick={
+                                                resetQuestionComposer
+                                            }
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+
+                                <CardContent className="space-y-5">
+                                    <div>
+                                        <label className="text-sm font-medium">
+                                            Question
+                                        </label>
+
+                                        <textarea
+                                            value={
+                                                newQuestionText
+                                            }
+                                            onChange={(
+                                                event,
+                                            ) =>
+                                                setNewQuestionText(
+                                                    event
+                                                        .target
+                                                        .value,
+                                                )
+                                            }
+                                            placeholder="Ask something clear enough to answer quickly."
+                                            className="mt-2 min-h-[130px] w-full rounded-2xl border bg-background px-4 py-3 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div>
+                                            <label className="text-sm font-medium">
+                                                Question type
+                                            </label>
+
+                                            <select
+                                                value={
+                                                    newQuestionType
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    setNewQuestionType(
+                                                        event
+                                                            .target
+                                                            .value as QuestionType,
+                                                    )
+                                                }
+                                                className="mt-2 h-11 w-full rounded-xl border bg-background px-3 text-sm"
+                                            >
+                                                <option value="multiple_choice">
+                                                    Multiple choice
+                                                </option>
+
+                                                <option value="scale">
+                                                    Scale
+                                                </option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="text-sm font-medium">
+                                                Student result mode
+                                            </label>
+
+                                            <select
+                                                value={
+                                                    newQuestionResultsMode
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    setNewQuestionResultsMode(
+                                                        event
+                                                            .target
+                                                            .value as ResultsMode,
+                                                    )
+                                                }
+                                                className="mt-2 h-11 w-full rounded-xl border bg-background px-3 text-sm"
+                                            >
+                                                <option value="live">
+                                                    Live results
+                                                </option>
+
+                                                <option value="on_command">
+                                                    Reveal on command
+                                                </option>
+
+                                                <option value="hidden">
+                                                    Hidden
+                                                </option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                            <div>
+                                                <p className="text-sm font-medium">
+                                                    Options
+                                                </p>
+
+                                                <p className="text-xs text-muted-foreground">
+                                                    Use labels students
+                                                    can understand
+                                                    instantly.
                                                 </p>
                                             </div>
 
                                             <Button
-                                                onClick={() => {
-                                                    if (showQuestionComposer) {
-                                                        setShowQuestionComposer(false);
-                                                        setEditingQuestionId(null);
-                                                        return;
-                                                    }
-
-                                                    setShowQuestionComposer(true);
-                                                }}
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={
+                                                    addNewQuestionOption
+                                                }
                                             >
-                                                {showQuestionComposer
-                                                    ? "Cancel"
-                                                    : editingQuestionId
-                                                        ? "Edit Question"
-                                                        : "Create Question"}
+                                                Add option
                                             </Button>
                                         </div>
 
-                                        {showQuestionComposer && (
-                                            <div className="rounded-2xl border bg-white p-6 shadow-sm dark:bg-slate-900">
-                                                <div className="space-y-6">
+                                        <div className="mt-3 space-y-2">
+                                            {newQuestionOptions.map(
+                                                (
+                                                    option,
+                                                    index,
+                                                ) => (
+                                                    <div
+                                                        key={index}
+                                                        className="flex gap-2"
+                                                    >
+                                                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-slate-50 text-xs font-bold text-muted-foreground dark:bg-slate-900">
+                                                            {newQuestionType ===
+                                                            "multiple_choice"
+                                                                ? String.fromCharCode(
+                                                                      65 +
+                                                                          index,
+                                                                  )
+                                                                : index +
+                                                                  1}
+                                                        </div>
 
-                                                    <div>
-                                                        <h3 className="text-lg font-semibold">
-                                                            {editingQuestionId
-                                                                ? "Edit Session Question"
-                                                                : "New Session Question"}
-                                                        </h3>
-
-                                                        <p className="mt-1 text-sm text-muted-foreground">
-                                                            {editingQuestionId
-                                                                ? "Update this session question before broadcasting it."
-                                                                : "This question will belong only to this live session."}
-                                                        </p>
-                                                    </div>
-
-                                                    <div>
-                                                        <label className="text-sm font-medium">
-                                                            Question
-                                                        </label>
-
-                                                        <textarea
-                                                            value={newQuestionText}
-                                                            onChange={(event) =>
-                                                                setNewQuestionText(
-                                                                    event.target.value,
+                                                        <input
+                                                            value={
+                                                                option
+                                                            }
+                                                            onChange={(
+                                                                event,
+                                                            ) =>
+                                                                updateNewQuestionOption(
+                                                                    index,
+                                                                    event
+                                                                        .target
+                                                                        .value,
                                                                 )
                                                             }
-                                                            placeholder="Enter your question..."
-                                                            className="mt-2 min-h-[120px] w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-ring"
+                                                            className="h-11 min-w-0 flex-1 rounded-xl border bg-background px-3 text-sm"
+                                                            placeholder={`Option ${
+                                                                index +
+                                                                1
+                                                            }`}
                                                         />
-                                                    </div>
 
-                                                    <div>
-                                                        <label className="text-sm font-medium">
-                                                            Question Type
-                                                        </label>
-
-                                                        <select
-                                                            value={newQuestionType}
-                                                            onChange={(event) =>
-                                                                setNewQuestionType(
-                                                                    event.target.value as
-                                                                    | "multiple_choice"
-                                                                    | "scale",
-                                                                )
-                                                            }
-                                                            className="mt-2 h-10 w-full rounded-xl border bg-background px-3 text-sm"
-                                                        >
-                                                            <option value="multiple_choice">
-                                                                Multiple Choice
-                                                            </option>
-
-                                                            <option value="scale">
-                                                                Scale
-                                                            </option>
-                                                        </select>
-                                                    </div>
-
-                                                    <div>
-                                                        <div className="flex items-center justify-between">
-                                                            <label className="text-sm font-medium">
-                                                                Options
-                                                            </label>
-
+                                                        {newQuestionOptions.length >
+                                                        2 ? (
                                                             <Button
                                                                 type="button"
                                                                 variant="outline"
                                                                 size="sm"
-                                                                onClick={
-                                                                    addNewQuestionOption
+                                                                onClick={() =>
+                                                                    removeNewQuestionOption(
+                                                                        index,
+                                                                    )
                                                                 }
                                                             >
-                                                                Add Option
+                                                                Remove
                                                             </Button>
-                                                        </div>
+                                                        ) : null}
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                    </div>
 
-                                                        <div className="mt-3 space-y-2">
-                                                            {newQuestionOptions.map(
-                                                                (option, index) => (
-                                                                    <div
-                                                                        key={index}
-                                                                        className="flex gap-2"
-                                                                    >
-                                                                        <input
-                                                                            value={option}
-                                                                            onChange={(event) =>
-                                                                                updateNewQuestionOption(
-                                                                                    index,
-                                                                                    event.target.value,
-                                                                                )
-                                                                            }
-                                                                            className="h-10 min-w-0 flex-1 rounded-xl border bg-background px-3 text-sm"
-                                                                            placeholder={`Option ${index + 1
-                                                                                }`}
-                                                                        />
+                                    <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:justify-end">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            disabled={
+                                                isCreatingQuestion ||
+                                                isSavingQuestion
+                                            }
+                                            onClick={
+                                                resetQuestionComposer
+                                            }
+                                        >
+                                            Cancel
+                                        </Button>
 
-                                                                        {newQuestionOptions.length >
-                                                                            2 && (
-                                                                                <Button
-                                                                                    type="button"
-                                                                                    variant="outline"
-                                                                                    size="sm"
-                                                                                    onClick={() =>
-                                                                                        removeNewQuestionOption(
-                                                                                            index,
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    Remove
-                                                                                </Button>
-                                                                            )}
-                                                                    </div>
-                                                                ),
+                                        <Button
+                                            type="button"
+                                            disabled={
+                                                isCreatingQuestion ||
+                                                isSavingQuestion
+                                            }
+                                            onClick={() => {
+                                                if (
+                                                    editingQuestionId
+                                                ) {
+                                                    void saveEditedQuestion();
+                                                } else {
+                                                    void createSessionQuestion();
+                                                }
+                                            }}
+                                        >
+                                            {editingQuestionId
+                                                ? isSavingQuestion
+                                                    ? "Saving..."
+                                                    : "Save changes"
+                                                : isCreatingQuestion
+                                                  ? "Creating..."
+                                                  : "Create question"}
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ) : null}
+
+                        {/* QUESTION ANALYTICS */}
+
+                        <Card>
+                            <CardHeader>
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                    <div>
+                                        <CardTitle>
+                                            Question Analytics
+                                        </CardTitle>
+
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            Compare engagement and
+                                            response speed across the
+                                            session.
+                                        </p>
+                                    </div>
+
+                                    <select
+                                        value={
+                                            selectedAnalyticsQuestionId ??
+                                            activeQuestion?.id ??
+                                            questions[0]?.id ??
+                                            ""
+                                        }
+                                        onChange={(event) =>
+                                            setSelectedAnalyticsQuestionId(
+                                                event.target
+                                                    .value ||
+                                                    null,
+                                            )
+                                        }
+                                        className="h-10 rounded-xl border bg-background px-3 text-sm lg:max-w-[420px]"
+                                    >
+                                        <option value="">
+                                            Select a question
+                                        </option>
+
+                                        {questions.map(
+                                            (
+                                                question,
+                                                index,
+                                            ) => (
+                                                <option
+                                                    key={
+                                                        question.id
+                                                    }
+                                                    value={
+                                                        question.id
+                                                    }
+                                                >
+                                                    Q
+                                                    {index +
+                                                        1}{" "}
+                                                    ·{" "}
+                                                    {question.text.slice(
+                                                        0,
+                                                        70,
+                                                    )}
+                                                </option>
+                                            ),
+                                        )}
+                                    </select>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="space-y-5">
+                                {selectedAnalyticsQuestion ? (
+                                    <>
+                                        <div className="rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                                                        Question
+                                                        {
+                                                            questions.findIndex(
+                                                                (
+                                                                    item,
+                                                                ) =>
+                                                                    item.id ===
+                                                                    selectedAnalyticsQuestion
+                                                                        .question
+                                                                        .id,
+                                                            ) + 1
+                                                        }
+                                                    </p>
+
+                                                    <p className="mt-2 text-lg font-bold">
+                                                        {
+                                                            selectedAnalyticsQuestion
+                                                                .question
+                                                                .text
+                                                        }
+                                                    </p>
+                                                </div>
+
+                                                <span
+                                                    className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold ${getQuestionStatusClass(
+                                                        selectedAnalyticsQuestion
+                                                            .question
+                                                            .status,
+                                                    )}`}
+                                                >
+                                                    {getQuestionStatusLabel(
+                                                        selectedAnalyticsQuestion
+                                                            .question
+                                                            .status,
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                            <StatCard
+                                                label="Responses"
+                                                value={
+                                                    selectedAnalyticsQuestion.responseCount
+                                                }
+                                                helper={`${selectedAnalyticsQuestion.uniqueResponders} unique participants`}
+                                            />
+
+                                            <StatCard
+                                                label="Response rate"
+                                                value={formatPercentage(
+                                                    selectedAnalyticsQuestion.responseRate,
+                                                )}
+                                                helper={`of ${participantSummary.total} joined`}
+                                            />
+
+                                            <StatCard
+                                                label="Average time"
+                                                value={formatDurationMs(
+                                                    selectedAnalyticsQuestion.averageResponseTimeMs,
+                                                )}
+                                                helper={`Median ${formatDurationMs(
+                                                    selectedAnalyticsQuestion.medianResponseTimeMs,
+                                                )}`}
+                                            />
+
+                                            <StatCard
+                                                label="Leading answer"
+                                                value={
+                                                    selectedAnalyticsQuestion.dominantOption ??
+                                                    "—"
+                                                }
+                                                helper={
+                                                    selectedAnalyticsQuestion.dominantOptionCount >
+                                                    0
+                                                        ? `${formatPercentage(
+                                                              selectedAnalyticsQuestion.dominantOptionPercentage,
+                                                          )} of responses`
+                                                        : "No responses"
+                                                }
+                                            />
+                                        </div>
+
+                                        <div className="grid gap-5 lg:grid-cols-2">
+                                            <div className="rounded-2xl border p-4">
+                                                <div className="mb-4">
+                                                    <p className="font-semibold">
+                                                        Answer distribution
+                                                    </p>
+
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Instructor
+                                                        view of
+                                                        every
+                                                        option.
+                                                    </p>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    {selectedAnalyticsQuestion.question.options.map(
+                                                        (
+                                                            option,
+                                                            index,
+                                                        ) => {
+                                                            const count =
+                                                                responses.filter(
+                                                                    (
+                                                                        response,
+                                                                    ) =>
+                                                                        response.question_id ===
+                                                                            selectedAnalyticsQuestion
+                                                                                .question
+                                                                                .id &&
+                                                                        response.answer ===
+                                                                            option,
+                                                                ).length;
+
+                                                            return (
+                                                                <BarRow
+                                                                    key={`${selectedAnalyticsQuestion.question.id}-analytics-${index}`}
+                                                                    label={
+                                                                        option
+                                                                    }
+                                                                    count={
+                                                                        count
+                                                                    }
+                                                                    total={
+                                                                        selectedAnalyticsQuestion.responseCount
+                                                                    }
+                                                                    index={
+                                                                        selectedAnalyticsQuestion
+                                                                            .question
+                                                                            .type ===
+                                                                        "multiple_choice"
+                                                                            ? index
+                                                                            : undefined
+                                                                    }
+                                                                />
+                                                            );
+                                                        },
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div className="rounded-2xl border p-4">
+                                                <div className="mb-4">
+                                                    <p className="font-semibold">
+                                                        Response-time
+                                                        insight
+                                                    </p>
+
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Useful for
+                                                        spotting
+                                                        uncertainty
+                                                        or
+                                                        unusually
+                                                        difficult
+                                                        prompts.
+                                                    </p>
+                                                </div>
+
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900">
+                                                        <span className="text-sm text-muted-foreground">
+                                                            Average
+                                                        </span>
+                                                        <span className="font-bold">
+                                                            {formatDurationMs(
+                                                                selectedAnalyticsQuestion.averageResponseTimeMs,
                                                             )}
-                                                        </div>
+                                                        </span>
                                                     </div>
 
-                                                    <div>
-                                                        <label className="text-sm font-medium">
-                                                            Results Mode
-                                                        </label>
-
-                                                        <select
-                                                            value={
-                                                                newQuestionResultsMode
-                                                            }
-                                                            onChange={(event) =>
-                                                                setNewQuestionResultsMode(
-                                                                    event.target.value as
-                                                                    | "live"
-                                                                    | "on_command"
-                                                                    | "hidden",
-                                                                )
-                                                            }
-                                                            className="mt-2 h-10 w-full rounded-xl border bg-background px-3 text-sm"
-                                                        >
-                                                            <option value="live">
-                                                                Live Results
-                                                            </option>
-
-                                                            <option value="on_command">
-                                                                Reveal on Command
-                                                            </option>
-
-                                                            <option value="hidden">
-                                                                Hidden Results
-                                                            </option>
-                                                        </select>
+                                                    <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900">
+                                                        <span className="text-sm text-muted-foreground">
+                                                            Median
+                                                        </span>
+                                                        <span className="font-bold">
+                                                            {formatDurationMs(
+                                                                selectedAnalyticsQuestion.medianResponseTimeMs,
+                                                            )}
+                                                        </span>
                                                     </div>
 
-                                                    <div className="flex justify-end gap-2 border-t pt-5">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            disabled={
-                                                                isCreatingQuestion
-                                                            }
-                                                            onClick={() =>
-                                                                setShowQuestionComposer(
-                                                                    false,
-                                                                )
-                                                            }
-                                                        >
-                                                            Cancel
-                                                        </Button>
+                                                    <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900">
+                                                        <span className="text-sm text-muted-foreground">
+                                                            Unanswered
+                                                        </span>
+                                                        <span className="font-bold">
+                                                            {Math.max(
+                                                                0,
+                                                                participantSummary.total -
+                                                                    selectedAnalyticsQuestion.uniqueResponders,
+                                                            )}
+                                                        </span>
+                                                    </div>
 
-                                                        <Button
-                                                            type="button"
-                                                            disabled={
-                                                                isCreatingQuestion ||
-                                                                isSavingQuestion
+                                                    <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900">
+                                                        <span className="text-sm text-muted-foreground">
+                                                            Status
+                                                        </span>
+                                                        <span className="font-bold">
+                                                            {getQuestionStatusLabel(
+                                                                selectedAnalyticsQuestion
+                                                                    .question
+                                                                    .status,
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+                                        Create or load a question to
+                                        see question analytics.
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* QUESTION PERFORMANCE TABLE */}
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>
+                                    Question Performance
+                                </CardTitle>
+
+                                <p className="text-sm text-muted-foreground">
+                                    Session-wide comparison of every
+                                    question.
+                                </p>
+                            </CardHeader>
+
+                            <CardContent className="p-0">
+                                {questionAnalytics.length >
+                                0 ? (
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full min-w-[900px] text-sm">
+                                            <thead className="border-y bg-slate-50 dark:border-slate-800 dark:bg-slate-900">
+                                                <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
+                                                    <th className="px-5 py-3">
+                                                        Question
+                                                    </th>
+                                                    <th className="px-4 py-3">
+                                                        Status
+                                                    </th>
+                                                    <th className="px-4 py-3">
+                                                        Responses
+                                                    </th>
+                                                    <th className="px-4 py-3">
+                                                        Rate
+                                                    </th>
+                                                    <th className="px-4 py-3">
+                                                        Avg.
+                                                    </th>
+                                                    <th className="px-4 py-3">
+                                                        Median
+                                                    </th>
+                                                    <th className="px-4 py-3">
+                                                        Leading
+                                                    </th>
+                                                </tr>
+                                            </thead>
+
+                                            <tbody>
+                                                {questionAnalytics.map(
+                                                    (
+                                                        item,
+                                                        index,
+                                                    ) => (
+                                                        <tr
+                                                            key={
+                                                                item
+                                                                    .question
+                                                                    .id
                                                             }
-                                                            onClick={() => {
-                                                                if (editingQuestionId) {
-                                                                    void saveEditedQuestion();
-                                                                } else {
-                                                                    void createSessionQuestion();
+                                                            className="border-b last:border-0 dark:border-slate-800"
+                                                        >
+                                                            <td className="max-w-[420px] px-5 py-4">
+                                                                <button
+                                                                    type="button"
+                                                                    className="text-left"
+                                                                    onClick={() =>
+                                                                        setSelectedAnalyticsQuestionId(
+                                                                            item
+                                                                                .question
+                                                                                .id,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <div className="flex items-start gap-3">
+                                                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold dark:bg-slate-800">
+                                                                            {index +
+                                                                                1}
+                                                                        </span>
+
+                                                                        <span className="font-medium hover:underline">
+                                                                            {
+                                                                                item
+                                                                                    .question
+                                                                                    .text
+                                                                            }
+                                                                        </span>
+                                                                    </div>
+                                                                </button>
+                                                            </td>
+
+                                                            <td className="px-4 py-4">
+                                                                <span
+                                                                    className={`rounded-full border px-2 py-1 text-[10px] font-bold ${getQuestionStatusClass(
+                                                                        item
+                                                                            .question
+                                                                            .status,
+                                                                    )}`}
+                                                                >
+                                                                    {getQuestionStatusLabel(
+                                                                        item
+                                                                            .question
+                                                                            .status,
+                                                                    )}
+                                                                </span>
+                                                            </td>
+
+                                                            <td className="px-4 py-4 font-semibold">
+                                                                {
+                                                                    item.responseCount
                                                                 }
-                                                            }}
-                                                        >
-                                                            {editingQuestionId
-                                                                ? isSavingQuestion
-                                                                    ? "Saving..."
-                                                                    : "Save Changes"
-                                                                : isCreatingQuestion
-                                                                    ? "Creating..."
-                                                                    : "Create Question"}
-                                                        </Button>
-                                                    </div>
+                                                            </td>
 
-                                                </div>
-                                            </div>
-                                        )}
+                                                            <td className="px-4 py-4">
+                                                                {formatPercentage(
+                                                                    item.responseRate,
+                                                                )}
+                                                            </td>
 
-                                        {!showQuestionComposer && (
-                                            <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed text-center">
-                                                <div>
-                                                    <p className="text-lg font-semibold">
-                                                        No question is currently live
-                                                    </p>
+                                                            <td className="px-4 py-4">
+                                                                {formatDurationMs(
+                                                                    item.averageResponseTimeMs,
+                                                                )}
+                                                            </td>
 
-                                                    <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-                                                        Create a question above or select a queued question from the right.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
+                                                            <td className="px-4 py-4">
+                                                                {formatDurationMs(
+                                                                    item.medianResponseTimeMs,
+                                                                )}
+                                                            </td>
 
+                                                            <td className="max-w-[180px] px-4 py-4">
+                                                                {item.dominantOption ? (
+                                                                    <div>
+                                                                        <p className="truncate font-medium">
+                                                                            {
+                                                                                item.dominantOption
+                                                                            }
+                                                                        </p>
+
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            {formatPercentage(
+                                                                                item.dominantOptionPercentage,
+                                                                            )}
+                                                                        </p>
+                                                                    </div>
+                                                                ) : (
+                                                                    "—"
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <div className="p-10 text-center text-sm text-muted-foreground">
+                                        No questions have been added
+                                        to this session yet.
                                     </div>
                                 )}
                             </CardContent>
                         </Card>
                     </section>
 
-                    {/* RIGHT COLUMN */}
+                    {/* RIGHT SIDEBAR */}
 
                     <aside className="min-w-0 space-y-5">
+                        {/* QUESTION QUEUE */}
+
+                        <Card className="overflow-hidden">
+                            <CardHeader className="border-b dark:border-slate-800">
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <CardTitle>
+                                            Question Queue
+                                        </CardTitle>
+
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Broadcast, edit, or
+                                            remove questions.
+                                        </p>
+                                    </div>
+
+                                    <Button
+                                        size="sm"
+                                        onClick={
+                                            openNewQuestionComposer
+                                        }
+                                    >
+                                        + New
+                                    </Button>
+                                </div>
+                            </CardHeader>
+
+                            <CardContent className="max-h-[620px] space-y-3 overflow-y-auto p-3">
+                                {questions.length ===
+                                0 ? (
+                                    <div className="rounded-2xl border border-dashed p-7 text-center">
+                                        <p className="font-semibold">
+                                            Queue is empty
+                                        </p>
+
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Add a session question
+                                            to start building your
+                                            live flow.
+                                        </p>
+
+                                        <Button
+                                            className="mt-4"
+                                            size="sm"
+                                            onClick={
+                                                openNewQuestionComposer
+                                            }
+                                        >
+                                            Create first question
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    questions.map(
+                                        (
+                                            question,
+                                            index,
+                                        ) => {
+                                            const isActive =
+                                                session.active_question_id ===
+                                                question.id;
+
+                                            const responseCount =
+                                                responseCountByQuestion[
+                                                    question.id
+                                                ] ?? 0;
+
+                                            const uniqueResponders =
+                                                uniqueResponseCountByQuestion[
+                                                    question.id
+                                                ] ?? 0;
+
+                                            return (
+                                                <div
+                                                    key={
+                                                        question.id
+                                                    }
+                                                    className={`rounded-2xl border p-3 transition ${
+                                                        isActive
+                                                            ? "border-indigo-500 bg-indigo-50 shadow-sm dark:bg-indigo-950/30"
+                                                            : "bg-white hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950 dark:hover:bg-slate-900"
+                                                    }`}
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-xs font-bold dark:bg-slate-800">
+                                                            {index +
+                                                                1}
+                                                        </div>
+
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span
+                                                                    className={`rounded-full border px-2 py-1 text-[9px] font-bold ${getQuestionStatusClass(
+                                                                        question.status,
+                                                                    )}`}
+                                                                >
+                                                                    {getQuestionStatusLabel(
+                                                                        question.status,
+                                                                    )}
+                                                                </span>
+
+                                                                <span className="text-[10px] text-muted-foreground">
+                                                                    {
+                                                                        uniqueResponders
+                                                                    }{" "}
+                                                                    unique
+                                                                </span>
+                                                            </div>
+
+                                                            <p className="mt-2 line-clamp-3 text-sm font-semibold leading-5">
+                                                                {
+                                                                    question.text
+                                                                }
+                                                            </p>
+
+                                                            <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-muted-foreground">
+                                                                <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-800">
+                                                                    {question.type ===
+                                                                    "multiple_choice"
+                                                                        ? "MCQ"
+                                                                        : "Scale"}
+                                                                </span>
+
+                                                                <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-800">
+                                                                    {
+                                                                        responseCount
+                                                                    }{" "}
+                                                                    responses
+                                                                </span>
+
+                                                                <span className="rounded-full bg-slate-100 px-2 py-1 dark:bg-slate-800">
+                                                                    {
+                                                                        question.options
+                                                                            .length
+                                                                    }{" "}
+                                                                    options
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="mt-3 grid grid-cols-2 gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    disabled={
+                                                                        isUpdating ||
+                                                                        session.status ===
+                                                                            "completed"
+                                                                    }
+                                                                    onClick={() =>
+                                                                        void pushQuestionLive(
+                                                                            question,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    {isActive
+                                                                        ? "Live now"
+                                                                        : "Make live"}
+                                                                </Button>
+
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() => {
+                                                                        setSelectedAnalyticsQuestionId(
+                                                                            question.id,
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    Analytics
+                                                                </Button>
+
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    disabled={
+                                                                        isUpdating ||
+                                                                        question.status ===
+                                                                            "active"
+                                                                    }
+                                                                    onClick={() =>
+                                                                        startEditingQuestion(
+                                                                            question,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Edit
+                                                                </Button>
+
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    disabled={
+                                                                        isUpdating ||
+                                                                        question.status ===
+                                                                            "active"
+                                                                    }
+                                                                    onClick={() =>
+                                                                        void deleteSessionQuestion(
+                                                                            question,
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Delete
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        },
+                                    )
+                                )}
+                            </CardContent>
+                        </Card>
+
                         {/* PARTICIPANTS */}
 
                         <Card>
                             <CardHeader className="pb-3">
-                                <div className="flex items-center justify-between">
-                                    <CardTitle className="text-sm">
-                                        Participants
-                                    </CardTitle>
+                                <div className="flex items-center justify-between gap-3">
+                                    <div>
+                                        <CardTitle>
+                                            Participants
+                                        </CardTitle>
+
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Live room activity.
+                                        </p>
+                                    </div>
 
                                     <Badge variant="outline">
-                                        {
-                                            participantSummary.active
-                                        }
-                                        /
+                                        {participantSummary.active}/
                                         {
                                             participantSummary.total
-                                        }{" "}
-                                        active
+                                        }
                                     </Badge>
                                 </div>
                             </CardHeader>
 
                             <CardContent className="space-y-3">
                                 <div className="grid grid-cols-3 gap-2">
-                                    <div className="rounded-lg border p-2 text-center">
+                                    <button
+                                        type="button"
+                                        className={`rounded-xl border p-3 text-center ${
+                                            participantFilter ===
+                                            "all"
+                                                ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/30"
+                                                : ""
+                                        }`}
+                                        onClick={() =>
+                                            setParticipantFilter(
+                                                "all",
+                                            )
+                                        }
+                                    >
                                         <div className="text-lg font-bold">
                                             {
                                                 participantSummary.total
                                             }
                                         </div>
-
                                         <div className="text-[10px] text-muted-foreground">
-                                            Joined
+                                            All
                                         </div>
-                                    </div>
+                                    </button>
 
-                                    <div className="rounded-lg border p-2 text-center">
-                                        <div className="text-lg font-bold text-green-600">
+                                    <button
+                                        type="button"
+                                        className={`rounded-xl border p-3 text-center ${
+                                            participantFilter ===
+                                            "active"
+                                                ? "border-emerald-400 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-950/30"
+                                                : ""
+                                        }`}
+                                        onClick={() =>
+                                            setParticipantFilter(
+                                                "active",
+                                            )
+                                        }
+                                    >
+                                        <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
                                             {
                                                 participantSummary.active
                                             }
                                         </div>
-
                                         <div className="text-[10px] text-muted-foreground">
                                             Active
                                         </div>
-                                    </div>
+                                    </button>
 
-                                    <div className="rounded-lg border p-2 text-center">
-                                        <div className="text-lg font-bold text-muted-foreground">
+                                    <button
+                                        type="button"
+                                        className={`rounded-xl border p-3 text-center ${
+                                            participantFilter ===
+                                            "away"
+                                                ? "border-amber-400 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30"
+                                                : ""
+                                        }`}
+                                        onClick={() =>
+                                            setParticipantFilter(
+                                                "away",
+                                            )
+                                        }
+                                    >
+                                        <div className="text-lg font-bold text-amber-600 dark:text-amber-400">
                                             {
                                                 participantSummary.inactive
                                             }
                                         </div>
-
                                         <div className="text-[10px] text-muted-foreground">
-                                            Inactive
+                                            Away
                                         </div>
-                                    </div>
+                                    </button>
                                 </div>
 
-                                <div className="flex items-center justify-between rounded-lg border p-3">
-                                    <div>
-                                        <p className="text-sm font-medium">
-                                            Late joining
-                                        </p>
+                                <div className="rounded-xl border p-3">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-semibold">
+                                                Current question
+                                            </p>
 
-                                        <p className="text-xs text-muted-foreground">
-                                            {session.allow_late_join
-                                                ? "New students can join"
-                                                : "Joining is locked"}
-                                        </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {activeQuestion
+                                                    ? `${activeResponderIds.size} of ${participantSummary.total} have answered`
+                                                    : "No question live"}
+                                            </p>
+                                        </div>
+
+                                        <span className="text-lg font-bold">
+                                            {activeQuestion
+                                                ? formatPercentage(
+                                                      activeQuestionResponseRate,
+                                                  )
+                                                : "—"}
+                                        </span>
                                     </div>
 
-                                    <Switch
-                                        checked={
-                                            session.allow_late_join
-                                        }
-                                        disabled={
-                                            isUpdatingParticipants
-                                        }
-                                        onCheckedChange={() =>
-                                            void toggleLateJoin()
-                                        }
-                                    />
+                                    {activeQuestion ? (
+                                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                                            <div
+                                                className="h-full rounded-full bg-emerald-500"
+                                                style={{
+                                                    width: `${clampPercentage(
+                                                        activeQuestionResponseRate,
+                                                    )}%`,
+                                                }}
+                                            />
+                                        </div>
+                                    ) : null}
                                 </div>
 
-                                <div className="max-h-56 space-y-1 overflow-y-auto pr-1">
-                                    {participants.length ===
-                                        0 ? (
-                                        <p className="py-4 text-center text-xs text-muted-foreground">
-                                            No participants yet.
+                                <div className="max-h-[430px] space-y-2 overflow-y-auto pr-1">
+                                    {filteredParticipants.length ===
+                                    0 ? (
+                                        <p className="py-6 text-center text-xs text-muted-foreground">
+                                            No participants match
+                                            this filter.
                                         </p>
                                     ) : (
-                                        participants.map(
+                                        filteredParticipants.map(
                                             (
                                                 participant,
                                             ) => {
-                                                const isActive =
-                                                    !participant.left_at &&
-                                                    Date.now() -
-                                                    new Date(
-                                                        participant.last_seen_at,
-                                                    ).getTime() <=
-                                                    activeParticipantThresholdMs;
+                                                const active =
+                                                    isParticipantActive(
+                                                        participant,
+                                                    );
+
+                                                const hasAnswered =
+                                                    activeResponderIds.has(
+                                                        participant.id,
+                                                    );
 
                                                 return (
                                                     <div
                                                         key={
                                                             participant.id
                                                         }
-                                                        className="flex items-center justify-between rounded-lg border px-3 py-2"
+                                                        className="rounded-xl border px-3 py-3 dark:border-slate-800"
                                                     >
-                                                        <div className="min-w-0">
-                                                            <p className="truncate text-sm font-medium">
-                                                                {participant.is_anonymous
-                                                                    ? "Anonymous participant"
-                                                                    : participant.name ??
-                                                                    "Unnamed participant"}
-                                                            </p>
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="min-w-0">
+                                                                <p className="truncate text-sm font-semibold">
+                                                                    {getParticipantLabel(
+                                                                        participant,
+                                                                    )}
+                                                                </p>
 
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {participant.is_anonymous
-                                                                    ? "Anonymous"
-                                                                    : `Roll ${participant.roll_number ??
-                                                                    "—"
+                                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                                    {participant.is_anonymous
+                                                                        ? "Anonymous"
+                                                                        : `Roll ${
+                                                                              participant.roll_number ??
+                                                                              "—"
+                                                                          }`}
+                                                                </p>
+                                                            </div>
+
+                                                            <div className="flex shrink-0 items-center gap-2">
+                                                                <span
+                                                                    className={`h-2.5 w-2.5 rounded-full ${
+                                                                        active
+                                                                            ? "bg-emerald-500"
+                                                                            : "bg-slate-300"
                                                                     }`}
-                                                            </p>
+                                                                />
+
+                                                                <span className="text-[10px] text-muted-foreground">
+                                                                    {active
+                                                                        ? "Active"
+                                                                        : "Away"}
+                                                                </span>
+                                                            </div>
                                                         </div>
 
-                                                        <div className="flex items-center gap-2">
-                                                            <span
-                                                                className={[
-                                                                    "h-2 w-2 rounded-full",
-                                                                    isActive
-                                                                        ? "bg-green-500"
-                                                                        : "bg-slate-300",
-                                                                ].join(" ")}
-                                                            />
+                                                        {activeQuestion ? (
+                                                            <div className="mt-3 flex items-center justify-between border-t pt-2 text-xs dark:border-slate-800">
+                                                                <span className="text-muted-foreground">
+                                                                    Current
+                                                                    question
+                                                                </span>
 
-                                                            <span className="text-[10px] text-muted-foreground">
-                                                                {isActive
-                                                                    ? "Active"
-                                                                    : "Away"}
-                                                            </span>
-                                                        </div>
+                                                                <span
+                                                                    className={
+                                                                        hasAnswered
+                                                                            ? "font-semibold text-emerald-600 dark:text-emerald-400"
+                                                                            : "font-semibold text-amber-600 dark:text-amber-400"
+                                                                    }
+                                                                >
+                                                                    {hasAnswered
+                                                                        ? "Answered"
+                                                                        : "Waiting"}
+                                                                </span>
+                                                            </div>
+                                                        ) : null}
                                                     </div>
                                                 );
                                             },
@@ -2908,272 +4456,263 @@ export default function LiveStudio({
                             </CardContent>
                         </Card>
 
-                        {/* QUESTION QUEUE */}
+                        {/* RECENT RESPONSES */}
 
                         <Card>
-                            <CardHeader className="border-b">
+                            <CardHeader>
                                 <CardTitle>
-                                    Question Queue
+                                    Recent Responses
                                 </CardTitle>
 
-                                <p className="text-sm text-muted-foreground">
-                                    Select any question to make
-                                    it live.
+                                <p className="text-xs text-muted-foreground">
+                                    Latest updates arriving from
+                                    students.
                                 </p>
                             </CardHeader>
 
-                            <CardContent className="max-h-[420px] space-y-3 overflow-y-auto p-3">
-                                {questions.map(
-                                    (
-                                        question,
-                                        index,
-                                    ) => {
-                                        const isActive =
-                                            session.active_question_id ===
-                                            question.id;
-
-                                        const responseCount =
-                                            responseCountByQuestion[
-                                            question.id
-                                            ] ?? 0;
-
-                                        return (
-                                            <div
-                                                key={
-                                                    question.id
-                                                }
-                                                className={`rounded-xl border p-3 transition ${isActive
-                                                    ? "border-indigo-500 bg-indigo-50 shadow-sm dark:bg-indigo-950/30"
-                                                    : "hover:bg-slate-50 dark:hover:bg-slate-900"
-                                                    }`}
-                                            >
-                                                <div className="flex items-start gap-3">
-                                                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold dark:bg-slate-800">
-                                                        Q
-                                                        {index +
-                                                            1}
-                                                    </div>
-
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="line-clamp-2 text-sm font-semibold">
-                                                            {
-                                                                question.text
-                                                            }
-                                                        </p>
-
-                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium dark:bg-slate-800">
-                                                                {question.type ===
-                                                                    "multiple_choice"
-                                                                    ? "MCQ"
-                                                                    : question.type}
-                                                            </span>
-
-                                                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium dark:bg-slate-800">
-                                                                {
-                                                                    responseCount
-                                                                }{" "}
-                                                                responses
-                                                            </span>
-
-                                                            {question.status ===
-                                                                "closed" && (
-                                                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium dark:bg-slate-800">
-                                                                        Closed
-                                                                    </span>
-                                                                )}
-
-                                                            {question.source_question_id ===
-                                                                null && (
-                                                                    <span className="rounded-full bg-indigo-50 px-2 py-1 text-[10px] font-medium text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
-                                                                        Session
-                                                                    </span>
-                                                                )}
-                                                        </div>
-
-                                                        <Button
-                                                            size="sm"
-                                                            className="mt-3 w-full"
-                                                            variant={
-                                                                isActive
-                                                                    ? "default"
-                                                                    : "outline"
-                                                            }
-                                                            disabled={
-                                                                isUpdating ||
-                                                                isActive
-                                                            }
-                                                            onClick={() =>
-                                                                void pushQuestionLive(
-                                                                    question,
-                                                                )
-                                                            }
-                                                        >
-                                                            {isActive
-                                                                ? "Live Now"
-                                                                : "Push Live"}
-                                                        </Button>
-                                                        {question.status !== "active" && (
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    startEditingQuestion(
-                                                                        question,
-                                                                    )
-                                                                }
-                                                            >
-                                                                Edit
-                                                            </Button>
-                                                        )}
-                                                        {question.status !== "active" && (
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="sm"
-                                                                disabled={isUpdating}
-                                                                onClick={() =>
-                                                                    void deleteSessionQuestion(
-                                                                        question,
-                                                                    )
-                                                                }
-                                                            >
-                                                                Delete
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    },
-                                )}
-
-                                {questions.length ===
-                                    0 && (
-                                        <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                                            No questions found.
-                                        </div>
-                                    )}
-                            </CardContent>
-                        </Card>
-
-                        {/* LIVE RESPONSES */}
-
-                        <Card>
-                            <CardHeader className="border-b">
-                                <CardTitle>
-                                    Live Responses
-                                </CardTitle>
-
-                                <p className="text-sm text-muted-foreground">
-                                    Student answers for the
-                                    current question.
-                                </p>
-                            </CardHeader>
-
-                            <CardContent className="max-h-[520px] overflow-y-auto p-3">
-                                {!activeQuestion ? (
-                                    <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                                        No active question.
-                                    </div>
-                                ) : activeResponses.length ===
-                                    0 ? (
-                                    <div className="rounded-xl border border-dashed p-6 text-center">
-                                        <p className="font-semibold">
-                                            Waiting for responses
+                            <CardContent className="space-y-2">
+                                {recentResponses.length ===
+                                0 ? (
+                                    <div className="rounded-2xl border border-dashed p-7 text-center">
+                                        <p className="text-sm font-semibold">
+                                            No responses yet
                                         </p>
-
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            New answers will appear
-                                            here in real time.
+                                            Student submissions will
+                                            appear here in real time.
                                         </p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-2">
-                                        {activeResponses.map(
-                                            (
-                                                response,
-                                                index,
-                                            ) => {
-                                                const participant =
-                                                    response.participant;
-
-                                                const displayName =
-                                                    participant?.is_anonymous
-                                                        ? `Anonymous ${index +
-                                                        1
-                                                        }`
-                                                        : participant?.name ??
-                                                        `Participant ${index +
-                                                        1
-                                                        }`;
-
-                                                const roll =
-                                                    participant?.roll_number !==
-                                                        null &&
-                                                        participant?.roll_number !==
-                                                        undefined
-                                                        ? `Roll ${participant.roll_number}`
-                                                        : null;
-
-                                                const isUpdated =
-                                                    response.updated_at !==
-                                                    response.submitted_at;
-
-                                                return (
-                                                    <div
-                                                        key={
-                                                            response.id
-                                                        }
-                                                        className="rounded-xl border p-3"
-                                                    >
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <div className="min-w-0">
-                                                                <p className="truncate text-sm font-semibold">
-                                                                    {
-                                                                        displayName
-                                                                    }
-                                                                </p>
-
-                                                                {roll && (
-                                                                    <p className="text-[11px] text-muted-foreground">
-                                                                        {roll}
-                                                                    </p>
-                                                                )}
-                                                            </div>
-
-                                                            <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-medium dark:bg-slate-800">
-                                                                {isUpdated
-                                                                    ? "Updated"
-                                                                    : "Submitted"}
-                                                            </span>
-                                                        </div>
-
-                                                        <div className="mt-2 rounded-lg bg-slate-50 p-3 text-sm font-semibold dark:bg-slate-900">
-                                                            {typeof response.answer ===
-                                                                "string"
-                                                                ? response.answer
-                                                                : JSON.stringify(
-                                                                    response.answer,
-                                                                )}
-                                                        </div>
-
-                                                        <p className="mt-2 text-[10px] text-muted-foreground">
-                                                            {new Date(
-                                                                response.updated_at,
-                                                            ).toLocaleTimeString()}
-                                                        </p>
-                                                    </div>
+                                    recentResponses.map(
+                                        (
+                                            response,
+                                        ) => {
+                                            const question =
+                                                questions.find(
+                                                    (
+                                                        item,
+                                                    ) =>
+                                                        item.id ===
+                                                        response.question_id,
                                                 );
-                                            },
-                                        )}
-                                    </div>
+
+                                            return (
+                                                <div
+                                                    key={
+                                                        response.id
+                                                    }
+                                                    className="rounded-xl border px-3 py-3 dark:border-slate-800"
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <p className="truncate text-sm font-semibold">
+                                                                {getParticipantLabel(
+                                                                    response.participant ??
+                                                                        ({
+                                                                            is_anonymous:
+                                                                                true,
+                                                                        } as Participant),
+                                                                )}
+                                                            </p>
+
+                                                            <p className="mt-1 truncate text-xs text-muted-foreground">
+                                                                {question
+                                                                    ?.text ??
+                                                                    "Question unavailable"}
+                                                            </p>
+                                                        </div>
+
+                                                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold dark:bg-slate-800">
+                                                            {formatDurationMs(
+                                                                response.response_time_ms,
+                                                            )}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-slate-900">
+                                                        <span className="font-semibold">
+                                                            Answer:
+                                                        </span>{" "}
+                                                        {String(response.answer ?? "")}
+                                                    </div>
+                                                </div>
+                                            );
+                                        },
+                                    )
                                 )}
                             </CardContent>
                         </Card>
                     </aside>
                 </div>
+
+                {/* FOOTER SESSION SUMMARY */}
+
+                <section className="mt-5 grid gap-5 lg:grid-cols-3">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>
+                                Engagement snapshot
+                            </CardTitle>
+                        </CardHeader>
+
+                        <CardContent className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Students joined
+                                </span>
+                                <span className="font-bold">
+                                    {
+                                        participantSummary.total
+                                    }
+                                </span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Students who answered
+                                    at least once
+                                </span>
+                                <span className="font-bold">
+                                    {
+                                        totalUniqueResponders
+                                    }
+                                </span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Session participation
+                                </span>
+                                <span className="font-bold">
+                                    {formatPercentage(
+                                        overallParticipationRate,
+                                    )}
+                                </span>
+                            </div>
+
+                            <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                                <div
+                                    className="h-full rounded-full bg-indigo-500"
+                                    style={{
+                                        width: `${clampPercentage(
+                                            overallParticipationRate,
+                                        )}%`,
+                                    }}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>
+                                Current question health
+                            </CardTitle>
+                        </CardHeader>
+
+                        <CardContent className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Answered
+                                </span>
+                                <span className="font-bold">
+                                    {
+                                        activeResponderIds.size
+                                    }
+                                </span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Waiting
+                                </span>
+                                <span className="font-bold">
+                                    {
+                                        activeQuestionUnansweredCount
+                                    }
+                                </span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Average response
+                                </span>
+                                <span className="font-bold">
+                                    {formatDurationMs(
+                                        activeAverageResponseTimeMs,
+                                    )}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Results mode
+                                </span>
+                                <span className="font-bold">
+                                    {activeQuestion
+                                        ? getResultsModeLabel(
+                                              activeQuestion.results_mode,
+                                          )
+                                        : "—"}
+                                </span>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>
+                                Session health
+                            </CardTitle>
+                        </CardHeader>
+
+                        <CardContent className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Live status
+                                </span>
+
+                                <Badge>
+                                    {session.status.toUpperCase()}
+                                </Badge>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Late join
+                                </span>
+
+                                <span className="font-bold">
+                                    {session.allow_late_join
+                                        ? "Open"
+                                        : "Locked"}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Current question
+                                </span>
+
+                                <span className="max-w-[180px] truncate text-right font-bold">
+                                    {activeQuestion
+                                        ? activeQuestion.text
+                                        : "None"}
+                                </span>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                    Session responses
+                                </span>
+
+                                <span className="font-bold">
+                                    {responses.length}
+                                </span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </section>
             </div>
         </main>
     );
