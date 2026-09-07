@@ -349,44 +349,84 @@ export default function LiveStudioPage() {
         );
 
     const handleSetActiveQuestion =
-        useCallback(
-            async (
-                questionId: string | null,
-            ) => {
-                if (!session?.id) {
-                    return;
-                }
+    useCallback(
+        async (
+            questionId: string | null,
+        ) => {
+            if (!session?.id) {
+                return;
+            }
 
-                try {
+            try {
+                if (questionId) {
                     await updateSession({
+                        status: "live",
                         active_question_id:
                             questionId,
+                        started_at:
+                            session.started_at ??
+                            new Date().toISOString(),
+                    });
+
+                    await updateQuestion(
+                        questionId,
+                        {
+                            status: "active",
+                            activated_at:
+                                new Date().toISOString(),
+                        },
+                    );
+
+                    showNotice(
+                        "success",
+                        "The question is now live.",
+                        "Question Live",
+                    );
+                } else {
+                    const currentActiveId =
+                        session.active_question_id;
+
+                    if (currentActiveId) {
+                        await updateQuestion(
+                            currentActiveId,
+                            {
+                                status: "closed",
+                                closed_at:
+                                    new Date().toISOString(),
+                            },
+                        );
+                    }
+
+                    await updateSession({
+                        active_question_id: null,
                     });
 
                     showNotice(
                         "success",
-                        questionId
-                            ? "The active question has been updated."
-                            : "There is no active question now.",
-                        "Live Session Updated",
-                    );
-                } catch (error) {
-                    showNotice(
-                        "error",
-                        error instanceof Error
-                            ? error.message
-                            : "Unable to update the active question.",
-                        "Update Failed",
+                        "The active question has been closed.",
+                        "Question Closed",
                     );
                 }
-            },
-            [
-                session?.id,
-                showNotice,
-                updateSession,
-            ],
-        );
-
+            } catch (error) {
+                showNotice(
+                    "error",
+                    error instanceof Error
+                        ? error.message
+                        : "Unable to change the live question.",
+                    "Update Failed",
+                );
+            }
+        },
+        [
+            session?.id,
+            session?.active_question_id,
+            session?.started_at,
+            showNotice,
+            updateQuestion,
+            updateSession,
+        ],
+    );
+    
     const handleSaveSettings =
         useCallback(
             async (
