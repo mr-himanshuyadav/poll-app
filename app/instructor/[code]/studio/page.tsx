@@ -318,7 +318,7 @@ export default function LiveStudioPage() {
 
     const handleTabChange =
         useCallback(
-            (tab: LiveStudioTab) => {
+            (tab: StudioTab) => {
                 setActiveTab(tab);
 
                 if (
@@ -640,15 +640,11 @@ export default function LiveStudioPage() {
             />
 
             <LiveStudioTabs
-                activeTab={activeTab}
-                onChange={handleTabChange}
-                questionsCount={
-                    questions.length
-                }
-                participantsCount={
-                    totalParticipants
-                }
-            />
+    activeTab={activeTab}
+    onTabChange={handleTabChange}
+    questionCount={questions.length}
+    participantCount={totalParticipants}
+/>
 
             <main>
                 {notice ? (

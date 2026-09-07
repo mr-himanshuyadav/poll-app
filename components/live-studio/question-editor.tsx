@@ -58,22 +58,17 @@ function getInitialFormState(
     question?: SessionQuestion | null,
 ): QuestionFormState {
     const questionType =
-        question?.question_type ??
-        question?.type ??
-        "multiple_choice";
+        const questionType =
+    question?.type ??
+    "multiple_choice";
 
     const options =
-        question?.options &&
-        question.options.length > 0
-            ? question.options.map(
-                  (option) =>
-                      createOption(
-                          option.label ??
-                              option.text ??
-                              option.value ??
-                              "",
-                      ),
-              )
+    question?.options &&
+    question.options.length > 0
+        ? question.options.map(
+              (option) =>
+                  createOption(option),
+          )
             : [
                   createOption(),
                   createOption(),
@@ -81,10 +76,7 @@ function getInitialFormState(
 
     return {
         question:
-            question?.question ??
-            question?.prompt ??
-            question?.title ??
-            "",
+    question?.text ?? "",
 
         questionType,
 

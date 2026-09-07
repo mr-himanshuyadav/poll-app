@@ -12,17 +12,19 @@ import { supabase } from "@/lib/supabase";
 interface SessionResponse {
     id: string;
 
-    session_id: string;
+    quiz_id: string;
 
     question_id: string;
 
-    participant_id?: string | null;
+    participant_id: string;
 
-    response?: unknown;
+    answer: unknown;
 
-    answer?: unknown;
+    submitted_at: string;
 
-    created_at?: string;
+    updated_at: string;
+
+    response_time_ms: number | null;
 }
 
 interface UseSessionResponsesOptions {

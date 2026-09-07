@@ -80,7 +80,7 @@ export function useSessionAnalytics({
                     ] = await Promise.all([
                         supabase
                             .from(
-                                "session_participants",
+                                "participants",
                             )
                             .select(
                                 "id",
@@ -114,7 +114,7 @@ export function useSessionAnalytics({
                                 "id, position",
                             )
                             .eq(
-                                "quiz_id",
+                                "session_id",
                                 sessionId,
                             )
                             .order(

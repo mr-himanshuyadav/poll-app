@@ -12,23 +12,21 @@ import { supabase } from "@/lib/supabase";
 interface SessionParticipant {
     id: string;
 
-    session_id: string;
+    quiz_id: string;
 
-    user_id?: string | null;
+    session_token: string;
 
-    name?: string | null;
+    name: string | null;
 
-    display_name?: string | null;
+    roll_number: number | null;
 
-    email?: string | null;
+    is_anonymous: boolean;
 
-    joined_at?: string | null;
+    joined_at: string;
 
-    created_at?: string | null;
+    last_seen_at: string;
 
-    last_seen_at?: string | null;
-
-    is_online?: boolean;
+    left_at: string | null;
 }
 
 interface UseSessionParticipantsOptions {
@@ -140,7 +138,7 @@ export function useSessionParticipants({
                         event: "INSERT",
                         schema: "public",
                         table: "participants",
-                        filter: `session_id=eq.${sessionId}`,
+                        filter: `quiz_id=eq.${sessionId}`,
                     },
                     (payload) => {
                         const newParticipant =

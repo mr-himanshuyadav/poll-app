@@ -47,18 +47,17 @@ export function ParticipantsWorkspace({
             return participants.filter(
                 (participant) => {
                     const name =
-                        (
-                            participant.display_name ??
-                            participant.name ??
-                            ""
-                        ).toLowerCase();
+    (
+        participant.name ??
+        ""
+    ).toLowerCase();
 
                     const identifier =
-                        (
-                            participant.participant_id ??
-                            participant.user_id ??
-                            ""
-                        ).toLowerCase();
+    String(
+        participant.roll_number ??
+        participant.session_token ??
+        "",
+    ).toLowerCase();
 
                     return (
                         name.includes(query) ||
@@ -83,14 +82,14 @@ export function ParticipantsWorkspace({
             return participants.filter(
                 (participant) => {
                     if (
-                        !participant.last_active_at
+                        !participant.last_seen_at
                     ) {
                         return false;
                     }
 
                     const lastActive =
                         new Date(
-                            participant.last_active_at,
+                            participant.last_seen_at,
                         ).getTime();
 
                     return (

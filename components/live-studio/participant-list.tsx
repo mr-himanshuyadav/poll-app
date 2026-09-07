@@ -78,11 +78,8 @@ export function ParticipantList({
                 {participants.map(
                     (participant, index) => {
                         const name =
-                            participant.display_name ??
-                            participant.name ??
-                            `Participant ${
-                                index + 1
-                            }`;
+    participant.name ??
+    `Participant ${index + 1}`;
 
                         const isActive =
                             isParticipantActive(
@@ -121,8 +118,7 @@ export function ParticipantList({
                                     <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
                                         Joined{" "}
                                         {formatRelativeTime(
-                                            participant.joined_at ??
-                                                participant.created_at,
+                                            participant.joined_at,
                                         )}
                                     </p>
                                 </div>

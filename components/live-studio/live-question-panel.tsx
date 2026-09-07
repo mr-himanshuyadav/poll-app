@@ -253,10 +253,7 @@ export function LiveQuestionPanel({
 
                                 return (
                                     <div
-                                        key={
-                                            option.id ??
-                                            `${index}-${label}`
-                                        }
+                                        key={`${index}-${label}`}
                                         className="flex min-h-[72px] items-center gap-4 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/40"
                                     >
                                         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-xs font-bold text-slate-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300">
