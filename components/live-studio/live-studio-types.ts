@@ -8,6 +8,7 @@ import type {
     SessionStatus,
     Participant,
     PollResponse,
+    QuizTemplate
 } from "@/lib/types";
 
 /**
@@ -41,6 +42,7 @@ export type {
 export type LiveSession = Session;
 export type SessionParticipant = Participant;
 export type SessionResponse = PollResponse;
+export type Template = QuizTemplate;
 
 /**
  * Analytics for a single question.
@@ -72,33 +74,42 @@ export interface QuestionAnalytics {
  * Analytics UI reads these names.
  */
 export interface SessionAnalytics {
-    totalQuestions: number;
-    totalParticipants: number;
-    activeParticipants: number;
-    inactiveParticipants: number;
-    totalResponses: number;
-    uniqueResponders: number;
-    overallParticipationRate: number;
-    averageResponseTimeMs: number | null;
-    medianResponseTimeMs: number | null;
+    total_participants: number;
 
-    answeredQuestions?: number;
-    averageResponseRate?: number;
-    responseRate?: number;
+    total_responses: number;
 
-    questions?: Array<{
+    answered_questions: number;
+
+    average_response_rate: number;
+
+    response_rate: number;
+
+    questions: Array<{
         question_id: string;
+
         total_responses: number;
-        response_count?: number;
+
+        response_count: number;
+
         response_rate: number;
-        participation_rate?: number;
+
+        participation_rate: number;
+
+        options?: string[];
+
         distribution?: Array<{
             id?: string;
+
             label?: string;
+
             option?: string;
+
             text?: string;
+
             count?: number;
+
             responses?: number;
+
             percentage?: number;
         }>;
     }>;

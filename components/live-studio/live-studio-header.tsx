@@ -113,11 +113,9 @@ export function LiveStudioHeader({
     onOpenSettings,
 }: LiveStudioHeaderProps) {
     const sessionName =
-        session.name ??
-        session.title ??
-        template?.title ??
-        template?.name ??
-        "Live Session";
+    session.name ??
+    template?.title ??
+    "Live Session";
 
     const isPaused =
         session.status === "paused";
@@ -188,11 +186,9 @@ export function LiveStudioHeader({
                                 </div>
                             </div>
 
-                            {template?.title ||
-                            template?.name ? (
+                            {template?.title ? (
                                 <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                                    {template.title ??
-                                        template.name}
+                                    {template.title}
                                 </p>
                             ) : null}
 

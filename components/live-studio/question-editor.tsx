@@ -82,20 +82,28 @@ function getInitialFormState(
         options,
 
         scaleMin:
-            question?.scale_min ?? 1,
+    Number(
+        question?.config?.min ?? 1,
+    ),
 
-        scaleMax:
-            question?.scale_max ?? 5,
+scaleMax:
+    Number(
+        question?.config?.max ?? 5,
+    ),
 
-        scaleMinLabel:
-            question?.scale_min_label ?? "",
+scaleMinLabel:
+    String(
+        question?.config?.minLabel ?? "",
+    ),
 
-        scaleMaxLabel:
-            question?.scale_max_label ?? "",
+scaleMaxLabel:
+    String(
+        question?.config?.maxLabel ?? "",
+    ),
 
         resultsMode:
             question?.results_mode ??
-            "manual",
+            "",
     };
 }
 
@@ -673,7 +681,7 @@ type:
                                     "Show results automatically.",
                             },
                             {
-                                value: "manual",
+                                value: "on_command",
                                 title: "Manual",
                                 description:
                                     "Reveal results when ready.",

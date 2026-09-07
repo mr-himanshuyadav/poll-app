@@ -234,8 +234,7 @@ export function getResultsModeLabel(
         case "live":
             return "Live Results";
 
-        case "manual":
-        case "on_command":
+        case "on_command":      
             return "Reveal Manually";
 
         case "hidden":
@@ -253,7 +252,6 @@ export function getResultsModeDescription(
         case "live":
             return "Students see results immediately.";
 
-        case "manual":
         case "on_command":
             return "You decide when students see results.";
 
