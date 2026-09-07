@@ -48,6 +48,36 @@ interface LiveQuestionPanelProps {
     onHideResults?: () => void;
 }
 
+function getScaleNumber(
+    value: unknown,
+    fallback: number,
+): number {
+    if (
+        typeof value === "number" &&
+        Number.isFinite(value)
+    ) {
+        return value;
+    }
+
+    if (typeof value === "string") {
+        const parsed = Number(value);
+
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+
+    return fallback;
+}
+
+function getScaleLabel(
+    value: unknown,
+): string {
+    return typeof value === "string"
+        ? value
+        : "";
+}
+
 export function LiveQuestionPanel({
     question,
     questions,
@@ -59,10 +89,17 @@ export function LiveQuestionPanel({
 }: LiveQuestionPanelProps) {
     if (!question) {
         const nextQuestion =
-            questions.find(
-                (item) =>
-                    item.status !== "closed",
-            ) ?? null;
+            [...questions]
+                .sort(
+                    (a, b) =>
+                        (a.position ?? 0) -
+                        (b.position ?? 0),
+                )
+                .find(
+                    (item) =>
+                        item.status !==
+                        "closed",
+                ) ?? null;
 
         return (
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
@@ -87,7 +124,9 @@ export function LiveQuestionPanel({
                         <Button
                             type="button"
                             className="mt-6"
-                            disabled={isUpdating}
+                            disabled={
+                                isUpdating
+                            }
                             onClick={() =>
                                 onActivateQuestion(
                                     nextQuestion,
@@ -113,8 +152,8 @@ export function LiveQuestionPanel({
         );
 
     const questionType =
-    question.type ??
-    "multiple_choice";
+        question.type ??
+        "multiple_choice";
 
     const questionStatus =
         getQuestionStatusLabel(
@@ -127,13 +166,61 @@ export function LiveQuestionPanel({
         );
 
     const resultsVisible =
-        question.results_visible === true;
+        question.results_visible ===
+        true;
 
     const canActivate =
         question.status !== "active";
 
     const canClose =
         question.status === "active";
+
+    const scaleMin =
+        getScaleNumber(
+            question.config?.min,
+            1,
+        );
+
+    const scaleMax =
+        getScaleNumber(
+            question.config?.max,
+            5,
+        );
+
+    const normalizedScaleMin =
+        Math.min(
+            scaleMin,
+            scaleMax,
+        );
+
+    const normalizedScaleMax =
+        Math.max(
+            scaleMin,
+            scaleMax,
+        );
+
+    const scaleValues =
+        Array.from(
+            {
+                length:
+                    normalizedScaleMax -
+                    normalizedScaleMin +
+                    1,
+            },
+            (_, index) =>
+                normalizedScaleMin +
+                index,
+        );
+
+    const scaleMinLabel =
+        getScaleLabel(
+            question.config?.minLabel,
+        );
+
+    const scaleMaxLabel =
+        getScaleLabel(
+            question.config?.maxLabel,
+        );
 
     return (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
@@ -187,7 +274,9 @@ export function LiveQuestionPanel({
                         {canActivate ? (
                             <Button
                                 type="button"
-                                disabled={isUpdating}
+                                disabled={
+                                    isUpdating
+                                }
                                 onClick={() =>
                                     onActivateQuestion(
                                         question,
@@ -204,7 +293,9 @@ export function LiveQuestionPanel({
                             <Button
                                 type="button"
                                 variant="destructive"
-                                disabled={isUpdating}
+                                disabled={
+                                    isUpdating
+                                }
                                 onClick={
                                     onCloseQuestion
                                 }
@@ -229,8 +320,11 @@ export function LiveQuestionPanel({
 
                 {questionType ===
                     "multiple_choice" &&
-                question.options &&
-                question.options.length > 0 ? (
+                Array.isArray(
+                    question.options,
+                ) &&
+                question.options.length >
+                    0 ? (
                     <div className="mt-8 grid gap-3 sm:grid-cols-2">
                         {question.options.map(
                             (
@@ -238,9 +332,9 @@ export function LiveQuestionPanel({
                                 index,
                             ) => {
                                 const label =
-                                    typeof option === "string"
-    ? option
-    : String(option);
+                                    String(
+                                        option,
+                                    );
 
                                 return (
                                     <div
@@ -254,9 +348,7 @@ export function LiveQuestionPanel({
                                         </div>
 
                                         <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                                            {
-                                                label
-                                            }
+                                            {label}
                                         </span>
                                     </div>
                                 );
@@ -265,7 +357,8 @@ export function LiveQuestionPanel({
                     </div>
                 ) : null}
 
-                {questionType === "scale" ? (
+                {questionType ===
+                "scale" ? (
                     <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/40">
                         <div className="flex items-center justify-between gap-4">
                             <div>
@@ -275,13 +368,11 @@ export function LiveQuestionPanel({
 
                                 <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
                                     {
-                                        question.scale_min ??
-                                        1
+                                        normalizedScaleMin
                                     }{" "}
                                     to{" "}
                                     {
-                                        question.scale_max ??
-                                        5
+                                        normalizedScaleMax
                                     }
                                 </p>
                             </div>
@@ -290,51 +381,34 @@ export function LiveQuestionPanel({
                         </div>
 
                         <div className="mt-5 flex items-center gap-2">
-                            {Array.from({
-                                length:
-                                    (question.scale_max ??
-                                        5) -
-                                        (question.scale_min ??
-                                            1) +
-                                    1,
-                            }).map(
-                                (_, index) => {
-                                    const value =
-                                        (question.scale_min ??
-                                            1) +
-                                        index;
-
-                                    return (
-                                        <div
-                                            key={
-                                                value
-                                            }
-                                            className="flex h-10 min-w-10 flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
-                                        >
-                                            {
-                                                value
-                                            }
-                                        </div>
-                                    );
-                                },
+                            {scaleValues.map(
+                                (value) => (
+                                    <div
+                                        key={value}
+                                        className="flex h-10 min-w-10 flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                                    >
+                                        {value}
+                                    </div>
+                                ),
                             )}
                         </div>
 
-                        <div className="mt-3 flex justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
-                            <span>
-                                {
-                                    question.scale_min_label ??
-                                    ""
-                                }
-                            </span>
+                        {(scaleMinLabel ||
+                            scaleMaxLabel) ? (
+                            <div className="mt-3 flex justify-between gap-4 text-xs text-slate-500 dark:text-slate-400">
+                                <span>
+                                    {
+                                        scaleMinLabel
+                                    }
+                                </span>
 
-                            <span className="text-right">
-                                {
-                                    question.scale_max_label ??
-                                    ""
-                                }
-                            </span>
-                        </div>
+                                <span className="text-right">
+                                    {
+                                        scaleMaxLabel
+                                    }
+                                </span>
+                            </div>
+                        ) : null}
                     </div>
                 ) : null}
 
@@ -344,6 +418,7 @@ export function LiveQuestionPanel({
 
                         <span>
                             Results:{" "}
+
                             <strong className="font-semibold text-slate-700 dark:text-slate-200">
                                 {resultsVisible
                                     ? "Visible"
@@ -359,7 +434,9 @@ export function LiveQuestionPanel({
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                disabled={isUpdating}
+                                disabled={
+                                    isUpdating
+                                }
                                 onClick={
                                     onHideResults
                                 }
@@ -376,7 +453,9 @@ export function LiveQuestionPanel({
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                disabled={isUpdating}
+                                disabled={
+                                    isUpdating
+                                }
                                 onClick={
                                     onShowResults
                                 }

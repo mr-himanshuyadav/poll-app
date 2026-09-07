@@ -1,43 +1,46 @@
 import type {
-    QuestionConfig,
-    QuestionStatus,
-    QuestionType,
-    ResultsMode,
-    Session,
-    SessionQuestion,
-    SessionStatus,
-    Participant,
-    PollResponse,
-    QuizTemplate
+  Participant,
+  PollResponse,
+  QuestionConfig,
+  QuestionStatus,
+  QuestionType,
+  QuizTemplate,
+  ResultsMode,
+  Session,
+  SessionQuestion,
+  SessionStatus,
 } from "@/lib/types";
 
 /**
  * Tabs available inside Live Studio.
  */
-export type StudioTab =
-    | "live"
-    | "questions"
-    | "participants"
-    | "analytics";
+export type StudioTab = |
+  "live" |
+  "questions" |
+  "participants" |
+  "analytics";
 
 /**
- * Re-export the application's canonical domain types so
- * Live Studio uses the same schema as the rest of the app.
+ * Re-export canonical application types.
+ *
+ * Live Studio should not maintain duplicate versions of
+ * Session, SessionQuestion, Participant, or PollResponse.
  */
 export type {
-    QuestionConfig,
-    QuestionStatus,
-    QuestionType,
-    ResultsMode,
-    Session,
-    SessionQuestion,
-    SessionStatus,
-    Participant,
-    PollResponse,
+  Participant,
+  PollResponse,
+  QuestionConfig,
+  QuestionStatus,
+  QuestionType,
+  QuizTemplate,
+  ResultsMode,
+  Session,
+  SessionQuestion,
+  SessionStatus,
 };
 
 /**
- * Backwards-compatible aliases used by existing Studio components.
+ * Backward-compatible aliases used by Studio components.
  */
 export type LiveSession = Session;
 export type SessionParticipant = Participant;
@@ -45,103 +48,104 @@ export type SessionResponse = PollResponse;
 export type Template = QuizTemplate;
 
 /**
- * Analytics for a single question.
+ * Analytics for one answer option.
  */
 export interface QuestionOptionAnalytics {
-    key: string;
+  key: string;
+  label: string;
+  count: number;
+  percentage: number;
+}
+
+/**
+ * Rich analytics for the currently active question.
+ */
+export interface QuestionAnalytics {
+  questionId: string;
+  totalResponses: number;
+  uniqueResponders: number;
+  participationRate: number;
+  averageResponseTimeMs: number | null;
+  medianResponseTimeMs: number | null;
+  dominantOption: string | null;
+  dominantOptionPercentage: number;
+  optionDistribution: QuestionOptionAnalytics[];
+}
+
+/**
+ * Analytics for a question inside the Analytics workspace.
+ */
+export interface SessionQuestionAnalytics {
+  question_id: string;
+  total_responses: number;
+  response_count: number;
+  response_rate: number;
+  participation_rate: number;
+  
+  /**
+   * Original question options.
+   * Useful when an option has received zero responses.
+   */
+  options: string[];
+  
+  distribution: Array < {
+    id: string;
     label: string;
     count: number;
     percentage: number;
-}
-
-export interface QuestionAnalytics {
-    questionId: string;
-    totalResponses: number;
-    uniqueResponders: number;
-    participationRate: number;
-    averageResponseTimeMs: number | null;
-    medianResponseTimeMs: number | null;
-    dominantOption: string | null;
-    dominantOptionPercentage: number;
-    optionDistribution: QuestionOptionAnalytics[];
+  } > ;
 }
 
 /**
  * Session-level analytics.
  *
- * The first group uses camelCase for the Studio's richer analytics model.
- * The optional snake_case fields are retained because the current
- * Analytics UI reads these names.
+ * These names intentionally use the existing snake_case format
+ * consumed by the Analytics Studio components.
  */
 export interface SessionAnalytics {
-    total_participants: number;
-
-    total_responses: number;
-
-    answered_questions: number;
-
-    average_response_rate: number;
-
-    response_rate: number;
-
-    questions: Array<{
-        question_id: string;
-
-        total_responses: number;
-
-        response_count: number;
-
-        response_rate: number;
-
-        participation_rate: number;
-
-        options?: string[];
-
-        distribution?: Array<{
-            id?: string;
-
-            label?: string;
-
-            option?: string;
-
-            text?: string;
-
-            count?: number;
-
-            responses?: number;
-
-            percentage?: number;
-        }>;
-    }>;
+  total_participants: number;
+  total_responses: number;
+  answered_questions: number;
+  average_response_rate: number;
+  response_rate: number;
+  
+  questions: SessionQuestionAnalytics[];
 }
 
 /**
- * UI-only option shape used by QuestionEditor.
+ * UI-only option used by QuestionEditor.
  */
 export interface QuestionFormOption {
-    id: string;
-    value: string;
+  id: string;
+  value: string;
 }
 
 /**
- * UI-only state used by QuestionEditor.
+ * UI-only QuestionEditor state.
+ *
+ * Scale labels are stored inside SessionQuestion.config.
+ * They are temporarily represented here as separate fields
+ * for a convenient editing interface.
  */
 export interface QuestionFormState {
-    question: string;
-    questionType: QuestionType;
-    options: QuestionFormOption[];
-    scaleMin: number;
-    scaleMax: number;
-    scaleMinLabel: string;
-    scaleMaxLabel: string;
-    resultsMode: ResultsMode;
+  question: string;
+  questionType: QuestionType;
+  options: QuestionFormOption[];
+  
+  scaleMin: number;
+  scaleMax: number;
+  
+  scaleMinLabel: string;
+  scaleMaxLabel: string;
+  
+  resultsMode: ResultsMode;
 }
 
 /**
- * UI action state.
+ * Generic Studio action state.
  */
 export interface LiveStudioActionState {
-    isUpdating: boolean;
-    isSavingQuestion: boolean;
-    isUpdatingParticipants: boolean;
+  isUpdating: boolean;
+  isSavingQuestion: boolean;
+  isUpdatingParticipants: boolean;
 }

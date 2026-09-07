@@ -3,7 +3,7 @@
 import {
     useCallback,
     useEffect,
-    useMemo,
+    useRef,
     useState,
 } from "react";
 
@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 
 import type {
     SessionAnalytics,
+    SessionQuestionAnalytics,
 } from "@/components/live-studio/live-studio-types";
 
 interface UseSessionAnalyticsOptions {
@@ -33,6 +34,168 @@ interface UseSessionAnalyticsReturn {
     refetch: () => Promise<void>;
 }
 
+interface AnalyticsResponse {
+    id: string;
+
+    question_id: string;
+
+    participant_id: string;
+
+    answer: unknown;
+
+    response_time_ms: number | null;
+}
+
+interface AnalyticsQuestion {
+    id: string;
+
+    position: number;
+
+    options: string[];
+}
+
+function normalizeAnswer(
+    answer: unknown,
+): string {
+    if (
+        typeof answer === "string"
+    ) {
+        return answer;
+    }
+
+    if (
+        typeof answer === "number" ||
+        typeof answer === "boolean"
+    ) {
+        return String(answer);
+    }
+
+    if (answer === null) {
+        return "";
+    }
+
+    if (Array.isArray(answer)) {
+        return answer
+            .map(normalizeAnswer)
+            .join(", ");
+    }
+
+    try {
+        return JSON.stringify(answer);
+    } catch {
+        return String(answer);
+    }
+}
+
+function createQuestionAnalytics(
+    question: AnalyticsQuestion,
+    responses: AnalyticsResponse[],
+    totalParticipants: number,
+): SessionQuestionAnalytics {
+    const questionResponses =
+        responses.filter(
+            (response) =>
+                response.question_id ===
+                question.id,
+        );
+
+    const totalResponses =
+        questionResponses.length;
+
+    const uniqueResponders =
+        new Set(
+            questionResponses.map(
+                (response) =>
+                    response.participant_id,
+            ),
+        ).size;
+
+    const participationRate =
+        totalParticipants > 0
+            ? (uniqueResponders /
+                  totalParticipants) *
+              100
+            : 0;
+
+    const distributionMap =
+        new Map<string, number>();
+
+    /**
+     * Start with all configured options.
+     *
+     * This ensures options with zero responses
+     * still appear in analytics.
+     */
+    question.options.forEach(
+        (option) => {
+            distributionMap.set(
+                option,
+                0,
+            );
+        },
+    );
+
+    questionResponses.forEach(
+        (response) => {
+            const answer =
+                normalizeAnswer(
+                    response.answer,
+                );
+
+            distributionMap.set(
+                answer,
+                (
+                    distributionMap.get(
+                        answer,
+                    ) ?? 0
+                ) + 1,
+            );
+        },
+    );
+
+    const distribution =
+        Array.from(
+            distributionMap.entries(),
+        ).map(
+            ([label, count]) => ({
+                id: label,
+
+                label,
+
+                count,
+
+                percentage:
+                    totalResponses > 0
+                        ? (count /
+                              totalResponses) *
+                          100
+                        : 0,
+            }),
+        );
+
+    return {
+        question_id:
+            question.id,
+
+        total_responses:
+            totalResponses,
+
+        response_count:
+            uniqueResponders,
+
+        response_rate:
+            participationRate,
+
+        participation_rate:
+            participationRate,
+
+        options:
+            question.options,
+
+        distribution,
+    };
+}
+
 export function useSessionAnalytics({
     sessionId,
     enabled = true,
@@ -52,25 +215,48 @@ export function useSessionAnalytics({
     const [error, setError] =
         useState<Error | null>(null);
 
+    const isMountedRef =
+        useRef(true);
+
+    useEffect(() => {
+        return () => {
+            isMountedRef.current =
+                false;
+        };
+    }, []);
+
     const fetchAnalytics =
         useCallback(
             async (
                 silent = false,
             ): Promise<void> => {
-                if (!sessionId || !enabled) {
-                    setAnalytics(null);
-                    setIsLoading(false);
+                if (
+                    !sessionId ||
+                    !enabled
+                ) {
+                    if (
+                        isMountedRef.current
+                    ) {
+                        setAnalytics(null);
+                        setError(null);
+                        setIsLoading(false);
+                        setIsUpdating(false);
+                    }
 
                     return;
                 }
 
-                if (silent) {
-                    setIsUpdating(true);
-                } else {
-                    setIsLoading(true);
-                }
+                if (
+                    isMountedRef.current
+                ) {
+                    if (silent) {
+                        setIsUpdating(true);
+                    } else {
+                        setIsLoading(true);
+                    }
 
-                setError(null);
+                    setError(null);
+                }
 
                 try {
                     const [
@@ -99,8 +285,14 @@ export function useSessionAnalytics({
                                 "responses",
                             )
                             .select(
-    "id, question_id, participant_id, answer, response_time_ms",
-)
+                                `
+                                    id,
+                                    question_id,
+                                    participant_id,
+                                    answer,
+                                    response_time_ms
+                                `,
+                            )
                             .eq(
                                 "quiz_id",
                                 sessionId,
@@ -111,7 +303,11 @@ export function useSessionAnalytics({
                                 "session_questions",
                             )
                             .select(
-                                "id, position",
+                                `
+                                    id,
+                                    position,
+                                    options
+                                `,
                             )
                             .eq(
                                 "session_id",
@@ -120,160 +316,88 @@ export function useSessionAnalytics({
                             .order(
                                 "position",
                                 {
-                                    ascending: true,
+                                    ascending:
+                                        true,
                                 },
                             ),
                     ]);
 
-                    if (participantsResult.error) {
-    throw new Error(
-        `Participants analytics failed: ${participantsResult.error.message}`,
-    );
-}
+                    if (
+                        participantsResult.error
+                    ) {
+                        throw new Error(
+                            `Participants analytics failed: ${participantsResult.error.message}`,
+                        );
+                    }
 
-if (responsesResult.error) {
-    throw new Error(
-        `Responses analytics failed: ${responsesResult.error.message}`,
-    );
-}
+                    if (
+                        responsesResult.error
+                    ) {
+                        throw new Error(
+                            `Responses analytics failed: ${responsesResult.error.message}`,
+                        );
+                    }
 
-if (questionsResult.error) {
-    throw new Error(
-        `Questions analytics failed: ${questionsResult.error.message}`,
-    );
-}
+                    if (
+                        questionsResult.error
+                    ) {
+                        throw new Error(
+                            `Questions analytics failed: ${questionsResult.error.message}`,
+                        );
+                    }
 
                     const totalParticipants =
                         participantsResult.count ??
                         0;
 
                     const responses =
-                        responsesResult.data ?? [];
+                        (
+                            responsesResult.data ??
+                            []
+                        ) as AnalyticsResponse[];
 
                     const questions =
-                        questionsResult.data ?? [];
+                        (
+                            questionsResult.data ??
+                            []
+                        ).map(
+                            (
+                                question,
+                            ): AnalyticsQuestion => ({
+                                id:
+                                    question.id,
 
-                    const responseMap =
-                        new Map<
-                            string,
-                            number
-                        >();
+                                position:
+                                    question.position,
 
-                    responses.forEach(
-                        (response: any) => {
-                            const currentCount =
-                                responseMap.get(
-                                    response.question_id,
-                                ) ?? 0;
-
-                            responseMap.set(
-                                response.question_id,
-                                currentCount + 1,
-                            );
-                        },
-                    );
-
-                    const questionAnalytics =
-    questions.map(
-        (
-            question: any,
-        ) => {
-            const questionResponses =
-                responses.filter(
-                    (response: any) =>
-                        response.question_id ===
-                        question.id,
-                );
-
-            const responseCount =
-                questionResponses.length;
-
-            const uniqueResponders =
-                new Set(
-                    questionResponses.map(
-                        (response: any) =>
-                            response.participant_id,
-                    ),
-                ).size;
-
-            const responseRate =
-                totalParticipants > 0
-                    ? (uniqueResponders /
-                          totalParticipants) *
-                      100
-                    : 0;
-
-            const distributionMap =
-                new Map<
-                    string,
-                    number
-                >();
-
-            questionResponses.forEach(
-                (response: any) => {
-                    const answer =
-                        String(
-                            response.answer ??
-                                "",
+                                options:
+                                    Array.isArray(
+                                        question.options,
+                                    )
+                                        ? question.options
+                                        : [],
+                            }),
                         );
 
-                    distributionMap.set(
-                        answer,
-                        (
-                            distributionMap.get(
-                                answer,
-                            ) ?? 0
-                        ) + 1,
-                    );
-                },
-            );
-
-            const distribution =
-                Array.from(
-                    distributionMap.entries(),
-                ).map(
-                    (
-                        [answer, count],
-                    ) => ({
-                        id: answer,
-                        label: answer,
-                        count,
-                        percentage:
-                            responseCount >
-                            0
-                                ? (count /
-                                      responseCount) *
-                                  100
-                                : 0,
-                    }),
-                );
-
-            return {
-                question_id:
-                    question.id,
-                total_responses:
-                    responseCount,
-                response_count:
-                    uniqueResponders,
-                response_rate:
-                    responseRate,
-                participation_rate:
-                    responseRate,
-                distribution,
-            };
-        },
-    );
-                    const answeredQuestions =
-                        questionAnalytics.filter(
-                            (
-                                question: any,
-                            ) =>
-                                question.total_responses >
-                                0,
-                        ).length;
+                    const questionAnalytics =
+                        questions.map(
+                            (question) =>
+                                createQuestionAnalytics(
+                                    question,
+                                    responses,
+                                    totalParticipants,
+                                ),
+                        );
 
                     const totalResponses =
                         responses.length;
+
+                    const answeredQuestions =
+                        questionAnalytics.filter(
+                            (question) =>
+                                question.total_responses >
+                                0,
+                        ).length;
 
                     const averageResponseRate =
                         questionAnalytics.length >
@@ -284,51 +408,62 @@ if (questionsResult.error) {
                                       question,
                                   ) =>
                                       total +
-                                      Number(
-                                          question.response_rate,
-                                      ),
+                                      question.response_rate,
                                   0,
                               ) /
                               questionAnalytics.length
                             : 0;
 
-                    const calculatedAnalytics = {
-                        total_participants:
-                            totalParticipants,
+                    const calculatedAnalytics: SessionAnalytics =
+                        {
+                            total_participants:
+                                totalParticipants,
 
-                        total_responses:
-                            totalResponses,
+                            total_responses:
+                                totalResponses,
 
-                        answered_questions:
-                            answeredQuestions,
+                            answered_questions:
+                                answeredQuestions,
 
-                        average_response_rate:
-                            averageResponseRate,
+                            average_response_rate:
+                                averageResponseRate,
 
-                        response_rate:
-                            averageResponseRate,
+                            response_rate:
+                                averageResponseRate,
 
-                        questions:
-                            questionAnalytics,
-                    } as SessionAnalytics;
+                            questions:
+                                questionAnalytics,
+                        };
 
-                    setAnalytics(
-                        calculatedAnalytics,
-                    );
-                } catch (error) {
+                    if (
+                        isMountedRef.current
+                    ) {
+                        setAnalytics(
+                            calculatedAnalytics,
+                        );
+                    }
+                } catch (caughtError) {
                     const normalizedError =
-                        error instanceof Error
-                            ? error
+                        caughtError instanceof Error
+                            ? caughtError
                             : new Error(
                                   "Unable to load analytics.",
                               );
 
-                    setError(
-                        normalizedError,
-                    );
+                    if (
+                        isMountedRef.current
+                    ) {
+                        setError(
+                            normalizedError,
+                        );
+                    }
                 } finally {
-                    setIsLoading(false);
-                    setIsUpdating(false);
+                    if (
+                        isMountedRef.current
+                    ) {
+                        setIsLoading(false);
+                        setIsUpdating(false);
+                    }
                 }
             },
             [
@@ -337,22 +472,20 @@ if (questionsResult.error) {
             ],
         );
 
+    /**
+     * Initial load.
+     */
     useEffect(() => {
-        if (!enabled) {
-            return;
-        }
-
         void fetchAnalytics(false);
-    }, [
-        enabled,
-        fetchAnalytics,
-    ]);
+    }, [fetchAnalytics]);
 
+    /**
+     * Background refresh.
+     */
     useEffect(() => {
         if (
             !enabled ||
             !sessionId ||
-            !refreshInterval ||
             refreshInterval <= 0
         ) {
             return;
@@ -375,17 +508,15 @@ if (questionsResult.error) {
         sessionId,
     ]);
 
-    const stableAnalytics =
-        useMemo(
-            () => analytics,
-            [analytics],
-        );
-
     return {
-        analytics: stableAnalytics,
+        analytics,
+
         isLoading,
+
         isUpdating,
+
         error,
+
         refetch: () =>
             fetchAnalytics(false),
     };

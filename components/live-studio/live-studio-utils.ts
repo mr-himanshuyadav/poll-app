@@ -7,32 +7,37 @@ import type {
 
 export function formatPercentage(
     value: number | null | undefined,
+    maximumFractionDigits = 0,
 ): string {
+    const numericValue =
+        Number(value ?? 0);
+
     if (
-        value === null ||
-        value === undefined ||
-        Number.isNaN(value)
+        !Number.isFinite(
+            numericValue,
+        )
     ) {
         return "0%";
     }
 
-    return `${Math.round(value)}%`;
+    return `${numericValue.toFixed(
+        maximumFractionDigits,
+    )}%`;
 }
 
-export function formatDurationMs(
-    value: number | null | undefined,
+export function formatResponseTime(
+    value:
+        | number
+        | null
+        | undefined,
 ): string {
     if (
         value === null ||
         value === undefined ||
-        Number.isNaN(value) ||
+        !Number.isFinite(value) ||
         value < 0
     ) {
         return "—";
-    }
-
-    if (value < 1000) {
-        return `${Math.round(value)}ms`;
     }
 
     const seconds = value / 1000;
@@ -43,17 +48,22 @@ export function formatDurationMs(
         )}s`;
     }
 
-    const minutes = Math.floor(seconds / 60);
+    const minutes =
+        Math.floor(seconds / 60);
 
-    const remainingSeconds = Math.round(
-        seconds % 60,
-    );
+    const remainingSeconds =
+        Math.round(
+            seconds % 60,
+        );
 
     return `${minutes}m ${remainingSeconds}s`;
 }
 
 export function formatRelativeTime(
-    value: string | null | undefined,
+    value:
+        | string
+        | null
+        | undefined,
 ): string {
     if (!value) {
         return "—";
@@ -61,20 +71,23 @@ export function formatRelativeTime(
 
     const date = new Date(value);
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+        Number.isNaN(
+            date.getTime(),
+        )
+    ) {
         return "—";
     }
 
-    const now = Date.now();
-
     const difference = Math.max(
         0,
-        now - date.getTime(),
+        Date.now() - date.getTime(),
     );
 
-    const seconds = Math.floor(
-        difference / 1000,
-    );
+    const seconds =
+        Math.floor(
+            difference / 1000,
+        );
 
     if (seconds < 10) {
         return "just now";
@@ -84,25 +97,31 @@ export function formatRelativeTime(
         return `${seconds}s ago`;
     }
 
-    const minutes = Math.floor(seconds / 60);
+    const minutes =
+        Math.floor(seconds / 60);
 
     if (minutes < 60) {
         return `${minutes}m ago`;
     }
 
-    const hours = Math.floor(minutes / 60);
+    const hours =
+        Math.floor(minutes / 60);
 
     if (hours < 24) {
         return `${hours}h ago`;
     }
 
-    const days = Math.floor(hours / 24);
+    const days =
+        Math.floor(hours / 24);
 
     return `${days}d ago`;
 }
 
 export function getQuestionPrompt(
-    question: SessionQuestion | null | undefined,
+    question:
+        | SessionQuestion
+        | null
+        | undefined,
 ): string {
     if (!question) {
         return "";
@@ -110,19 +129,22 @@ export function getQuestionPrompt(
 
     return (
         question.text ??
-"Untitled question"
+        "Untitled question"
     );
 }
 
 export function getQuestionTypeLabel(
-    question: SessionQuestion | null | undefined,
+    question:
+        | SessionQuestion
+        | null
+        | undefined,
 ): string {
     if (!question) {
         return "Question";
     }
 
     const type =
-    question.type ?? "";
+        question.type ?? "";
 
     switch (type) {
         case "multiple_choice":
@@ -140,7 +162,9 @@ export function getQuestionTypeLabel(
                 .split("_")
                 .map(
                     (word) =>
-                        word.charAt(0).toUpperCase() +
+                        word
+                            .charAt(0)
+                            .toUpperCase() +
                         word.slice(1),
                 )
                 .join(" ");
@@ -148,7 +172,10 @@ export function getQuestionTypeLabel(
 }
 
 export function getQuestionStatusLabel(
-    status: QuestionStatus | null | undefined,
+    status:
+        | QuestionStatus
+        | null
+        | undefined,
 ): string {
     switch (status) {
         case "active":
@@ -169,7 +196,10 @@ export function getQuestionStatusLabel(
 }
 
 export function getQuestionStatusClassName(
-    status: QuestionStatus | null | undefined,
+    status:
+        | QuestionStatus
+        | null
+        | undefined,
 ): string {
     switch (status) {
         case "active":
@@ -188,7 +218,10 @@ export function getQuestionStatusClassName(
 }
 
 export function getSessionStatusLabel(
-    status: SessionStatus | null | undefined,
+    status:
+        | SessionStatus
+        | null
+        | undefined,
 ): string {
     switch (status) {
         case "live":
@@ -209,7 +242,10 @@ export function getSessionStatusLabel(
 }
 
 export function getSessionStatusClassName(
-    status: SessionStatus | null | undefined,
+    status:
+        | SessionStatus
+        | null
+        | undefined,
 ): string {
     switch (status) {
         case "live":
@@ -228,13 +264,16 @@ export function getSessionStatusClassName(
 }
 
 export function getResultsModeLabel(
-    mode: ResultsMode | null | undefined,
+    mode:
+        | ResultsMode
+        | null
+        | undefined,
 ): string {
     switch (mode) {
         case "live":
             return "Live Results";
 
-        case "on_command":      
+        case "on_command":
             return "Reveal Manually";
 
         case "hidden":
@@ -246,20 +285,23 @@ export function getResultsModeLabel(
 }
 
 export function getResultsModeDescription(
-    mode: ResultsMode | null | undefined,
+    mode:
+        | ResultsMode
+        | null
+        | undefined,
 ): string {
     switch (mode) {
         case "live":
-            return "Students see results immediately.";
+            return "Participants see results immediately.";
 
         case "on_command":
-            return "You decide when students see results.";
+            return "You decide when participants see results.";
 
         case "hidden":
-            return "Results remain hidden from students.";
+            return "Results remain hidden from participants.";
 
         default:
-            return "You decide when students see results.";
+            return "You decide when participants see results.";
     }
 }
 
@@ -284,9 +326,18 @@ export function getQuestionPosition(
     question: SessionQuestion,
     questions: SessionQuestion[],
 ): number {
-    const index = questions.findIndex(
-        (item) => item.id === question.id,
-    );
+    const sortedQuestions =
+        [...questions].sort(
+            (a, b) =>
+                (a.position ?? 0) -
+                (b.position ?? 0),
+        );
+
+    const index =
+        sortedQuestions.findIndex(
+            (item) =>
+                item.id === question.id,
+        );
 
     return index >= 0
         ? index + 1
@@ -295,23 +346,27 @@ export function getQuestionPosition(
 
 export function getNextQuestion(
     questions: SessionQuestion[],
-    activeQuestion: SessionQuestion | null,
+    activeQuestion:
+        | SessionQuestion
+        | null,
 ): SessionQuestion | null {
     if (questions.length === 0) {
         return null;
     }
 
-    const sortedQuestions = [...questions].sort(
-        (a, b) =>
-            (a.position ?? 0) -
-            (b.position ?? 0),
-    );
+    const sortedQuestions =
+        [...questions].sort(
+            (a, b) =>
+                (a.position ?? 0) -
+                (b.position ?? 0),
+        );
 
     if (!activeQuestion) {
         return (
             sortedQuestions.find(
                 (question) =>
-                    question.status !== "closed",
+                    question.status !==
+                    "closed",
             ) ?? null
         );
     }
@@ -319,7 +374,8 @@ export function getNextQuestion(
     const activeIndex =
         sortedQuestions.findIndex(
             (question) =>
-                question.id === activeQuestion.id,
+                question.id ===
+                activeQuestion.id,
         );
 
     if (activeIndex < 0) {
@@ -331,14 +387,17 @@ export function getNextQuestion(
             .slice(activeIndex + 1)
             .find(
                 (question) =>
-                    question.status !== "closed",
+                    question.status !==
+                    "closed",
             ) ?? null
     );
 }
 
 export function getPreviousQuestion(
     questions: SessionQuestion[],
-    activeQuestion: SessionQuestion | null,
+    activeQuestion:
+        | SessionQuestion
+        | null,
 ): SessionQuestion | null {
     if (
         !activeQuestion ||
@@ -347,16 +406,18 @@ export function getPreviousQuestion(
         return null;
     }
 
-    const sortedQuestions = [...questions].sort(
-        (a, b) =>
-            (a.position ?? 0) -
-            (b.position ?? 0),
-    );
+    const sortedQuestions =
+        [...questions].sort(
+            (a, b) =>
+                (a.position ?? 0) -
+                (b.position ?? 0),
+        );
 
     const activeIndex =
         sortedQuestions.findIndex(
             (question) =>
-                question.id === activeQuestion.id,
+                question.id ===
+                activeQuestion.id,
         );
 
     if (activeIndex <= 0) {
@@ -369,9 +430,12 @@ export function getPreviousQuestion(
             .reverse()
             .find(
                 (question) =>
-                    question.status === "closed" ||
-                    question.status === "queued" ||
-                    question.status === "draft",
+                    question.status ===
+                        "closed" ||
+                    question.status ===
+                        "queued" ||
+                    question.status ===
+                        "draft",
             ) ?? null
     );
 }
@@ -385,7 +449,10 @@ export function getQuestionOptionLabel(
 }
 
 export function getInitials(
-    value: string | null | undefined,
+    value:
+        | string
+        | null
+        | undefined,
 ): string {
     if (!value) {
         return "?";

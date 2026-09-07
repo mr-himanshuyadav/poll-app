@@ -1,23 +1,31 @@
 "use client";
 
-import { BarChart3, Users } from "lucide-react";
+import {
+    BarChart3,
+    Users,
+} from "lucide-react";
 
 import type {
     SessionAnalytics,
     SessionQuestion,
 } from "./live-studio-types";
 
-import { AnalyticsOverview } from "./analytics-overview";
-import { QuestionAnalytics } from "./question-analytics";
+import {
+    AnalyticsOverview,
+} from "./analytics-overview";
+
+import {
+    QuestionAnalytics,
+} from "./question-analytics";
 
 interface AnalyticsWorkspaceProps {
     analytics: SessionAnalytics | null;
-
+    
     questions: SessionQuestion[];
-
-    isLoading?: boolean;
-
-    isUpdating?: boolean;
+    
+    isLoading ? : boolean;
+    
+    isUpdating ? : boolean;
 }
 
 export function AnalyticsWorkspace({
@@ -26,10 +34,15 @@ export function AnalyticsWorkspace({
     isLoading = false,
     isUpdating = false,
 }: AnalyticsWorkspaceProps) {
-    const totalQuestions = questions.length;
-
+    const totalQuestions =
+        questions.length;
+    
+    const totalParticipants =
+        analytics?.total_participants ??
+        0;
+    
     return (
-        <div className="mx-auto w-full max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 lg:px-8 md:pb-8">
+        <div className="mx-auto w-full max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 md:pb-8 lg:px-8">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
@@ -41,8 +54,10 @@ export function AnalyticsWorkspace({
                     </h1>
 
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Understand participation, responses and
-                        question performance across your live session.
+                        Understand participation,
+                        responses and question
+                        performance across your
+                        live session.
                     </p>
                 </div>
 
@@ -59,7 +74,9 @@ export function AnalyticsWorkspace({
                                 </p>
 
                                 <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                                    {analytics?.total_participants ?? 0}
+                                    {
+                                        totalParticipants
+                                    }
                                 </p>
                             </div>
                         </div>
@@ -77,7 +94,9 @@ export function AnalyticsWorkspace({
                                 </p>
 
                                 <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                                    {totalQuestions}
+                                    {
+                                        totalQuestions
+                                    }
                                 </p>
                             </div>
                         </div>
