@@ -77,21 +77,23 @@ export function useSessionResponses({
 
             try {
                 const { data, error } =
-                    await supabase
-                        .from(
-                            "responses",
-                        )
-                        .select("*")
-                        .eq(
-                            "quiz_id",
-                            sessionId,
-                        )
-                        .order(
-                            "created_at",
-                            {
-                                ascending: false,
-                            },
-                        );
+    await supabase
+        .from(
+            "responses",
+        )
+        .select(
+            "id, quiz_id, question_id, participant_id, answer, submitted_at, updated_at, response_time_ms",
+        )
+        .eq(
+            "quiz_id",
+            sessionId,
+        )
+        .order(
+            "submitted_at",
+            {
+                ascending: false,
+            },
+        );
 
                 if (error) {
                     throw error;
