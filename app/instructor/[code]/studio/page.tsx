@@ -620,25 +620,19 @@ export default function LiveStudioPage() {
     return (
         <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
             <LiveStudioHeader
-                session={session}
-                activeQuestion={
-                    activeQuestion
-                }
-                totalParticipants={
-                    totalParticipants
-                }
-                onlineParticipants={
-                    onlineParticipants
-                }
-                onBack={handleBack}
-                onOpenSettings={() =>
-                    setSettingsOpen(true)
-                }
-                onRefresh={() => {
-                    void handleRefreshAll();
-                }}
-            />
-
+    session={session}
+    participantCount={totalParticipants}
+    activeParticipantCount={onlineParticipants}
+    onBack={handleBack}
+    onOpenProjector={() => {
+        router.push(
+            `/instructor/${session.join_code}/projector`,
+        );
+    }}
+    onOpenSettings={() =>
+        setSettingsOpen(true)
+    }
+/>
             <LiveStudioTabs
     activeTab={activeTab}
     onTabChange={handleTabChange}
@@ -703,91 +697,90 @@ export default function LiveStudioPage() {
 
                 {activeTab === "live" ? (
                     <LiveQuestionWorkspace
-                        session={session}
-                        questions={questions}
-                        activeQuestion={
-                            activeQuestion
-                        }
-                        responses={
-                            activeQuestionResponses
-                        }
-                        totalResponses={
-                            totalResponses
-                        }
-                        totalParticipants={
-                            totalParticipants
-                        }
-                        isLoading={
-                            areQuestionsLoading ||
-                            areResponsesLoading
-                        }
-                        onSetActiveQuestion={
-                            handleSetActiveQuestion
-                        }
-                        onSelectQuestion={
-                            handleSelectQuestion
-                        }
-                    />
+    sessionId={session.id}
+    questions={questions}
+    activeQuestion={activeQuestion}
+    responses={responses}
+    participants={participants}
+    questionAnalytics={null}
+    isUpdating={
+        areQuestionsSaving
+    }
+    onActivateQuestion={async (
+        question,
+    ) => {
+        await handleSetActiveQuestion(
+            question.id,
+        );
+    }}
+    onCloseQuestion={async () => {
+        await handleSetActiveQuestion(
+            null,
+        );
+    }}
+/>
                 ) : null}
 
                 {activeTab ===
                 "questions" ? (
                     <QuestionsWorkspace
-                        questions={questions}
-                        selectedQuestion={
-                            selectedQuestion
-                        }
-                        activeQuestionId={
-                            session.active_question_id ??
-                            null
-                        }
-                        isLoading={
-                            areQuestionsLoading
-                        }
-                        isSaving={
-                            areQuestionsSaving
-                        }
-                        onSelectQuestion={(
-                            question,
-                        ) =>
-                            setSelectedQuestionId(
-                                question.id,
-                            )
-                        }
-                        onCreateQuestion={
-                            handleCreateQuestion
-                        }
-                        onUpdateQuestion={
-                            handleUpdateQuestion
-                        }
-                        onDeleteQuestion={
-                            handleDeleteQuestion
-                        }
-                        onReorderQuestions={
-                            handleReorderQuestions
-                        }
-                        onSetActiveQuestion={
-                            handleSetActiveQuestion
-                        }
-                    />
+    sessionId={session.id}
+    questions={questions}
+    activeQuestion={activeQuestion}
+    isSaving={
+        areQuestionsSaving
+    }
+    isUpdating={
+        areQuestionsSaving
+    }
+    onCreateQuestion={
+        async (question) => {
+            await handleCreateQuestion(
+                question,
+            );
+        }
+    }
+    onUpdateQuestion={
+        async (
+            questionId,
+            updates,
+        ) => {
+            await handleUpdateQuestion(
+                questionId,
+                updates,
+            );
+        }
+    }
+    onDeleteQuestion={
+        async (question) => {
+            await handleDeleteQuestion(
+                question.id,
+            );
+        }
+    }
+    onActivateQuestion={
+        async (question) => {
+            await handleSetActiveQuestion(
+                question.id,
+            );
+        }
+    }
+    onReorderQuestions={
+        handleReorderQuestions
+    }
+/>
                 ) : null}
 
                 {activeTab ===
                 "participants" ? (
                     <ParticipantsWorkspace
-                        participants={
-                            participants
-                        }
-                        totalParticipants={
-                            totalParticipants
-                        }
-                        onlineParticipants={
-                            onlineParticipants
-                        }
-                        isLoading={
-                            areParticipantsLoading
-                        }
-                    />
+    participants={
+        participants
+    }
+    isUpdating={
+        areParticipantsLoading
+    }
+/>
                 ) : null}
 
                 {activeTab ===

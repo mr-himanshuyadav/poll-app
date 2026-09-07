@@ -88,12 +88,7 @@ export function QuestionsWorkspace({
         return sortedQuestions.filter(
             (question) => {
                 const content =
-                    (
-                        question.question ??
-                        question.prompt ??
-                        question.title ??
-                        ""
-                    ).toLowerCase();
+    question.text.toLowerCase();
 
                 return content.includes(query);
             },

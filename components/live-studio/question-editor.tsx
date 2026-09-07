@@ -58,7 +58,6 @@ function getInitialFormState(
     question?: SessionQuestion | null,
 ): QuestionFormState {
     const questionType =
-        const questionType =
     question?.type ??
     "multiple_choice";
 

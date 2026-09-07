@@ -175,7 +175,7 @@ export function useSessionParticipants({
                         event: "UPDATE",
                         schema: "public",
                         table: "participants",
-                        filter: `session_id=eq.${sessionId}`,
+                        filter: `quiz_id=eq.${sessionId}`,
                     },
                     (payload) => {
                         const updatedParticipant =
@@ -203,7 +203,7 @@ export function useSessionParticipants({
                         event: "DELETE",
                         schema: "public",
                         table: "participants",
-                        filter: `session_id=eq.${sessionId}`,
+                        filter: `quiz_id=eq.${sessionId}`,
                     },
                     (payload) => {
                         const deletedParticipant =
@@ -241,10 +241,25 @@ export function useSessionParticipants({
         useMemo(
             () =>
                 participants.filter(
-                    (participant) =>
-                        participant.is_online ===
-                        true,
-                ).length,
+    (participant) => {
+        if (participant.left_at) {
+            return false;
+        }
+
+        const lastSeen = new Date(
+            participant.last_seen_at,
+        ).getTime();
+
+        if (Number.isNaN(lastSeen)) {
+            return false;
+        }
+
+        return (
+            Date.now() - lastSeen <=
+            5 * 60 * 1000
+        );
+    },
+).length
             [participants],
         );
 

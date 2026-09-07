@@ -75,8 +75,7 @@ export function LiveQuestionWorkspace({
             activeQuestionResponses.map(
                 (response) =>
                     response.participant_id ??
-                    response.user_id ??
-                    response.id,
+response.id
             ),
         ).size;
 
