@@ -1,176 +1,103 @@
 "use client";
 
-import {
-    Clock3,
-    Users,
-} from "lucide-react";
+import { BarChart3, Users } from "lucide-react";
 
 import type {
-    SessionParticipant,
+    SessionAnalytics,
+    SessionQuestion,
 } from "./live-studio-types";
 
-import {
-    formatRelativeTime,
-    getInitials,
-} from "./live-studio-utils";
+import { AnalyticsOverview } from "./analytics-overview";
+import { QuestionAnalytics } from "./question-analytics";
 
-interface ParticipantListProps {
-    participants: SessionParticipant[];
+interface AnalyticsWorkspaceProps {
+    analytics: SessionAnalytics | null;
+
+    questions: SessionQuestion[];
+
+    isLoading?: boolean;
 
     isUpdating?: boolean;
 }
 
-function isParticipantActive(
-    participant: SessionParticipant,
-): boolean {
-    if (!participant.last_active_at) {
-        return false;
-    }
-
-    const lastActive =
-        new Date(
-            participant.last_active_at,
-        ).getTime();
-
-    if (Number.isNaN(lastActive)) {
-        return false;
-    }
-
-    const threshold =
-        5 * 60 * 1000;
+export function AnalyticsWorkspace({
+    analytics,
+    questions,
+    isLoading = false,
+    isUpdating = false,
+}: AnalyticsWorkspaceProps) {
+    const totalQuestions = questions.length;
 
     return (
-        Date.now() - lastActive <= threshold
-    );
-}
+        <div className="mx-auto w-full max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 lg:px-8 md:pb-8">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                        Session Insights
+                    </p>
 
-export function ParticipantList({
-    participants,
-}: ParticipantListProps) {
-    if (participants.length === 0) {
-        return null;
-    }
+                    <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50">
+                        Analytics
+                    </h1>
 
-    return (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:px-6">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
-                        <Users className="h-5 w-5" />
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        Understand participation, responses and
+                        question performance across your live session.
+                    </p>
+                </div>
+
+                <div className="flex gap-3">
+                    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
+                                <Users className="h-4 w-4" />
+                            </div>
+
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                    Participants
+                                </p>
+
+                                <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                                    {analytics?.total_participants ?? 0}
+                                </p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div>
-                        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                            Participant List
-                        </h2>
+                    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-400">
+                                <BarChart3 className="h-4 w-4" />
+                            </div>
 
-                        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                            {
-                                participants.length
-                            }{" "}
-                            total participants
-                        </p>
+                            <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                    Questions
+                                </p>
+
+                                <p className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                                    {totalQuestions}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {participants.map(
-                    (participant, index) => {
-                        const name =
-                            participant.display_name ??
-                            participant.name ??
-                            `Participant ${
-                                index + 1
-                            }`;
+            <div className="space-y-6">
+                <AnalyticsOverview
+                    analytics={analytics}
+                    isLoading={isLoading}
+                    isUpdating={isUpdating}
+                />
 
-                        const isActive =
-                            isParticipantActive(
-                                participant,
-                            );
-
-                        return (
-                            <div
-                                key={
-                                    participant.id
-                                }
-                                className="flex items-center gap-4 px-5 py-4 transition hover:bg-slate-50/70 dark:hover:bg-slate-900/40 sm:px-6"
-                            >
-                                <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                                    {getInitials(
-                                        name,
-                                    )}
-
-                                    <span
-                                        className={[
-                                            "absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white dark:border-slate-950",
-                                            isActive
-                                                ? "bg-emerald-500"
-                                                : "bg-slate-400",
-                                        ].join(
-                                            " ",
-                                        )}
-                                    />
-                                </div>
-
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                        {name}
-                                    </p>
-
-                                    <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
-                                        Joined{" "}
-                                        {formatRelativeTime(
-                                            participant.joined_at ??
-                                                participant.created_at,
-                                        )}
-                                    </p>
-                                </div>
-
-                                <div className="hidden items-center gap-2 text-xs text-slate-500 sm:flex dark:text-slate-400">
-                                    <Clock3 className="h-3.5 w-3.5" />
-
-                                    <span>
-                                        {participant.last_active_at
-                                            ? formatRelativeTime(
-                                                  participant.last_active_at,
-                                              )
-                                            : "No activity"}
-                                    </span>
-                                </div>
-
-                                <div className="flex shrink-0 items-center gap-2">
-                                    <span
-                                        className={[
-                                            "h-2 w-2 rounded-full",
-                                            isActive
-                                                ? "bg-emerald-500"
-                                                : "bg-slate-400",
-                                        ].join(
-                                            " ",
-                                        )}
-                                    />
-
-                                    <span
-                                        className={[
-                                            "hidden text-xs font-semibold sm:inline",
-                                            isActive
-                                                ? "text-emerald-600 dark:text-emerald-400"
-                                                : "text-slate-500 dark:text-slate-400",
-                                        ].join(
-                                            " ",
-                                        )}
-                                    >
-                                        {isActive
-                                            ? "Active"
-                                            : "Inactive"}
-                                    </span>
-                                </div>
-                            </div>
-                        );
-                    },
-                )}
+                <QuestionAnalytics
+                    analytics={analytics}
+                    questions={questions}
+                    isLoading={isLoading}
+                />
             </div>
-        </section>
+        </div>
     );
 }
