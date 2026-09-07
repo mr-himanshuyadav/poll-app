@@ -99,8 +99,8 @@ export function useSessionAnalytics({
                                 "responses",
                             )
                             .select(
-                                "id, question_id",
-                            )
+    "id, question_id, participant_id, answer, response_time_ms",
+)
                             .eq(
                                 "quiz_id",
                                 sessionId,
@@ -174,38 +174,95 @@ export function useSessionAnalytics({
                     );
 
                     const questionAnalytics =
-                        questions.map(
-                            (
-                                question: any,
-                            ) => {
-                                const responseCount =
-                                    responseMap.get(
-                                        question.id,
-                                    ) ?? 0;
+    questions.map(
+        (
+            question: any,
+        ) => {
+            const questionResponses =
+                responses.filter(
+                    (response: any) =>
+                        response.question_id ===
+                        question.id,
+                );
 
-                                const responseRate =
-                                    totalParticipants >
-                                    0
-                                        ? (responseCount /
-                                              totalParticipants) *
-                                          100
-                                        : 0;
+            const responseCount =
+                questionResponses.length;
 
-                                return {
-                                    question_id:
-                                        question.id,
-                                    total_responses:
-                                        responseCount,
-                                    response_count:
-                                        responseCount,
-                                    response_rate:
-                                        responseRate,
-                                    participation_rate:
-                                        responseRate,
-                                };
-                            },
+            const uniqueResponders =
+                new Set(
+                    questionResponses.map(
+                        (response: any) =>
+                            response.participant_id,
+                    ),
+                ).size;
+
+            const responseRate =
+                totalParticipants > 0
+                    ? (uniqueResponders /
+                          totalParticipants) *
+                      100
+                    : 0;
+
+            const distributionMap =
+                new Map<
+                    string,
+                    number
+                >();
+
+            questionResponses.forEach(
+                (response: any) => {
+                    const answer =
+                        String(
+                            response.answer ??
+                                "",
                         );
 
+                    distributionMap.set(
+                        answer,
+                        (
+                            distributionMap.get(
+                                answer,
+                            ) ?? 0
+                        ) + 1,
+                    );
+                },
+            );
+
+            const distribution =
+                Array.from(
+                    distributionMap.entries(),
+                ).map(
+                    (
+                        [answer, count],
+                    ) => ({
+                        id: answer,
+                        label: answer,
+                        count,
+                        percentage:
+                            responseCount >
+                            0
+                                ? (count /
+                                      responseCount) *
+                                  100
+                                : 0,
+                    }),
+                );
+
+            return {
+                question_id:
+                    question.id,
+                total_responses:
+                    responseCount,
+                response_count:
+                    uniqueResponders,
+                response_rate:
+                    responseRate,
+                participation_rate:
+                    responseRate,
+                distribution,
+            };
+        },
+    );
                     const answeredQuestions =
                         questionAnalytics.filter(
                             (

@@ -702,7 +702,70 @@ export default function LiveStudioPage() {
     activeQuestion={activeQuestion}
     responses={responses}
     participants={participants}
-    questionAnalytics={null}
+    questionAnalytics={
+    analytics?.questions?.find(
+        (item) =>
+            item.question_id ===
+            activeQuestion?.id,
+    )
+        ? {
+              questionId:
+                  activeQuestion?.id ?? "",
+              totalResponses:
+                  analytics.questions.find(
+                      (item) =>
+                          item.question_id ===
+                          activeQuestion?.id,
+                  )?.total_responses ?? 0,
+              uniqueResponders:
+                  analytics.questions.find(
+                      (item) =>
+                          item.question_id ===
+                          activeQuestion?.id,
+                  )?.response_count ?? 0,
+              participationRate:
+                  analytics.questions.find(
+                      (item) =>
+                          item.question_id ===
+                          activeQuestion?.id,
+                  )?.response_rate ?? 0,
+              averageResponseTimeMs:
+                  null,
+              medianResponseTimeMs:
+                  null,
+              dominantOption:
+                  null,
+              dominantOptionPercentage:
+                  0,
+              optionDistribution:
+                  analytics.questions.find(
+                      (item) =>
+                          item.question_id ===
+                          activeQuestion?.id,
+                  )?.distribution?.map(
+                      (item, index) => ({
+                          key:
+                              item.id ??
+                              `${index}`,
+                          label:
+                              item.label ??
+                              item.option ??
+                              item.text ??
+                              `Option ${
+                                  index + 1
+                              }`,
+                          count:
+                              item.count ??
+                              item.responses ??
+                              0,
+                          percentage:
+                              item.percentage ??
+                              0,
+                      }),
+                  ) ?? [],
+          }
+        : null
+}
     isUpdating={
         areQuestionsSaving
     }
