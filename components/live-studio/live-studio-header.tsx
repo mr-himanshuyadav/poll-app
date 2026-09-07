@@ -88,7 +88,8 @@ function SessionStatusIndicator({
                 <Pause className="h-3.5 w-3.5" />
             ) : null}
 
-            {status === "completed" ? (
+            {status ===
+            "completed" ? (
                 <Square className="h-3.5 w-3.5" />
             ) : null}
 
@@ -114,22 +115,20 @@ export function LiveStudioHeader({
 }: LiveStudioHeaderProps) {
     const sessionName =
         session.name ??
-        session.title ??
         template?.title ??
-        template?.name ??
         "Live Session";
 
     const isPaused =
         session.status === "paused";
 
     const isCompleted =
-        session.status === "completed";
+        session.status ===
+        "completed";
 
     return (
         <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
             <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
                 <div className="flex flex-col gap-5">
-                    {/* Top Row */}
                     <div className="flex items-center justify-between gap-3">
                         <button
                             type="button"
@@ -150,33 +149,36 @@ export function LiveStudioHeader({
                                 }
                             />
 
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="icon"
-                                onClick={
-                                    onOpenSettings
-                                }
-                                disabled={
-                                    isUpdating
-                                }
-                                className="hidden sm:inline-flex"
-                            >
-                                <MoreHorizontal className="h-4 w-4" />
+                            {onOpenSettings ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={
+                                        onOpenSettings
+                                    }
+                                    disabled={
+                                        isUpdating
+                                    }
+                                    className="hidden sm:inline-flex"
+                                >
+                                    <MoreHorizontal className="h-4 w-4" />
 
-                                <span className="sr-only">
-                                    Session options
-                                </span>
-                            </Button>
+                                    <span className="sr-only">
+                                        Session options
+                                    </span>
+                                </Button>
+                            ) : null}
                         </div>
                     </div>
 
-                    {/* Main Session Information */}
                     <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                         <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                                 <h1 className="truncate text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl">
-                                    {sessionName}
+                                    {
+                                        sessionName
+                                    }
                                 </h1>
 
                                 <div className="sm:hidden">
@@ -188,11 +190,11 @@ export function LiveStudioHeader({
                                 </div>
                             </div>
 
-                            {template?.title ||
-                            template?.name ? (
+                            {template?.title ? (
                                 <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                                    {template.title ??
-                                        template.name}
+                                    {
+                                        template.title
+                                    }
                                 </p>
                             ) : null}
 
@@ -254,7 +256,6 @@ export function LiveStudioHeader({
                             </div>
                         </div>
 
-                        {/* Actions */}
                         <div className="flex flex-wrap items-center gap-2">
                             <Button
                                 type="button"
@@ -349,7 +350,6 @@ export function LiveStudioHeader({
                         </div>
                     </div>
 
-                    {/* Compact Mobile Student Access */}
                     <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 sm:hidden dark:border-slate-800 dark:bg-slate-900/50">
                         <div className="min-w-0">
                             <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
@@ -357,8 +357,8 @@ export function LiveStudioHeader({
                             </p>
 
                             <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
-                                Share the join code with
-                                your students
+                                Share the join code
+                                with your students
                             </p>
                         </div>
 

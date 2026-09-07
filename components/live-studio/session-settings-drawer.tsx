@@ -13,9 +13,17 @@ import {
     X,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+    Button,
+} from "@/components/ui/button";
+
+import {
+    Input,
+} from "@/components/ui/input";
+
+import {
+    Label,
+} from "@/components/ui/label";
 
 import type {
     LiveSession,
@@ -42,10 +50,7 @@ export function SessionSettingsDrawer({
     onClose,
     onSave,
 }: SessionSettingsDrawerProps) {
-    const [title, setTitle] =
-        useState("");
-
-    const [description, setDescription] =
+    const [name, setName] =
         useState("");
 
     const [copied, setCopied] =
@@ -53,17 +58,13 @@ export function SessionSettingsDrawer({
 
     useEffect(() => {
         if (!session) {
+            setName("");
+
             return;
         }
 
-        setTitle(
-            session.title ??
-                session.name ??
-                "",
-        );
-
-        setDescription(
-            session.description ?? "",
+        setName(
+            session.name ?? "",
         );
     }, [session]);
 
@@ -78,7 +79,7 @@ export function SessionSettingsDrawer({
     }
 
     const sessionCode =
-    session?.join_code ?? "";
+        session?.join_code ?? "";
 
     const participantUrl =
         typeof window !== "undefined" &&
@@ -86,33 +87,40 @@ export function SessionSettingsDrawer({
             ? `${window.location.origin}/session/${sessionCode}`
             : "";
 
-    const handleCopyLink = async () => {
-        if (!participantUrl) {
-            return;
-        }
+    const handleCopyLink =
+        async () => {
+            if (!participantUrl) {
+                return;
+            }
 
-        try {
-            await navigator.clipboard.writeText(
-                participantUrl,
-            );
+            try {
+                await navigator.clipboard.writeText(
+                    participantUrl,
+                );
 
-            setCopied(true);
+                setCopied(true);
 
-            window.setTimeout(() => {
+                window.setTimeout(() => {
+                    setCopied(false);
+                }, 2000);
+            } catch {
                 setCopied(false);
-            }, 2000);
-        } catch {
-            setCopied(false);
-        }
-    };
+            }
+        };
 
-    const handleSave = async () => {
-        await onSave({
-            title: title.trim(),
-            description:
-                description.trim(),
-        });
-    };
+    const handleSave =
+        async () => {
+            const trimmedName =
+                name.trim();
+
+            if (!trimmedName) {
+                return;
+            }
+
+            await onSave({
+                name: trimmedName,
+            });
+        };
 
     return (
         <>
@@ -156,45 +164,31 @@ export function SessionSettingsDrawer({
                 <div className="flex-1 space-y-7 overflow-y-auto p-5">
                     <div>
                         <Label
-                            htmlFor="session-title"
+                            htmlFor="session-name"
                             className="text-sm font-bold"
                         >
-                            Session Title
+                            Session Name
                         </Label>
 
                         <Input
-                            id="session-title"
-                            value={title}
+                            id="session-name"
+                            value={name}
                             onChange={(event) =>
-                                setTitle(
-                                    event.target.value,
+                                setName(
+                                    event.target
+                                        .value,
                                 )
                             }
-                            placeholder="Enter session title"
+                            placeholder="Enter session name"
                             className="mt-2"
                         />
-                    </div>
 
-                    <div>
-                        <Label
-                            htmlFor="session-description"
-                            className="text-sm font-bold"
-                        >
-                            Description
-                        </Label>
-
-                        <textarea
-                            id="session-description"
-                            value={description}
-                            onChange={(event) =>
-                                setDescription(
-                                    event.target.value,
-                                )
-                            }
-                            placeholder="Describe this session..."
-                            rows={5}
-                            className="mt-2 flex w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-indigo-700 dark:focus:ring-indigo-950"
-                        />
+                        <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            This name is used to
+                            identify the session
+                            inside the instructor
+                            workspace.
+                        </p>
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
@@ -203,13 +197,17 @@ export function SessionSettingsDrawer({
                         </p>
 
                         <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                            Share this link with participants so
-                            they can join the live session.
+                            Share this link with
+                            participants so they
+                            can join the live
+                            session.
                         </p>
 
                         <div className="mt-4 flex gap-2">
                             <Input
-                                value={participantUrl}
+                                value={
+                                    participantUrl
+                                }
                                 readOnly
                                 className="min-w-0 bg-white text-xs dark:bg-slate-950"
                             />
@@ -228,7 +226,8 @@ export function SessionSettingsDrawer({
                                 <Copy className="h-4 w-4" />
 
                                 <span className="sr-only">
-                                    Copy participant link
+                                    Copy participant
+                                    link
                                 </span>
                             </Button>
 
@@ -248,7 +247,8 @@ export function SessionSettingsDrawer({
                                     <ExternalLink className="h-4 w-4" />
 
                                     <span className="sr-only">
-                                        Open participant link
+                                        Open participant
+                                        link
                                     </span>
                                 </Button>
                             ) : null}
@@ -256,7 +256,8 @@ export function SessionSettingsDrawer({
 
                         {copied ? (
                             <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                Link copied to clipboard.
+                                Link copied to
+                                clipboard.
                             </p>
                         ) : null}
                     </div>
@@ -288,7 +289,7 @@ export function SessionSettingsDrawer({
                         className="flex-1"
                         disabled={
                             isSaving ||
-                            !title.trim()
+                            !name.trim()
                         }
                         onClick={handleSave}
                     >

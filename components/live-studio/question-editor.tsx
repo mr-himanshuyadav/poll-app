@@ -45,6 +45,50 @@ interface QuestionEditorProps {
     onCancel?: () => void;
 }
 
+const QUESTION_TYPES: Array<{
+    value: QuestionType;
+    title: string;
+    description: string;
+}> = [
+    {
+        value: "multiple_choice",
+        title: "Multiple Choice",
+        description:
+            "Participants choose one option.",
+    },
+    {
+        value: "scale",
+        title: "Scale",
+        description:
+            "Participants select a value from a range.",
+    },
+];
+
+const RESULTS_MODES: Array<{
+    value: ResultsMode;
+    title: string;
+    description: string;
+}> = [
+    {
+        value: "live",
+        title: "Live",
+        description:
+            "Show results automatically.",
+    },
+    {
+        value: "on_command",
+        title: "Manual",
+        description:
+            "Reveal results when you are ready.",
+    },
+    {
+        value: "hidden",
+        title: "Hidden",
+        description:
+            "Keep results hidden from participants.",
+    },
+];
+
 function createOption(
     value = "",
 ): QuestionFormOption {
@@ -54,20 +98,55 @@ function createOption(
     };
 }
 
+function getNumberConfig(
+    value: unknown,
+    fallback: number,
+): number {
+    if (
+        typeof value === "number" &&
+        Number.isFinite(value)
+    ) {
+        return value;
+    }
+
+    if (
+        typeof value === "string"
+    ) {
+        const parsed =
+            Number(value);
+
+        if (
+            Number.isFinite(parsed)
+        ) {
+            return parsed;
+        }
+    }
+
+    return fallback;
+}
+
+function getStringConfig(
+    value: unknown,
+): string {
+    return typeof value === "string"
+        ? value
+        : "";
+}
+
 function getInitialFormState(
     question?: SessionQuestion | null,
 ): QuestionFormState {
     const questionType =
-    question?.type ??
-    "multiple_choice";
+        question?.type ??
+        "multiple_choice";
 
     const options =
-    question?.options &&
-    question.options.length > 0
-        ? question.options.map(
-              (option) =>
-                  createOption(option),
-          )
+        question?.options &&
+        question.options.length > 0
+            ? question.options.map(
+                  (option) =>
+                      createOption(option),
+              )
             : [
                   createOption(),
                   createOption(),
@@ -75,27 +154,37 @@ function getInitialFormState(
 
     return {
         question:
-    question?.text ?? "",
+            question?.text ?? "",
 
         questionType,
 
         options,
 
         scaleMin:
-            question?.scale_min ?? 1,
+            getNumberConfig(
+                question?.config?.min,
+                1,
+            ),
 
         scaleMax:
-            question?.scale_max ?? 5,
+            getNumberConfig(
+                question?.config?.max,
+                5,
+            ),
 
         scaleMinLabel:
-            question?.scale_min_label ?? "",
+            getStringConfig(
+                question?.config?.minLabel,
+            ),
 
         scaleMaxLabel:
-            question?.scale_max_label ?? "",
+            getStringConfig(
+                question?.config?.maxLabel,
+            ),
 
         resultsMode:
             question?.results_mode ??
-            "manual",
+            "on_command",
     };
 }
 
@@ -113,13 +202,19 @@ export function QuestionEditor({
             getInitialFormState(question),
         );
 
-    const [showDeleteConfirm, setShowDeleteConfirm] =
-        useState(false);
+    const [
+        showDeleteConfirm,
+        setShowDeleteConfirm,
+    ] = useState(false);
 
     useEffect(() => {
         setForm(
-            getInitialFormState(question),
+            getInitialFormState(
+                question,
+            ),
         );
+
+        setShowDeleteConfirm(false);
     }, [question?.id]);
 
     const isMultipleChoice =
@@ -127,34 +222,53 @@ export function QuestionEditor({
         "multiple_choice";
 
     const isScale =
-        form.questionType === "scale";
+        form.questionType ===
+        "scale";
+
+    const validOptions = useMemo(
+        () =>
+            form.options.filter(
+                (option) =>
+                    option.value.trim()
+                        .length > 0,
+            ),
+        [form.options],
+    );
 
     const isValid = useMemo(() => {
-        if (!form.question.trim()) {
+        if (
+            !form.question.trim()
+        ) {
             return false;
         }
 
         if (isMultipleChoice) {
-            const validOptions =
-                form.options.filter((option) =>
-                    option.value.trim(),
-                );
-
-            return validOptions.length >= 2;
+            return (
+                validOptions.length >= 2
+            );
         }
 
         if (isScale) {
             return (
+                Number.isFinite(
+                    form.scaleMin,
+                ) &&
+                Number.isFinite(
+                    form.scaleMax,
+                ) &&
                 form.scaleMin <
-                form.scaleMax
+                    form.scaleMax
             );
         }
 
         return true;
     }, [
-        form,
+        form.question,
+        form.scaleMax,
+        form.scaleMin,
         isMultipleChoice,
         isScale,
+        validOptions.length,
     ]);
 
     const updateForm = (
@@ -178,7 +292,9 @@ export function QuestionEditor({
     const handleRemoveOption = (
         optionId: string,
     ) => {
-        if (form.options.length <= 2) {
+        if (
+            form.options.length <= 2
+        ) {
             return;
         }
 
@@ -186,7 +302,8 @@ export function QuestionEditor({
             options:
                 form.options.filter(
                     (option) =>
-                        option.id !== optionId,
+                        option.id !==
+                        optionId,
                 ),
         });
     };
@@ -196,15 +313,33 @@ export function QuestionEditor({
         value: string,
     ) => {
         updateForm({
-            options: form.options.map(
-                (option) =>
-                    option.id === optionId
-                        ? {
-                              ...option,
-                              value,
-                          }
-                        : option,
-            ),
+            options:
+                form.options.map(
+                    (option) =>
+                        option.id ===
+                        optionId
+                            ? {
+                                  ...option,
+                                  value,
+                              }
+                            : option,
+                ),
+        });
+    };
+
+    const handleQuestionTypeChange = (
+        questionType: QuestionType,
+    ) => {
+        updateForm({
+            questionType,
+        });
+    };
+
+    const handleResultsModeChange = (
+        resultsMode: ResultsMode,
+    ) => {
+        updateForm({
+            resultsMode,
         });
     };
 
@@ -214,52 +349,54 @@ export function QuestionEditor({
         }
 
         const cleanOptions =
-    form.options
-        .filter(
-            (option) =>
-                option.value.trim(),
-        )
-        .map(
-            (option) =>
-                option.value.trim(),
-        );
+            validOptions.map(
+                (option) =>
+                    option.value.trim(),
+            );
+
+        const existingConfig =
+            question?.config ?? {};
 
         const payload: Partial<SessionQuestion> =
             {
-                session_id: sessionId,
+                session_id:
+                    sessionId,
 
                 text:
-    form.question.trim(),
+                    form.question.trim(),
 
-type:
-    form.questionType,
+                type:
+                    form.questionType,
 
                 options:
                     isMultipleChoice
                         ? cleanOptions
                         : [],
 
-                scale_min: isScale
-                    ? Number(
-                          form.scaleMin,
-                      )
-                    : null,
-
-                scale_max: isScale
-                    ? Number(
-                          form.scaleMax,
-                      )
-                    : null,
-
-                scale_min_label:
+                config:
                     isScale
-                        ? form.scaleMinLabel.trim()
-                        : null,
+                        ? {
+                              ...existingConfig,
 
-                scale_max_label:
-                    isScale
-                        ? form.scaleMaxLabel.trim()
-                        : null,
+                              min:
+                                  Number(
+                                      form.scaleMin,
+                                  ),
+
+                              max:
+                                  Number(
+                                      form.scaleMax,
+                                  ),
+
+                              minLabel:
+                                  form.scaleMinLabel.trim(),
+
+                              maxLabel:
+                                  form.scaleMaxLabel.trim(),
+                          }
+                        : {
+                              ...existingConfig,
+                          },
 
                 results_mode:
                     form.resultsMode,
@@ -379,61 +516,56 @@ type:
                     </Label>
 
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <button
-                            type="button"
-                            onClick={() =>
-                                updateForm({
-                                    questionType:
-                                        "multiple_choice",
-                                })
-                            }
-                            className={[
-                                "rounded-xl border p-4 text-left transition",
-                                isMultipleChoice
-                                    ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40"
-                                    : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
-                            ].join(" ")}
-                        >
-                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                                Multiple Choice
-                            </p>
+                        {QUESTION_TYPES.map(
+                            (
+                                typeOption,
+                            ) => {
+                                const isSelected =
+                                    form.questionType ===
+                                    typeOption.value;
 
-                            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                Participants choose
-                                one option from the
-                                available answers.
-                            </p>
-                        </button>
+                                return (
+                                    <button
+                                        key={
+                                            typeOption.value
+                                        }
+                                        type="button"
+                                        onClick={() =>
+                                            handleQuestionTypeChange(
+                                                typeOption.value,
+                                            )
+                                        }
+                                        className={[
+                                            "rounded-xl border p-4 text-left transition",
+                                            isSelected
+                                                ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40"
+                                                : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
+                                        ].join(
+                                            " ",
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            {typeOption.value ===
+                                            "scale" ? (
+                                                <BarChart3 className="h-4 w-4 text-indigo-500" />
+                                            ) : null}
 
-                        <button
-                            type="button"
-                            onClick={() =>
-                                updateForm({
-                                    questionType:
-                                        "scale",
-                                })
-                            }
-                            className={[
-                                "rounded-xl border p-4 text-left transition",
-                                isScale
-                                    ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40"
-                                    : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
-                            ].join(" ")}
-                        >
-                            <div className="flex items-center gap-2">
-                                <BarChart3 className="h-4 w-4 text-indigo-500" />
+                                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                                                {
+                                                    typeOption.title
+                                                }
+                                            </p>
+                                        </div>
 
-                                <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                                    Scale
-                                </p>
-                            </div>
-
-                            <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                Participants select a
-                                value from a numeric
-                                range.
-                            </p>
-                        </button>
+                                        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                                            {
+                                                typeOption.description
+                                            }
+                                        </p>
+                                    </button>
+                                );
+                            },
+                        )}
                     </div>
                 </div>
 
@@ -523,7 +655,8 @@ type:
                                             <Trash2 className="h-4 w-4 text-slate-400" />
 
                                             <span className="sr-only">
-                                                Remove option
+                                                Remove
+                                                option
                                             </span>
                                         </Button>
                                     </div>
@@ -665,65 +798,49 @@ type:
                     </Label>
 
                     <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                        {[
-                            {
-                                value: "live",
-                                title: "Live",
-                                description:
-                                    "Show results automatically.",
-                            },
-                            {
-                                value: "manual",
-                                title: "Manual",
-                                description:
-                                    "Reveal results when ready.",
-                            },
-                            {
-                                value: "hidden",
-                                title: "Hidden",
-                                description:
-                                    "Keep results instructor-only.",
-                            },
-                        ].map((modeOption) => {
-                            const isSelected =
-                                form.resultsMode ===
-                                modeOption.value;
+                        {RESULTS_MODES.map(
+                            (
+                                modeOption,
+                            ) => {
+                                const isSelected =
+                                    form.resultsMode ===
+                                    modeOption.value;
 
-                            return (
-                                <button
-                                    key={
-                                        modeOption.value
-                                    }
-                                    type="button"
-                                    onClick={() =>
-                                        updateForm({
-                                            resultsMode:
-                                                modeOption.value as ResultsMode,
-                                        })
-                                    }
-                                    className={[
-                                        "rounded-xl border p-3 text-left transition",
-                                        isSelected
-                                            ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40"
-                                            : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
-                                    ].join(
-                                        " ",
-                                    )}
-                                >
-                                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                        {
-                                            modeOption.title
+                                return (
+                                    <button
+                                        key={
+                                            modeOption.value
                                         }
-                                    </p>
+                                        type="button"
+                                        onClick={() =>
+                                            handleResultsModeChange(
+                                                modeOption.value,
+                                            )
+                                        }
+                                        className={[
+                                            "rounded-xl border p-3 text-left transition",
+                                            isSelected
+                                                ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40"
+                                                : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
+                                        ].join(
+                                            " ",
+                                        )}
+                                    >
+                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                            {
+                                                modeOption.title
+                                            }
+                                        </p>
 
-                                    <p className="mt-1 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
-                                        {
-                                            modeOption.description
-                                        }
-                                    </p>
-                                </button>
-                            );
-                        })}
+                                        <p className="mt-1 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                                            {
+                                                modeOption.description
+                                            }
+                                        </p>
+                                    </button>
+                                );
+                            },
+                        )}
                     </div>
                 </div>
             </div>
@@ -736,7 +853,8 @@ type:
 
                             <div>
                                 <p className="text-sm font-bold text-red-800 dark:text-red-300">
-                                    Delete this question?
+                                    Delete this
+                                    question?
                                 </p>
 
                                 <p className="mt-1 text-xs leading-5 text-red-700/80 dark:text-red-400/80">

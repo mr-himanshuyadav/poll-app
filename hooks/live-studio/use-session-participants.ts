@@ -9,29 +9,12 @@ import {
 
 import { supabase } from "@/lib/supabase";
 
-interface SessionParticipant {
-    id: string;
-
-    quiz_id: string;
-
-    session_token: string;
-
-    name: string | null;
-
-    roll_number: number | null;
-
-    is_anonymous: boolean;
-
-    joined_at: string;
-
-    last_seen_at: string;
-
-    left_at: string | null;
-}
+import type {
+    SessionParticipant,
+} from "@/components/live-studio/live-studio-types";
 
 interface UseSessionParticipantsOptions {
     sessionId?: string | null;
-
     realtime?: boolean;
 }
 
@@ -47,6 +30,36 @@ interface UseSessionParticipantsReturn {
     error: Error | null;
 
     refetch: () => Promise<void>;
+}
+
+/**
+ * A participant is considered online when:
+ *
+ * - They have not explicitly left.
+ * - Their last activity was within the last five minutes.
+ */
+function isParticipantOnline(
+    participant: SessionParticipant,
+): boolean {
+    if (participant.left_at) {
+        return false;
+    }
+
+    const lastSeen = new Date(
+        participant.last_seen_at,
+    ).getTime();
+
+    if (Number.isNaN(lastSeen)) {
+        return false;
+    }
+
+    const onlineThreshold =
+        5 * 60 * 1000;
+
+    return (
+        Date.now() - lastSeen <=
+        onlineThreshold
+    );
 }
 
 export function useSessionParticipants({
@@ -66,6 +79,7 @@ export function useSessionParticipants({
         useCallback(async () => {
             if (!sessionId) {
                 setParticipants([]);
+                setError(null);
                 setIsLoading(false);
 
                 return;
@@ -75,35 +89,47 @@ export function useSessionParticipants({
             setError(null);
 
             try {
-                const { data, error } =
-                    await supabase
-                        .from(
-                            "participants",
-                        )
-                        .select("*")
-                        .eq(
-                            "quiz_id",
-                            sessionId,
-                        )
-                        .order(
-                            "joined_at",
-                            {
-                                ascending: false,
-                            },
-                        );
+                const {
+                    data,
+                    error: queryError,
+                } = await supabase
+                    .from("participants")
+                    .select(
+                        `
+                            id,
+                            quiz_id,
+                            session_token,
+                            name,
+                            roll_number,
+                            is_anonymous,
+                            joined_at,
+                            last_seen_at,
+                            left_at
+                        `,
+                    )
+                    .eq(
+                        "quiz_id",
+                        sessionId,
+                    )
+                    .order(
+                        "joined_at",
+                        {
+                            ascending: false,
+                        },
+                    );
 
-                if (error) {
-                    throw error;
+                if (queryError) {
+                    throw queryError;
                 }
 
                 setParticipants(
                     (data ??
                         []) as SessionParticipant[],
                 );
-            } catch (error) {
+            } catch (caughtError) {
                 const normalizedError =
-                    error instanceof Error
-                        ? error
+                    caughtError instanceof Error
+                        ? caughtError
                         : new Error(
                               "Unable to load participants.",
                           );
@@ -115,10 +141,16 @@ export function useSessionParticipants({
             }
         }, [sessionId]);
 
+    /**
+     * Initial participant load.
+     */
     useEffect(() => {
         void fetchParticipants();
     }, [fetchParticipants]);
 
+    /**
+     * Realtime participant updates.
+     */
     useEffect(() => {
         if (
             !realtime ||
@@ -127,105 +159,117 @@ export function useSessionParticipants({
             return;
         }
 
-        const channel =
-            supabase
-                .channel(
-                    `session-participants-${sessionId}`,
-                )
-                .on(
-                    "postgres_changes",
-                    {
-                        event: "INSERT",
-                        schema: "public",
-                        table: "participants",
-                        filter: `quiz_id=eq.${sessionId}`,
-                    },
-                    (payload) => {
-                        const newParticipant =
-                            payload.new as SessionParticipant;
+        const channel = supabase
+            .channel(
+                `session-participants-${sessionId}`,
+            )
 
-                        setParticipants(
-                            (
-                                currentParticipants,
-                            ) => {
-                                const exists =
-                                    currentParticipants.some(
-                                        (
-                                            participant,
-                                        ) =>
-                                            participant.id ===
-                                            newParticipant.id,
-                                    );
+            .on(
+                "postgres_changes",
+                {
+                    event: "INSERT",
+                    schema: "public",
+                    table: "participants",
+                    filter:
+                        `quiz_id=eq.${sessionId}`,
+                },
+                (payload) => {
+                    const newParticipant =
+                        payload.new as SessionParticipant;
 
-                                if (exists) {
-                                    return currentParticipants;
-                                }
-
-                                return [
-                                    newParticipant,
-                                    ...currentParticipants,
-                                ];
-                            },
-                        );
-                    },
-                )
-                .on(
-                    "postgres_changes",
-                    {
-                        event: "UPDATE",
-                        schema: "public",
-                        table: "participants",
-                        filter: `quiz_id=eq.${sessionId}`,
-                    },
-                    (payload) => {
-                        const updatedParticipant =
-                            payload.new as SessionParticipant;
-
-                        setParticipants(
-                            (
-                                currentParticipants,
-                            ) =>
-                                currentParticipants.map(
+                    setParticipants(
+                        (
+                            currentParticipants,
+                        ) => {
+                            const exists =
+                                currentParticipants.some(
                                     (
                                         participant,
                                     ) =>
                                         participant.id ===
-                                        updatedParticipant.id
-                                            ? updatedParticipant
-                                            : participant,
-                                ),
-                        );
-                    },
-                )
-                .on(
-                    "postgres_changes",
-                    {
-                        event: "DELETE",
-                        schema: "public",
-                        table: "participants",
-                        filter: `quiz_id=eq.${sessionId}`,
-                    },
-                    (payload) => {
-                        const deletedParticipant =
-                            payload.old as {
-                                id?: string;
-                            };
+                                        newParticipant.id,
+                                );
 
-                        setParticipants(
-                            (
-                                currentParticipants,
-                            ) =>
-                                currentParticipants.filter(
-                                    (
-                                        participant,
-                                    ) =>
-                                        participant.id !==
-                                        deletedParticipant.id,
-                                ),
-                        );
-                    },
-                )
-                .subscribe();
+                            if (exists) {
+                                return currentParticipants;
+                            }
+
+                            return [
+                                newParticipant,
+                                ...currentParticipants,
+                            ];
+                        },
+                    );
+                },
+            )
+
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "participants",
+                    filter:
+                        `quiz_id=eq.${sessionId}`,
+                },
+                (payload) => {
+                    const updatedParticipant =
+                        payload.new as SessionParticipant;
+
+                    setParticipants(
+                        (
+                            currentParticipants,
+                        ) =>
+                            currentParticipants.map(
+                                (
+                                    participant,
+                                ) =>
+                                    participant.id ===
+                                    updatedParticipant.id
+                                        ? updatedParticipant
+                                        : participant,
+                            ),
+                    );
+                },
+            )
+
+            .on(
+                "postgres_changes",
+                {
+                    event: "DELETE",
+                    schema: "public",
+                    table: "participants",
+                    filter:
+                        `quiz_id=eq.${sessionId}`,
+                },
+                (payload) => {
+                    const deletedParticipant =
+                        payload.old as {
+                            id?: string;
+                        };
+
+                    if (
+                        !deletedParticipant.id
+                    ) {
+                        return;
+                    }
+
+                    setParticipants(
+                        (
+                            currentParticipants,
+                        ) =>
+                            currentParticipants.filter(
+                                (
+                                    participant,
+                                ) =>
+                                    participant.id !==
+                                    deletedParticipant.id,
+                            ),
+                    );
+                },
+            )
+
+            .subscribe();
 
         return () => {
             void supabase.removeChannel(
@@ -241,35 +285,23 @@ export function useSessionParticipants({
         useMemo(
             () =>
                 participants.filter(
-    (participant) => {
-        if (participant.left_at) {
-            return false;
-        }
-
-        const lastSeen = new Date(
-            participant.last_seen_at,
-        ).getTime();
-
-        if (Number.isNaN(lastSeen)) {
-            return false;
-        }
-
-        return (
-            Date.now() - lastSeen <=
-            5 * 60 * 1000
-        );
-    },
-).length
+                    isParticipantOnline,
+                ).length,
             [participants],
         );
 
     return {
         participants,
+
         totalParticipants:
             participants.length,
+
         onlineParticipants,
+
         isLoading,
+
         error,
+
         refetch: fetchParticipants,
     };
 }

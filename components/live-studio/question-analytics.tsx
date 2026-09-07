@@ -1,21 +1,22 @@
 "use client";
 
 import {
-    BarChart3,
-    CheckCircle2,
-    ChevronDown,
-    CircleDot,
-    Users,
-} from "lucide-react";
-
-import {
+    useEffect,
     useMemo,
     useState,
 } from "react";
 
+import {
+    BarChart3,
+    CheckCircle2,
+    ChevronDown,
+    CircleDot,
+} from "lucide-react";
+
 import type {
     SessionAnalytics,
     SessionQuestion,
+    SessionQuestionAnalytics,
 } from "./live-studio-types";
 
 import {
@@ -31,39 +32,16 @@ interface QuestionAnalyticsProps {
     isLoading?: boolean;
 }
 
-function getQuestionResponseCount(
-    analytics: SessionAnalytics | null,
-    questionId: string,
+function clampPercentage(
+    value: number,
 ): number {
-    const questionAnalytics =
-        analytics?.questions?.find(
-            (item: any) =>
-                item.question_id === questionId ||
-                item.id === questionId,
-        );
+    if (!Number.isFinite(value)) {
+        return 0;
+    }
 
-    return (
-        questionAnalytics?.total_responses ??
-        questionAnalytics?.response_count ??
-        0
-    );
-}
-
-function getQuestionResponseRate(
-    analytics: SessionAnalytics | null,
-    questionId: string,
-): number {
-    const questionAnalytics =
-        analytics?.questions?.find(
-            (item: any) =>
-                item.question_id === questionId ||
-                item.id === questionId,
-        );
-
-    return Number(
-        questionAnalytics?.response_rate ??
-            questionAnalytics?.participation_rate ??
-            0,
+    return Math.max(
+        0,
+        Math.min(100, value),
     );
 }
 
@@ -72,45 +50,91 @@ export function QuestionAnalytics({
     questions,
     isLoading = false,
 }: QuestionAnalyticsProps) {
-    const [selectedQuestionId, setSelectedQuestionId] =
-        useState<string | null>(
-            questions[0]?.id ?? null,
-        );
+    const [
+        selectedQuestionId,
+        setSelectedQuestionId,
+    ] = useState<string | null>(
+        questions[0]?.id ?? null,
+    );
 
-    const selectedQuestion = useMemo(() => {
-        if (!selectedQuestionId) {
-            return questions[0] ?? null;
+    useEffect(() => {
+        if (questions.length === 0) {
+            setSelectedQuestionId(null);
+
+            return;
         }
 
-        return (
-            questions.find(
+        const selectedStillExists =
+            selectedQuestionId &&
+            questions.some(
                 (question) =>
-                    question.id === selectedQuestionId,
-            ) ??
-            questions[0] ??
-            null
-        );
+                    question.id ===
+                    selectedQuestionId,
+            );
+
+        if (!selectedStillExists) {
+            setSelectedQuestionId(
+                questions[0].id,
+            );
+        }
     }, [
         questions,
         selectedQuestionId,
     ]);
 
-    const selectedQuestionAnalytics =
+    const selectedQuestion =
         useMemo(() => {
+            if (
+                questions.length === 0
+            ) {
+                return null;
+            }
+
+            return (
+                questions.find(
+                    (question) =>
+                        question.id ===
+                        selectedQuestionId,
+                ) ??
+                questions[0]
+            );
+        }, [
+            questions,
+            selectedQuestionId,
+        ]);
+
+    const selectedAnalytics =
+        useMemo<
+            SessionQuestionAnalytics | null
+        >(() => {
             if (!selectedQuestion) {
                 return null;
             }
 
-            return analytics?.questions?.find(
-                (item: any) =>
-                    item.question_id ===
-                        selectedQuestion.id ||
-                    item.id === selectedQuestion.id,
-            ) ?? null;
+            return (
+                analytics?.questions.find(
+                    (item) =>
+                        item.question_id ===
+                        selectedQuestion.id,
+                ) ?? null
+            );
         }, [
             analytics,
             selectedQuestion,
         ]);
+
+    const totalResponses =
+        selectedAnalytics?.total_responses ??
+        0;
+
+    const responseRate =
+        selectedAnalytics?.response_rate ??
+        selectedAnalytics?.participation_rate ??
+        0;
+
+    const distribution =
+        selectedAnalytics?.distribution ??
+        [];
 
     if (isLoading) {
         return (
@@ -134,34 +158,15 @@ export function QuestionAnalytics({
                 </h2>
 
                 <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
-                    Question analytics will appear here once
-                    questions are created and participants begin
+                    Question analytics will
+                    appear here once questions
+                    are created and
+                    participants begin
                     responding.
                 </p>
             </section>
         );
     }
-
-    const totalResponses =
-        selectedQuestionAnalytics?.total_responses ??
-        selectedQuestionAnalytics?.response_count ??
-        getQuestionResponseCount(
-            analytics,
-            selectedQuestion?.id ?? "",
-        );
-
-    const responseRate =
-        selectedQuestionAnalytics?.response_rate ??
-        selectedQuestionAnalytics?.participation_rate ??
-        getQuestionResponseRate(
-            analytics,
-            selectedQuestion?.id ?? "",
-        );
-
-    const distribution =
-        selectedQuestionAnalytics?.distribution ??
-        selectedQuestionAnalytics?.options ??
-        [];
 
     return (
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
@@ -179,7 +184,8 @@ export function QuestionAnalytics({
                 <div className="relative w-full lg:max-w-md">
                     <select
                         value={
-                            selectedQuestion?.id ?? ""
+                            selectedQuestion?.id ??
+                            ""
                         }
                         onChange={(event) =>
                             setSelectedQuestionId(
@@ -189,10 +195,17 @@ export function QuestionAnalytics({
                         className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 pr-10 text-sm font-medium text-slate-700 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-200 dark:focus:border-indigo-700 dark:focus:ring-indigo-950"
                     >
                         {questions.map(
-                            (question, index) => (
+                            (
+                                question,
+                                index,
+                            ) => (
                                 <option
-                                    key={question.id}
-                                    value={question.id}
+                                    key={
+                                        question.id
+                                    }
+                                    value={
+                                        question.id
+                                    }
                                 >
                                     Q{index + 1}:{" "}
                                     {getQuestionPrompt(
@@ -236,7 +249,9 @@ export function QuestionAnalytics({
                                     </p>
 
                                     <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">
-                                        {totalResponses}
+                                        {
+                                            totalResponses
+                                        }
                                     </p>
                                 </div>
 
@@ -259,37 +274,30 @@ export function QuestionAnalytics({
                     </div>
 
                     <div className="mt-6">
-                        {Array.isArray(distribution) &&
-                        distribution.length > 0 ? (
+                        {distribution.length >
+                        0 ? (
                             <div className="space-y-4">
                                 {distribution.map(
                                     (
-                                        item: any,
-                                        index: number,
+                                        item,
+                                        index,
                                     ) => {
                                         const count =
                                             Number(
                                                 item.count ??
-                                                    item.responses ??
-                                                    item.value ??
                                                     0,
                                             );
 
                                         const percentage =
-                                            totalResponses >
-                                            0
-                                                ? (count /
-                                                      totalResponses) *
-                                                  100
-                                                : Number(
-                                                      item.percentage ??
-                                                          0,
-                                                  );
+                                            clampPercentage(
+                                                Number(
+                                                    item.percentage ??
+                                                        0,
+                                                ),
+                                            );
 
                                         const label =
-                                            item.label ??
-                                            item.option ??
-                                            item.text ??
+                                            item.label ||
                                             `Option ${
                                                 index +
                                                 1
@@ -298,17 +306,22 @@ export function QuestionAnalytics({
                                         return (
                                             <div
                                                 key={
-                                                    item.id ??
+                                                    item.id ||
                                                     `${label}-${index}`
                                                 }
                                             >
                                                 <div className="mb-2 flex items-center justify-between gap-4">
                                                     <span className="truncate text-sm font-medium text-slate-700 dark:text-slate-300">
-                                                        {label}
+                                                        {
+                                                            label
+                                                        }
                                                     </span>
 
                                                     <span className="shrink-0 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                                        {count} ·{" "}
+                                                        {
+                                                            count
+                                                        }{" "}
+                                                        ·{" "}
                                                         {Math.round(
                                                             percentage,
                                                         )}
@@ -320,13 +333,7 @@ export function QuestionAnalytics({
                                                     <div
                                                         className="h-full rounded-full bg-indigo-500 transition-all"
                                                         style={{
-                                                            width: `${Math.max(
-                                                                0,
-                                                                Math.min(
-                                                                    100,
-                                                                    percentage,
-                                                                ),
-                                                            )}%`,
+                                                            width: `${percentage}%`,
                                                         }}
                                                     />
                                                 </div>
@@ -344,9 +351,10 @@ export function QuestionAnalytics({
                                 </h4>
 
                                 <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                    Response distribution will appear
-                                    once participants answer this
-                                    question.
+                                    Response distribution
+                                    will appear once
+                                    participants answer
+                                    this question.
                                 </p>
                             </div>
                         )}
