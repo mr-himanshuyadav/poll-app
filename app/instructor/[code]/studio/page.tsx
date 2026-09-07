@@ -778,31 +778,19 @@ export default function LiveStudioPage() {
               dominantOptionPercentage:
                   0,
               optionDistribution:
-                  analytics.questions.find(
-                      (item) =>
-                          item.question_id ===
-                          activeQuestion?.id,
-                  )?.distribution?.map(
-                      (item, index) => ({
-                          key:
-                              item.id ??
-                              `${index}`,
-                          label:
-                              item.label ??
-                              item.option ??
-                              item.text ??
-                              `Option ${
-                                  index + 1
-                              }`,
-                          count:
-                              item.count ??
-                              item.responses ??
-                              0,
-                          percentage:
-                              item.percentage ??
-                              0,
-                      }),
-                  ) ?? [],
+    analytics.questions.find(
+        (item) =>
+            item.question_id ===
+            activeQuestion?.id,
+    )?.distribution?.map(
+        (item) => ({
+            key: item.id,
+            label: item.label,
+            count: item.count,
+            percentage:
+                item.percentage,
+        }),
+    ) ?? [],
           }
         : null
 }
