@@ -431,6 +431,19 @@ export default function LiveStudioPage() {
                         throw closeOtherQuestionsError;
                     }
 
+                    // Update the session pointer first so the
+                    // student-facing app immediately has one
+                    // authoritative live question.
+                    await updateSession({
+                        status: "live",
+                        active_question_id:
+                            questionId,
+                        started_at:
+                            session.started_at ??
+                            now,
+                    });
+
+                    // Then activate the selected question.
                     await updateQuestion(
                         questionId,
                         {
@@ -440,14 +453,9 @@ export default function LiveStudioPage() {
                         },
                     );
 
-                    await updateSession({
-                        status: "live",
-                        active_question_id:
-                            questionId,
-                        started_at:
-                            session.started_at ??
-                            now,
-                    });
+                    // Refresh local question state so previously
+                    // active questions cannot remain visually live.
+                    await refetchQuestions();
 
                     showNotice(
                         "success",
@@ -473,6 +481,8 @@ export default function LiveStudioPage() {
                         active_question_id: null,
                     });
 
+                    await refetchQuestions();
+
                     showNotice(
                         "success",
                         "The active question has been closed.",
@@ -496,6 +506,7 @@ export default function LiveStudioPage() {
             showNotice,
             updateQuestion,
             updateSession,
+            refetchQuestions,
         ],
     );
 
