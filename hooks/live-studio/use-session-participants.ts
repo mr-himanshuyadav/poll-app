@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { useLiveRecovery } from "@/hooks/use-live-recovery";
 
 import type {
     SessionParticipant,
@@ -269,7 +270,14 @@ export function useSessionParticipants({
                 },
             )
 
-            .subscribe();
+            .subscribe((status) => {
+                if (
+                    status === "CHANNEL_ERROR" ||
+                    status === "TIMED_OUT"
+                ) {
+                    void fetchParticipants();
+                }
+            });
 
         return () => {
             void supabase.removeChannel(
