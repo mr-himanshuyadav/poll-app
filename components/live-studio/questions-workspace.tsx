@@ -183,9 +183,7 @@ export function QuestionsWorkspace({
                     </h1>
 
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Create, organize and
-                        manage the questions for
-                        this live session.
+                        Review all questions and their configuration for this completed session.
                     </p>
                 </div>
 
@@ -501,16 +499,11 @@ export function QuestionsWorkspace({
                             </div>
 
                             <h2 className="mt-5 text-lg font-bold text-slate-950 dark:text-slate-50">
-                                Select or create a
-                                question
+                                Select a question to review
                             </h2>
 
                             <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
-                                Choose a question
-                                from the queue or
-                                create a new one to
-                                start building your
-                                session.
+                                Choose a question from the queue to review its content and configuration.
                             </p>
 
                             {!isCompleted ? <Button
