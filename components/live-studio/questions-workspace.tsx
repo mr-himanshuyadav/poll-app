@@ -169,7 +169,7 @@ export function QuestionsWorkspace({
     };
 
     return (
-        <div className="mx-auto w-full max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 lg:px-8 md:pb-8">
+        <div className="w-full px-4 pb-24 pt-6 sm:px-6 lg:px-8 md:pb-8">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
