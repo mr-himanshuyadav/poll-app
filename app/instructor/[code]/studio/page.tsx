@@ -891,6 +891,42 @@ export default function LiveStudioPage() {
             null,
         );
     }}
+    onShowResults={async () => {
+        if (!viewedQuestion) {
+            return;
+        }
+
+        await updateQuestion(
+            viewedQuestion.id,
+            {
+                results_visible: true,
+            },
+        );
+
+        showNotice(
+            "success",
+            "Results are now visible to students.",
+            "Results Shown",
+        );
+    }}
+    onHideResults={async () => {
+        if (!viewedQuestion) {
+            return;
+        }
+
+        await updateQuestion(
+            viewedQuestion.id,
+            {
+                results_visible: false,
+            },
+        );
+
+        showNotice(
+            "success",
+            "Results are hidden from students.",
+            "Results Hidden",
+        );
+    }}
     onConfirmReplaceLiveQuestion={(question) => {
         setPendingLiveQuestion(question);
     }}
