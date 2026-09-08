@@ -4,6 +4,8 @@ import { ScaleResponseInput } from "@/components/live-studio/scale-response-inpu
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Radio } from "lucide-react";
 import { resolveScaleConfig } from "@/lib/scale-config";
+import { getResponseDisplayLabel } from "@/lib/response-label";
+import { getParticipantDisplayName } from "@/lib/participant-labels";
 
 import {
   use,
@@ -75,6 +77,12 @@ export default function JoinPage({
   const [selectedAnswer, setSelectedAnswer] =
     useState("");
 
+  const [participantProfile, setParticipantProfile] =
+    useState<Participant | null>(null);
+
+  const [sessionParticipants, setSessionParticipants] =
+    useState<Participant[]>([]);
+
   const [existingResponse, setExistingResponse] =
     useState<PollResponse | null>(
       null,
@@ -137,6 +145,31 @@ export default function JoinPage({
       return String(answer);
     }
   };
+
+
+  useEffect(() => {
+    if (!session?.id || !participant?.participantId) {
+      setParticipantProfile(null);
+      setSessionParticipants([]);
+      return;
+    }
+
+    const loadParticipantIdentity = async () => {
+      const { data } = await supabase
+        .from("participants")
+        .select("*")
+        .eq("quiz_id", session.id)
+        .order("joined_at", { ascending: true });
+
+      const rows = (data ?? []) as Participant[];
+      setSessionParticipants(rows);
+      setParticipantProfile(
+        rows.find((item) => item.id === participant.participantId) ?? null,
+      );
+    };
+
+    void loadParticipantIdentity();
+  }, [session?.id, participant?.participantId]);
 
   /*
    * ---------------------------------------------
@@ -2021,10 +2054,13 @@ export default function JoinPage({
             </div>
 
             <p className="mt-3 text-xs text-muted-foreground">
-              {session.participant_mode ===
-              "anonymous"
-                ? "Anonymous participation"
-                : "Identified participation"}
+              {session.participant_mode === "identified"
+                ? participantProfile
+                  ? `${participantProfile.name ?? "Participant"} · Roll No. ${participantProfile.roll_number ?? "—"}`
+                  : "Identified participation"
+                : participantProfile
+                  ? `${getParticipantDisplayName(participantProfile, sessionParticipants)} · Anonymous participation`
+                  : "Anonymous participation"}
             </p>
           </CardHeader>
 
