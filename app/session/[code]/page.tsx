@@ -1589,7 +1589,11 @@ export default function JoinPage({
     () => {
       if (
         !question ||
-        !question.results_visible
+        (!question.results_visible &&
+          !(
+            question.results_mode === "live" &&
+            existingResponse
+          ))
       ) {
         return null;
       }
