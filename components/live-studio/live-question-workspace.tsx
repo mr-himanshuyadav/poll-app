@@ -10,7 +10,16 @@ import type {
 import { LiveQuestionPanel } from "./live-question-panel";
 import { ResponseProgressPanel } from "./response-progress-panel";
 import { ResponseDistribution } from "./response-distribution";
-import { Users, CheckCircle2, Clock3 } from "lucide-react";
+import { Users, CheckCircle2, Clock3, Plus, Pencil } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { QuestionEditor } from "./question-editor";
 import { QuestionNavigation } from "./question-navigation";
 
 interface LiveQuestionWorkspaceProps {
@@ -86,6 +95,17 @@ interface LiveQuestionWorkspaceProps {
     onPreviousQuestion?: () => void;
 
     onNextQuestion?: () => void;
+
+    isSavingQuestion?: boolean;
+
+    onCreateQuestion?: (
+        question: Partial<SessionQuestion>,
+    ) => Promise<void> | void;
+
+    onUpdateQuestion?: (
+        questionId: string,
+        updates: Partial<SessionQuestion>,
+    ) => Promise<void> | void;
 }
 
 export function LiveQuestionWorkspace({
@@ -115,7 +135,12 @@ export function LiveQuestionWorkspace({
     onConfirmReplaceLiveQuestion,
     onPreviousQuestion,
     onNextQuestion,
+    isSavingQuestion = false,
+    onCreateQuestion,
+    onUpdateQuestion,
 }: LiveQuestionWorkspaceProps) {
+    const [questionEditorMode, setQuestionEditorMode] =
+        useState<"create" | "edit" | null>(null);
     const viewedQuestionResponses =
         viewedQuestion
             ? responses.filter(
@@ -179,6 +204,50 @@ response.id
                     "h-2.5 w-2.5 rounded-full",
                     projectorDisplayType === "waiting" ? "bg-slate-300" : "bg-emerald-500 animate-pulse",
                 ].join(" ")} />
+            </div>
+
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                        Live Control
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        Manage the question currently in view without leaving Live Studio.
+                    </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                            setQuestionEditorMode("edit")
+                        }
+                        disabled={
+                            !viewedQuestion ||
+                            isSavingQuestion
+                        }
+                    >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Edit Question
+                    </Button>
+
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={() =>
+                            setQuestionEditorMode("create")
+                        }
+                        disabled={
+                            !onCreateQuestion ||
+                            isSavingQuestion
+                        }
+                    >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Question
+                    </Button>
+                </div>
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -337,6 +406,60 @@ response.id
                     />
                 </aside>
             </div>
+            <Dialog
+                open={questionEditorMode !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setQuestionEditorMode(null);
+                    }
+                }}
+            >
+                <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto p-0">
+                    <DialogHeader className="border-b px-6 py-4">
+                        <DialogTitle>
+                            {questionEditorMode === "create"
+                                ? "Add Question"
+                                : "Edit Question"}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="p-4 sm:p-6">
+                        {questionEditorMode === "create" ? (
+                            <QuestionEditor
+                                mode="create"
+                                sessionId={sessionId}
+                                isSaving={isSavingQuestion}
+                                onSave={async (question) => {
+                                    await onCreateQuestion?.(
+                                        question,
+                                    );
+                                    setQuestionEditorMode(null);
+                                }}
+                                onCancel={() =>
+                                    setQuestionEditorMode(null)
+                                }
+                            />
+                        ) : viewedQuestion ? (
+                            <QuestionEditor
+                                mode="edit"
+                                sessionId={sessionId}
+                                question={viewedQuestion}
+                                isSaving={isSavingQuestion}
+                                onSave={async (updates) => {
+                                    await onUpdateQuestion?.(
+                                        viewedQuestion.id,
+                                        updates,
+                                    );
+                                    setQuestionEditorMode(null);
+                                }}
+                                onCancel={() =>
+                                    setQuestionEditorMode(null)
+                                }
+                            />
+                        ) : null}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
