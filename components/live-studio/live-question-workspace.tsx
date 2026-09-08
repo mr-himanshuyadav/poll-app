@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog";
 import { QuestionEditor } from "./question-editor";
 import { QuestionNavigation } from "./question-navigation";
+import { getParticipantDisplayName } from "@/lib/participant-labels";
 
 interface LiveQuestionWorkspaceProps {
     sessionId: string;
@@ -362,7 +363,7 @@ response.id
                                             recentResponders.map((participant) => (
                                                 <div key={participant.id} className="flex items-center justify-between gap-3 text-sm">
                                                     <span className="min-w-0 truncate font-medium text-slate-700 dark:text-slate-200">
-                                                        {participant.name || "Anonymous participant"}
+                                                        {getParticipantDisplayName(participant, participants)}
                                                     </span>
                                                     <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
                                                 </div>
