@@ -42,6 +42,10 @@ interface ResponseDistributionProps {
      * Step 1B will expose the instructor selector.
      */
     visualizationType?: ResponseVisualizationType;
+
+    onVisualizationChange?: (
+        visualization: ResponseVisualizationType,
+    ) => void;
 }
 
 export function ResponseDistribution({
@@ -49,6 +53,7 @@ export function ResponseDistribution({
     analytics,
     responses,
     visualizationType = "horizontal-bar",
+    onVisualizationChange,
 }: ResponseDistributionProps) {
     const [
         selectedVisualization,
@@ -445,11 +450,14 @@ export function ResponseDistribution({
                                         type="button"
                                         title={item.label}
                                         aria-label={item.label}
-                                        onClick={() =>
+                                        onClick={() => {
                                             setSelectedVisualization(
                                                 item.type,
-                                            )
-                                        }
+                                            );
+                                            onVisualizationChange?.(
+                                                item.type,
+                                            );
+                                        }}
                                         className={
                                             `flex h-8 w-8 items-center justify-center rounded-md transition-all duration-200 ${
                                                 active
