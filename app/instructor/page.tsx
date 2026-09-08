@@ -101,6 +101,15 @@ export default function InstructorDashboard() {
   const [showSessionDialog, setShowSessionDialog] =
     useState(false);
 
+  const [showInstantSessionDialog, setShowInstantSessionDialog] =
+    useState(false);
+
+  const [instantSessionName, setInstantSessionName] =
+    useState("Instant Session");
+
+  const [dashboardTab, setDashboardTab] =
+    useState<"library" | "sessions">("library");
+
   const [
     isCreatingInstantSession,
     setIsCreatingInstantSession,
