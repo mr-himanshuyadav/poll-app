@@ -8,6 +8,7 @@ import {
     Eye,
     EyeOff,
     Play,
+    Pencil,
     Radio,
     Square,
     X,
@@ -70,6 +71,7 @@ interface LiveQuestionPanelProps {
     onConfirmReplaceLiveQuestion?: (
         question: SessionQuestion,
     ) => void;
+    onEditQuestion?: () => void;
 }
 
 function getScaleNumber(
@@ -117,6 +119,7 @@ export function LiveQuestionPanel({
     onHideResults,
     onHideProjectorResults,
     onConfirmReplaceLiveQuestion,
+    onEditQuestion,
 }: LiveQuestionPanelProps) {
     const [resultsMenuOpen, setResultsMenuOpen] =
         useState(false);
@@ -378,9 +381,11 @@ export function LiveQuestionPanel({
                             >
                                 <Play className="mr-2 h-4 w-4" />
 
-                                Display to Students
+                                Go Live
                             </Button>
                         ) : null}
+
+                        {onEditQuestion ? (<Button type="button" variant="outline" disabled={isUpdating} onClick={onEditQuestion}><Pencil className="mr-2 h-4 w-4" /> Edit</Button>) : null}
 
                         {canClose ? (
                             <Button
@@ -391,7 +396,7 @@ export function LiveQuestionPanel({
                             >
                                 <Square className="mr-2 h-4 w-4" />
 
-                                Close Question
+                                Stop
                             </Button>
                         ) : null}
                     </div>
