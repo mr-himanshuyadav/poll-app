@@ -371,8 +371,8 @@ export function LiveQuestionPanel({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        {onEditQuestion ? (<Button type="button" variant="outline" disabled={isUpdating} onClick={onEditQuestion}><Pencil className="mr-2 h-4 w-4" /> Edit</Button>) : null}
-                        {canActivate ? (<Button type="button" disabled={isUpdating} onClick={handleDisplayToStudents}><Play className="mr-2 h-4 w-4 fill-current" /> Go Live</Button>) : null}
+                        {onEditQuestion ? (<Button type="button" variant="outline" disabled={isUpdating} onClick={onEditQuestion}><Pencil className="h-4 w-4" /> Edit</Button>) : null}
+                        {canActivate ? (<Button type="button" disabled={isUpdating} onClick={handleDisplayToStudents}><Play className="h-4 w-4 fill-current" /> Go Live</Button>) : null}
                         {canClose ? (<Button type="button" variant="destructive" disabled={isUpdating} onClick={onCloseQuestion}><Square className="mr-2 h-4 w-4 fill-current" /> Stop</Button>) : null}
                     </div>
                 </div>

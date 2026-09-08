@@ -81,8 +81,8 @@ export function QuestionNavigation({
                         disabled={isUpdating}
                         className="shrink-0"
                     >
-                        <Plus className="mr-1.5 h-4 w-4" />
-                        Add new question
+                        <Plus className="h-4 w-4" />
+                        Add New
                     </Button>
                 ) : null}
             </div>

@@ -123,12 +123,12 @@ export function LiveStudioHeader({
                         ) : null}
                         {!isCompleted && !isPaused && onPauseSession ? (
                             <Button type="button" variant="outline" disabled={isUpdating} onClick={onPauseSession}>
-                                <Pause className="mr-2 h-4 w-4" /> Pause
+                                <Pause className="h-4 w-4" /> Pause
                             </Button>
                         ) : null}
                         {onEndSession ? (
                             <Button type="button" variant="destructive" disabled={isUpdating || isCompleted} onClick={onEndSession}>
-                                <Square className="mr-2 h-4 w-4 fill-current" /> End
+                                <Square className="h-4 w-4 fill-current" /> End
                             </Button>
                         ) : null}
                     </div>
