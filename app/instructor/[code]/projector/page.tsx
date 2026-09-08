@@ -2,6 +2,7 @@
 
 import { use, useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { ChevronLeft, ChevronRight, QrCode, Users } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/lib/supabase";
 import type { Session, SessionQuestion } from "@/lib/types";
@@ -59,6 +60,9 @@ export default function ProjectorPage({
         useState<"waiting" | "question" | "results">(
             "waiting",
         );
+
+    const [sidebarVisible, setSidebarVisible] =
+        useState(true);
 
     /*
      * ---------------------------------------------
@@ -708,6 +712,36 @@ export default function ProjectorPage({
             );
         }
 
+        if (projectorVisualization === "likert" &&
+            (question.type === "scale" || question.type === "rating")) {
+            const maxCount = Math.max(...data.map((item) => item.count), 1);
+
+            return (
+                <div className="space-y-5">
+                    {data.map((item, index) => {
+                        const palette = [
+                            "from-rose-500 to-orange-400",
+                            "from-amber-500 to-yellow-400",
+                            "from-cyan-500 to-sky-400",
+                            "from-emerald-500 to-teal-400",
+                            "from-indigo-500 to-violet-400",
+                        ];
+                        return (
+                            <div key={item.option} className="grid grid-cols-[minmax(150px,1fr)_minmax(180px,3fr)_72px] items-center gap-5">
+                                <span className="text-right text-lg font-bold text-white/80">{item.option}</span>
+                                <div className="h-11 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-1">
+                                    <div className={`flex h-full items-center rounded-xl bg-gradient-to-r px-4 text-sm font-black shadow-lg transition-all duration-700 ${palette[index % palette.length]}`} style={{ width: `${Math.max(item.count ? 9 : 0, (item.count / maxCount) * 100)}%` }}>
+                                        {item.count || ""}
+                                    </div>
+                                </div>
+                                <span className="text-right text-xl font-black tabular-nums">{Math.round(item.percentage)}%</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        }
+
         if (projectorVisualization === "vertical-bar") {
             const max = Math.max(
                 ...data.map((item) => item.percentage),
@@ -721,8 +755,18 @@ export default function ProjectorPage({
                             <span className="text-xl font-black">{Math.round(item.percentage)}%</span>
                             <div className="flex h-80 w-full items-end rounded-2xl bg-white/5 p-2">
                                 <div
-                                    className="w-full rounded-xl bg-indigo-400 transition-all duration-500"
-                                    style={{ height: `${Math.max(3, (item.percentage / max) * 100)}%` }}
+                                    className="w-full rounded-xl transition-all duration-500"
+                                    style={{
+                                        height: `${Math.max(3, (item.percentage / max) * 100)}%`,
+                                        background: [
+                                            "linear-gradient(to top, #6366f1, #a78bfa)",
+                                            "linear-gradient(to top, #8b5cf6, #c4b5fd)",
+                                            "linear-gradient(to top, #0ea5e9, #67e8f9)",
+                                            "linear-gradient(to top, #10b981, #6ee7b7)",
+                                            "linear-gradient(to top, #f59e0b, #fcd34d)",
+                                            "linear-gradient(to top, #f43f5e, #fda4af)",
+                                        ][index % 6],
+                                    }}
                                 />
                             </div>
                             <span className="text-center text-sm font-bold text-white/70">{item.option}</span>
@@ -865,13 +909,15 @@ export default function ProjectorPage({
      */
 
     return (
-        <main className="flex h-screen overflow-hidden bg-slate-950 text-white">
+        <main className="relative flex h-screen overflow-hidden bg-slate-950 text-white">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_15%,rgba(79,70,229,0.18),transparent_28%),radial-gradient(circle_at_30%_90%,rgba(14,165,233,0.12),transparent_32%)]" />
 
             {/* ========================================
           LEFT INFORMATION PANEL
          ======================================== */}
 
-            <aside className="flex w-[27%] min-w-[280px] flex-col justify-between border-r border-white/10 bg-slate-900 p-8">
+            {sidebarVisible && (
+            <aside className="relative z-10 flex w-[27%] min-w-[280px] flex-col justify-between border-r border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-indigo-950/50 p-8 shadow-2xl">
 
                 <div>
 
@@ -891,14 +937,14 @@ export default function ProjectorPage({
 
                     {/* JOIN */}
 
-                    <div className="mt-10">
+                    <div className="mt-10 rounded-3xl border border-indigo-400/15 bg-white/[0.035] p-5">
 
                         <p className="text-sm font-semibold text-white/60">
                             Join the session
                         </p>
 
                         {joinUrl && (
-                            <div className="mt-4 rounded-2xl bg-white p-4">
+                            <div className="mt-4 rounded-2xl bg-white p-4 shadow-[0_0_50px_rgba(99,102,241,0.18)]">
 
                                 <QRCodeSVG
                                     value={joinUrl}
@@ -964,16 +1010,17 @@ export default function ProjectorPage({
                 </div>
 
             </aside>
+            )}
 
             {/* ========================================
           MAIN PROJECTOR AREA
          ======================================== */}
 
-            <section className="flex min-w-0 flex-1 flex-col">
+            <section className="relative z-10 flex min-w-0 flex-1 flex-col">
 
                 {/* TOP STATUS BAR */}
 
-                <div className="flex items-center justify-between border-b border-white/10 px-8 py-5">
+                <div className="flex items-center justify-between border-b border-white/10 bg-slate-950/50 px-6 py-5 backdrop-blur-xl lg:px-8">
 
                     <div className="flex items-center gap-3">
 
@@ -1020,11 +1067,21 @@ export default function ProjectorPage({
 
                     )}
 
+                    <button
+                        type="button"
+                        onClick={() => setSidebarVisible((visible) => !visible)}
+                        className="ml-4 flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-bold text-white/70 transition hover:bg-white/10 hover:text-white"
+                        title={sidebarVisible ? "Hide join panel" : "Show join panel"}
+                    >
+                        {sidebarVisible ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        <span className="hidden sm:inline">{sidebarVisible ? "Hide Join" : "Show Join"}</span>
+                    </button>
+
                 </div>
 
                 {/* CONTENT */}
 
-                <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-10 lg:p-16">
+                <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-8 lg:p-16">
 
                     {/* WAITING */}
 
@@ -1113,7 +1170,7 @@ export default function ProjectorPage({
                     {phase === "live" &&
                         question && (
 
-                            <div className="w-full max-w-6xl">
+                            <div className="w-full max-w-6xl rounded-[2rem] border border-white/10 bg-slate-950/35 p-6 shadow-2xl backdrop-blur-sm lg:p-10">
 
                                 {/* QUESTION */}
 
@@ -1136,7 +1193,7 @@ export default function ProjectorPage({
                                     question.type === "scale" ||
                                     question.type === "rating"
                                 ) && (
-                                    <div className="mt-14">
+                                    <div className="mt-12 rounded-3xl border border-white/10 bg-white/[0.035] p-5 shadow-inner lg:p-8">
                                         {showResults ? (
                                             <div className="animate-in fade-in duration-300">
                                                 {renderResultsVisualization()}
@@ -1157,7 +1214,7 @@ export default function ProjectorPage({
 
                                 {/* RESPONSE FOOTER */}
 
-                                <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row">
+                                <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row">
 
                                     <div>
 
