@@ -160,11 +160,11 @@ export function LiveStudioHeader({
                     </div>
 
                     <div className="ml-auto flex items-center gap-3"><div className="flex items-center rounded-2xl border border-slate-200 bg-slate-50 p-1.5 shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="px-3"><span className="text-[10px] font-bold uppercase text-slate-400">Session Code</span><div className="font-mono text-lg font-extrabold tracking-widest text-slate-900 dark:text-slate-100">{session.join_code}</div></div>{onCopyJoinCode ? <Button type="button" variant="ghost" size="icon" onClick={onCopyJoinCode} aria-label="Copy join code"><Copy className="h-4 w-4" /></Button> : null}{onCopyStudentLink ? <Button type="button" variant="ghost" size="icon" onClick={onCopyStudentLink} aria-label="Copy session link"><ExternalLink className="h-4 w-4" /></Button> : null}</div>                        <div
-                            className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left shadow-sm dark:border-slate-800 dark:bg-slate-900/70"
+                            className={["flex min-w-0 items-center gap-3 rounded-2xl border bg-slate-50 px-3 py-2.5 text-left shadow-sm dark:bg-slate-900/70", studentLive ? "border-indigo-300 dark:border-indigo-800/70" : "border-slate-200 dark:border-slate-800"].join(" ")}
                             title="What students are currently seeing"
                         >
                             <div className={["relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border", studentLive ? "border-indigo-400 bg-white text-indigo-600 dark:border-indigo-700 dark:bg-slate-950 dark:text-indigo-400" : "border-slate-200 bg-white text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500"].join(" ")}>
-                                {studentLive ? <><span className="pointer-events-none absolute inset-0 rounded-xl border border-indigo-400/70 studio-live-wave" /><span className="pointer-events-none absolute inset-0 rounded-xl border border-indigo-400/40 studio-live-wave studio-live-wave-delay" /></> : null}
+                                {studentLive ? <><span className="pointer-events-none absolute inset-0 rounded-xl border border-emerald-400/70 studio-live-wave" /><span className="pointer-events-none absolute inset-0 rounded-xl border border-emerald-400/40 studio-live-wave studio-live-wave-delay" /></> : null}
                                 <Users className="relative z-10 h-5 w-5" />
                             </div>
                             <div className="min-w-0">
@@ -177,7 +177,7 @@ export function LiveStudioHeader({
                         <button
                             type="button"
                             onClick={onOpenProjector}
-                            className="group flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/30"
+                            className={["group flex min-w-0 items-center gap-3 rounded-2xl border bg-slate-50 px-3 py-2.5 text-left transition hover:bg-indigo-50 dark:bg-slate-900/70 dark:hover:bg-indigo-950/30", projectorLive ? "border-emerald-300 dark:border-emerald-800/70" : "border-slate-200 hover:border-indigo-300 dark:border-slate-800 dark:hover:border-indigo-800"].join(" ")}
                             title="Open projector in a new tab"
                         >
                             <div className={["relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border", projectorLive ? "border-emerald-200 bg-white text-emerald-600 dark:border-emerald-900/60 dark:bg-slate-950 dark:text-emerald-400" : "border-slate-200 bg-white text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500"].join(" ") }>
@@ -193,8 +193,7 @@ export function LiveStudioHeader({
                                     {projectorTitle}{projectorQuestionNumber ? ` · ${projectorQuestionNumber}` : ""}
                                 </p>
                             </div>
-                            <span className={["ml-1 h-2.5 w-2.5 shrink-0 rounded-full", projectorLive ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-slate-700"].join(" ")} />
-                        </button>
+                                                    </button>
 
 </div>
                 </div>
@@ -202,7 +201,7 @@ export function LiveStudioHeader({
 <style jsx>{`
                 @keyframes studio-live-wave {
                     0% { transform: scale(1); opacity: .75; }
-                    100% { transform: scale(1.75); opacity: 0; }
+                    100% { transform: scale(1.45); opacity: 0; }
                 }
                 .studio-live-wave { animation: studio-live-wave 1.8s ease-out infinite; }
                 .studio-live-wave-delay { animation-delay: .9s; }
