@@ -145,6 +145,9 @@ export default function LiveStudioPage() {
     const [pendingResultsQuestion, setPendingResultsQuestion] =
         useState<SessionQuestion | null>(null);
 
+    const [pendingResultsTarget, setPendingResultsTarget] =
+        useState<"students" | "both">("students");
+
     const [viewedQuestionId, setViewedQuestionId] =
         useState<string | null>(null);
 
@@ -556,7 +559,9 @@ export default function LiveStudioPage() {
                     );
 
                     await updateSession({
-                        active_question_id: null,
+                        // Keep the closed question as the student-facing
+                        // content so its results can be displayed.
+                        active_question_id: question.id,
                         ...(options.showOnProjector
                             ? {
                                   projector_display_type:
@@ -601,36 +606,33 @@ export default function LiveStudioPage() {
         );
 
     const handleRequestShowResults =
-        useCallback(() => {
-            if (!viewedQuestion) {
-                return;
-            }
+        useCallback(
+            (target: "students" | "both" = "students") => {
+                if (!viewedQuestion) {
+                    return;
+                }
 
-            if (
-                activeQuestion &&
-                activeQuestion.id === viewedQuestion.id
-            ) {
-                setPendingResultsQuestion(
+                setPendingResultsTarget(target);
+
+                if (activeQuestion) {
+                    setPendingResultsQuestion(viewedQuestion);
+                    return;
+                }
+
+                void showResultsToStudents(
                     viewedQuestion,
+                    {
+                        closeQuestion: true,
+                        showOnProjector: target === "both",
+                    },
                 );
-                return;
-            }
-
-            if (activeQuestion) {
-                setPendingResultsQuestion(
-                    viewedQuestion,
-                );
-                return;
-            }
-
-            void showResultsToStudents(
+            },
+            [
+                activeQuestion,
+                showResultsToStudents,
                 viewedQuestion,
-            );
-        }, [
-            activeQuestion,
-            showResultsToStudents,
-            viewedQuestion,
-        ]);
+            ],
+        );
 
     const handleSaveSettings =
         useCallback(
@@ -1025,7 +1027,7 @@ export default function LiveStudioPage() {
         );
     }}
     onShowResults={() => {
-        void handleRequestShowResults();
+        void handleRequestShowResults("students");
     }}
     onRequestShowResults={() => {
         void handleRequestShowResults();
@@ -1079,30 +1081,8 @@ export default function LiveStudioPage() {
             "Projector Updated",
         );
     }}
-    onShowResultsOnBoth={async () => {
-        if (!viewedQuestion) {
-            return;
-        }
-
-        await updateQuestion(
-            viewedQuestion.id,
-            {
-                results_visible: true,
-            },
-        );
-
-        await updateSession({
-            projector_display_type:
-                "results",
-            projector_question_id:
-                viewedQuestion.id,
-        });
-
-        showNotice(
-            "success",
-            "Results are now displayed to students and on the projector.",
-            "Results Shown",
-        );
+    onShowResultsOnBoth={() => {
+        void handleRequestShowResults("both");
     }}
     onConfirmReplaceLiveQuestion={(question) => {
         setPendingLiveQuestion(question);
@@ -1234,6 +1214,100 @@ export default function LiveStudioPage() {
                                 <span className="mr-2 inline-flex h-2 w-2 rounded-full bg-current" />
 
                                 Replace & Display
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {pendingResultsQuestion ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
+                    <div className="w-full max-w-md animate-in zoom-in-95 slide-in-from-bottom-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl duration-200 dark:border-slate-800 dark:bg-slate-950">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+                                <CheckCircle2 className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h2 className="text-base font-bold">
+                                    {activeQuestion?.id === pendingResultsQuestion.id
+                                        ? "Show live results?"
+                                        : "Close current question?"}
+                                </h2>
+                                <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                                    {activeQuestion?.id === pendingResultsQuestion.id
+                                        ? "You can keep the question open and show live-updating results on the projector, or close it and show the final results."
+                                        : "Students are currently answering another question. To show these results, the current live question must be closed."}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => {
+                                    if (
+                                        activeQuestion &&
+                                        activeQuestion.id !==
+                                            pendingResultsQuestion.id
+                                    ) {
+                                        setViewedQuestionId(activeQuestion.id);
+                                    }
+                                    setPendingResultsQuestion(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+
+                            {activeQuestion?.id === pendingResultsQuestion.id ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={areQuestionsSaving}
+                                    onClick={async () => {
+                                        const question = pendingResultsQuestion;
+                                        setPendingResultsQuestion(null);
+
+                                        await updateSession({
+                                            projector_display_type: "results",
+                                            projector_question_id: question.id,
+                                        });
+
+                                        showNotice(
+                                            "success",
+                                            "Live results are now shown on the projector. Students will see results after answering.",
+                                            "Live Results",
+                                        );
+                                    }}
+                                >
+                                    Show Live
+                                </Button>
+                            ) : null}
+
+                            <Button
+                                type="button"
+                                disabled={areQuestionsSaving}
+                                onClick={async () => {
+                                    const question = pendingResultsQuestion;
+                                    setPendingResultsQuestion(null);
+
+                                    if (
+                                        activeQuestion &&
+                                        activeQuestion.id !== question.id
+                                    ) {
+                                        await handleSetActiveQuestion(null);
+                                        setViewedQuestionId(question.id);
+                                    }
+
+                                    await showResultsToStudents(question, {
+                                        closeQuestion: true,
+                                        showOnProjector:
+                                            pendingResultsTarget === "both" ||
+                                            activeQuestion?.id === question.id,
+                                    });
+                                }}
+                            >
+                                Close Question & Show Results
                             </Button>
                         </div>
                     </div>
