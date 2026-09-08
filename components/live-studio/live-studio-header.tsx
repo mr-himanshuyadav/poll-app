@@ -1,13 +1,15 @@
 "use client";
 
 import {
-    ArrowLeft,
+    CheckCircle2,
     Copy,
     ExternalLink,
-    MoreHorizontal,
+    Gauge,
+    Monitor,
     Pause,
     Play,
     Presentation,
+    Settings,
     Square,
 } from "lucide-react";
 
@@ -26,73 +28,36 @@ import {
 
 interface LiveStudioHeaderProps {
     session: Session;
-
     template?: Template | null;
-
     participantCount: number;
-
     activeParticipantCount: number;
-
     isUpdating?: boolean;
-
     onBack: () => void;
-
     onOpenProjector: () => void;
-
     onCopyJoinCode?: () => void;
-
     onCopyStudentLink?: () => void;
-
     onPauseSession?: () => void;
-
     onResumeSession?: () => void;
-
     onEndSession?: () => void;
-
     onOpenSettings?: () => void;
 }
 
-function SessionStatusIndicator({
-    status,
-}: {
-    status: SessionStatus;
-}) {
-    const label =
-        getSessionStatusLabel(status);
-
-    const className =
-        getSessionStatusClassName(status);
-
-    const isLive =
-        status === "live";
-
-    const isPaused =
-        status === "paused";
+function SessionStatusIndicator({ status }: { status: SessionStatus }) {
+    const label = getSessionStatusLabel(status);
+    const className = getSessionStatusClassName(status);
+    const isLive = status === "live";
+    const isPaused = status === "paused";
 
     return (
-        <div
-            className={[
-                "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-wide",
-                className,
-            ].join(" ")}
-        >
+        <div className={["inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-wide", className].join(" ")}>
             {isLive ? (
                 <span className="relative flex h-2.5 w-2.5">
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-current opacity-40" />
-
                     <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-current" />
                 </span>
             ) : null}
-
-            {isPaused ? (
-                <Pause className="h-3.5 w-3.5" />
-            ) : null}
-
-            {status ===
-            "completed" ? (
-                <Square className="h-3.5 w-3.5" />
-            ) : null}
-
+            {isPaused ? <Pause className="h-3.5 w-3.5" /> : null}
+            {status === "completed" ? <Square className="h-3.5 w-3.5" /> : null}
             {label}
         </div>
     );
@@ -113,267 +78,123 @@ export function LiveStudioHeader({
     onEndSession,
     onOpenSettings,
 }: LiveStudioHeaderProps) {
-    const sessionName =
-        session.name ??
-        template?.title ??
-        "Live Session";
+    const sessionName = session.name ?? template?.title ?? "Live Session";
+    const projectorLive = session.projector_display_type !== "waiting";
+    const projectorTitle =
+        session.projector_display_type === "results" ? "Results" :
+        session.projector_display_type === "question" ? "Question" : "Waiting";
+    const projectorQuestionNumber = session.projector_question_id
+        ? session.projector_question_id.slice(0, 6).toUpperCase()
+        : null;
 
-    const isPaused =
-        session.status === "paused";
-
-    const isCompleted =
-        session.status ===
-        "completed";
+    const isPaused = session.status === "paused";
+    const isCompleted = session.status === "completed";
 
     return (
         <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-            <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
-                <div className="flex flex-col gap-5">
-                    <div className="flex items-center justify-between gap-3">
+            <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex min-w-0 items-center gap-3">
                         <button
                             type="button"
                             onClick={onBack}
-                            className="inline-flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-indigo-700 dark:hover:text-indigo-400"
+                            aria-label="Open Control Center"
+                            title="Control Center"
                         >
-                            <ArrowLeft className="h-4 w-4" />
+                            <Monitor className="h-5 w-5" />
+                        </button>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                                <h1 className="truncate text-lg font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-xl">
+                                    Control Center
+                                </h1>
+                                <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:inline-flex dark:bg-slate-900 dark:text-slate-400">
+                                    Live Studio
+                                </span>
+                            </div>
+                            <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                                <span className="max-w-[280px] truncate font-semibold text-slate-700 dark:text-slate-200">{sessionName}</span>
+                                <span>/</span>
+                                <span className="font-mono font-bold tracking-wider">{session.join_code}</span>
+                            </div>
+                        </div>
+                    </div>
 
-                            <span>
-                                Sessions
-                            </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {!isCompleted && isPaused && onResumeSession ? (
+                            <Button type="button" variant="outline" disabled={isUpdating} onClick={onResumeSession}>
+                                <Play className="mr-2 h-4 w-4" /> Resume
+                            </Button>
+                        ) : null}
+                        {!isCompleted && !isPaused && onPauseSession ? (
+                            <Button type="button" variant="outline" disabled={isUpdating} onClick={onPauseSession}>
+                                <Pause className="mr-2 h-4 w-4" /> Pause
+                            </Button>
+                        ) : null}
+                        {onOpenSettings ? (
+                            <Button type="button" variant="outline" size="icon" onClick={onOpenSettings} disabled={isUpdating} aria-label="Session settings" title="Session settings">
+                                <Settings className="h-4 w-4" />
+                            </Button>
+                        ) : null}
+                        {onEndSession ? (
+                            <Button type="button" variant="destructive" disabled={isUpdating || isCompleted} onClick={onEndSession}>
+                                <Square className="mr-2 h-4 w-4" /> End
+                            </Button>
+                        ) : null}
+                        <SessionStatusIndicator status={session.status} />
+                    </div>
+                </div>
+
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={onOpenProjector}
+                            className="group flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left transition hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-800 dark:bg-slate-900/70 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/30"
+                            title="Open projector in a new tab"
+                        >
+                            <div className={["flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border", projectorLive ? "border-emerald-200 bg-white text-emerald-600 dark:border-emerald-900/60 dark:bg-slate-950 dark:text-emerald-400" : "border-slate-200 bg-white text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500"].join(" ") }>
+                                <Presentation className="h-5 w-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Projector</span>
+                                    <ExternalLink className="h-3 w-3 text-slate-400 transition group-hover:text-indigo-500" />
+                                </div>
+                                <p className="mt-0.5 truncate text-sm font-bold text-slate-800 dark:text-slate-100">
+                                    {projectorTitle}{projectorQuestionNumber ? ` · ${projectorQuestionNumber}` : ""}
+                                </p>
+                            </div>
+                            <span className={["ml-1 h-2.5 w-2.5 shrink-0 rounded-full", projectorLive ? "bg-emerald-500 animate-pulse" : "bg-slate-300 dark:bg-slate-700"].join(" ")} />
                         </button>
 
-                        <div className="flex items-center gap-2">
-                            <SessionStatusIndicator
-                                status={
-                                    session.status
-                                }
-                            />
+                        <div className="hidden h-8 w-px bg-slate-200 sm:block dark:bg-slate-800" />
 
-                            {onOpenSettings ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={
-                                        onOpenSettings
-                                    }
-                                    disabled={
-                                        isUpdating
-                                    }
-                                    className="hidden sm:inline-flex"
-                                >
-                                    <MoreHorizontal className="h-4 w-4" />
-
-                                    <span className="sr-only">
-                                        Session options
-                                    </span>
-                                </Button>
-                            ) : null}
+                        <div className="flex items-center gap-2 text-xs">
+                            <div className="flex items-center gap-1.5">
+                                <Gauge className="h-4 w-4 text-slate-400" />
+                                <span className="font-bold text-slate-700 dark:text-slate-200">{activeParticipantCount}</span>
+                                <span className="text-slate-500">active</span>
+                            </div>
+                            <span className="text-slate-300 dark:text-slate-700">/</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-200">{participantCount}</span>
+                            <span className="text-slate-500">joined</span>
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                        <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h1 className="truncate text-2xl font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-3xl">
-                                    {
-                                        sessionName
-                                    }
-                                </h1>
-
-                                <div className="sm:hidden">
-                                    <SessionStatusIndicator
-                                        status={
-                                            session.status
-                                        }
-                                    />
-                                </div>
-                            </div>
-
-                            {template?.title ? (
-                                <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">
-                                    {
-                                        template.title
-                                    }
-                                </p>
-                            ) : null}
-
-                            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                                        Join Code
-                                    </span>
-
-                                    <code className="rounded-md bg-slate-100 px-2 py-1 font-mono text-sm font-bold tracking-wider text-slate-800 dark:bg-slate-900 dark:text-slate-200">
-                                        {
-                                            session.join_code
-                                        }
-                                    </code>
-
-                                    {onCopyJoinCode ? (
-                                        <button
-                                            type="button"
-                                            onClick={
-                                                onCopyJoinCode
-                                            }
-                                            className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-900 dark:hover:text-slate-100"
-                                            aria-label="Copy join code"
-                                        >
-                                            <Copy className="h-3.5 w-3.5" />
-                                        </button>
-                                    ) : null}
-                                </div>
-
-                                <div className="hidden h-4 w-px bg-slate-200 dark:bg-slate-800 sm:block" />
-
-                                <div className="flex items-center gap-1.5 text-sm">
-                                    <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
-
-                                    <span className="font-semibold text-slate-700 dark:text-slate-200">
-                                        {
-                                            activeParticipantCount
-                                        }
-                                    </span>
-
-                                    <span className="text-slate-500 dark:text-slate-400">
-                                        active
-                                    </span>
-
-                                    <span className="text-slate-300 dark:text-slate-700">
-                                        /
-                                    </span>
-
-                                    <span className="font-semibold text-slate-700 dark:text-slate-200">
-                                        {
-                                            participantCount
-                                        }
-                                    </span>
-
-                                    <span className="text-slate-500 dark:text-slate-400">
-                                        joined
-                                    </span>
-                                </div>
-                            </div>
+                    <div className="flex items-center gap-2">
+                        <div className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                            Code <span className="ml-1 font-mono tracking-wider text-slate-900 dark:text-slate-100">{session.join_code}</span>
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={
-                                    onOpenProjector
-                                }
-                            >
-                                <Presentation className="mr-2 h-4 w-4" />
-
-                                Projector
-
-                                <ExternalLink className="ml-2 h-3.5 w-3.5 opacity-60" />
+                        {onCopyJoinCode ? (
+                            <Button type="button" variant="outline" size="icon" onClick={onCopyJoinCode} aria-label="Copy join code" title="Copy join code">
+                                <Copy className="h-4 w-4" />
                             </Button>
-
-                            {!isCompleted &&
-                            isPaused &&
-                            onResumeSession ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={
-                                        isUpdating
-                                    }
-                                    onClick={
-                                        onResumeSession
-                                    }
-                                >
-                                    <Play className="mr-2 h-4 w-4" />
-
-                                    Resume
-                                </Button>
-                            ) : null}
-
-                            {!isCompleted &&
-                            !isPaused &&
-                            onPauseSession ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    disabled={
-                                        isUpdating
-                                    }
-                                    onClick={
-                                        onPauseSession
-                                    }
-                                >
-                                    <Pause className="mr-2 h-4 w-4" />
-
-                                    Pause
-                                </Button>
-                            ) : null}
-
-                            {onOpenSettings ? (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon"
-                                    onClick={
-                                        onOpenSettings
-                                    }
-                                    disabled={
-                                        isUpdating
-                                    }
-                                    className="sm:hidden"
-                                >
-                                    <MoreHorizontal className="h-4 w-4" />
-
-                                    <span className="sr-only">
-                                        Session options
-                                    </span>
-                                </Button>
-                            ) : null}
-
-                            {onEndSession ? (
-                                <Button
-                                    type="button"
-                                    variant="destructive"
-                                    disabled={
-                                        isUpdating ||
-                                        isCompleted
-                                    }
-                                    onClick={
-                                        onEndSession
-                                    }
-                                >
-                                    <Square className="mr-2 h-4 w-4" />
-
-                                    End Session
-                                </Button>
-                            ) : null}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 sm:hidden dark:border-slate-800 dark:bg-slate-900/50">
-                        <div className="min-w-0">
-                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                Student access
-                            </p>
-
-                            <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
-                                Share the join code
-                                with your students
-                            </p>
-                        </div>
-
+                        ) : null}
                         {onCopyStudentLink ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={
-                                    onCopyStudentLink
-                                }
-                            >
-                                <Copy className="mr-1.5 h-3.5 w-3.5" />
-
-                                Copy
+                            <Button type="button" variant="outline" size="icon" onClick={onCopyStudentLink} aria-label="Copy participant link" title="Copy participant link">
+                                <ExternalLink className="h-4 w-4" />
                             </Button>
                         ) : null}
                     </div>
