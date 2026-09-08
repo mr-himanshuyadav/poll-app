@@ -52,17 +52,50 @@ export function ResponseDistribution({
         );
     }
 
+    const normalizeAnswerValues = (
+        answer: unknown,
+    ): string[] => {
+        if (Array.isArray(answer)) {
+            return answer.flatMap(
+                normalizeAnswerValues,
+            );
+        }
+
+        if (
+            answer !== null &&
+            typeof answer === "object"
+        ) {
+            const value =
+                (answer as Record<string, unknown>)
+                    .option_id ??
+                (answer as Record<string, unknown>)
+                    .optionId ??
+                (answer as Record<string, unknown>)
+                    .value ??
+                (answer as Record<string, unknown>)
+                    .answer;
+
+            return value === undefined
+                ? []
+                : normalizeAnswerValues(value);
+        }
+
+        return answer === null ||
+            answer === undefined
+            ? []
+            : [String(answer)];
+    };
+
     const responseCounts = responses.reduce(
         (counts, response) => {
-            const answer =
-                typeof response.answer === "string"
-                    ? response.answer
-                    : String(response.answer ?? "");
-
-            counts.set(
-                answer,
-                (counts.get(answer) ?? 0) + 1,
-            );
+            for (const value of normalizeAnswerValues(
+                response.answer,
+            )) {
+                counts.set(
+                    value,
+                    (counts.get(value) ?? 0) + 1,
+                );
+            }
 
             return counts;
         },
@@ -72,16 +105,24 @@ export function ResponseDistribution({
     const fallbackDistribution =
         question.options.map(
             (option, index) => {
-                const key =
-                    String(option.id ?? index);
+                const optionRecord =
+                    option as unknown as Record<
+                        string,
+                        unknown
+                    >;
 
-                const label =
-                    String(
-                        option.label ??
-                        option.text ??
-                        option.value ??
-                        option,
-                    );
+                const key = String(
+                    optionRecord.id ??
+                    optionRecord.option_id ??
+                    index,
+                );
+
+                const label = String(
+                    optionRecord.label ??
+                    optionRecord.text ??
+                    optionRecord.value ??
+                    option,
+                );
 
                 const count =
                     responseCounts.get(key) ??
