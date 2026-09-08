@@ -1,7 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, CircleDot, Plus, Search, SlidersHorizontal } from "lucide-react";
+import {
+    CheckCircle2,
+    CircleDot,
+    Eye,
+    Pencil,
+    Play,
+    Plus,
+    Search,
+    SlidersHorizontal,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -293,7 +302,95 @@ export function QuestionsWorkspace({
                             }
                         />
                     ) : selectedQuestion ? (
-                        <QuestionEditor
+                        <>
+                            {(() => {
+                                const isSelectedLive =
+                                    selectedQuestion.id ===
+                                        activeQuestion?.id ||
+                                    selectedQuestion.status ===
+                                        "active";
+                                const isSelectedClosed =
+                                    selectedQuestion.status ===
+                                    "closed";
+
+                                return (
+                                    <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition-all duration-200 dark:border-slate-800 dark:bg-slate-950 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                {isSelectedLive ? (
+                                                    <CircleDot className="h-4 w-4 text-emerald-500" />
+                                                ) : isSelectedClosed ? (
+                                                    <CheckCircle2 className="h-4 w-4 text-slate-400" />
+                                                ) : (
+                                                    <Pencil className="h-4 w-4 text-indigo-500" />
+                                                )}
+                                                <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                                                    {isSelectedLive
+                                                        ? "Live question"
+                                                        : isSelectedClosed
+                                                          ? "Completed question"
+                                                          : "Ready question"}
+                                                </span>
+                                            </div>
+                                            <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                                                {isSelectedLive
+                                                    ? "Currently active for this session. Changes are saved here without duplicating live controls."
+                                                    : isSelectedClosed
+                                                      ? "This question is closed. You can review or update it for future use."
+                                                      : "Review or edit the question before displaying it to participants."}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            {isSelectedLive ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        handleSelectQuestion(
+                                                            selectedQuestion,
+                                                        )
+                                                    }
+                                                >
+                                                    <Eye className="mr-2 h-4 w-4" />
+                                                    Viewing
+                                                </Button>
+                                            ) : isSelectedClosed ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        handleSelectQuestion(
+                                                            selectedQuestion,
+                                                        )
+                                                    }
+                                                >
+                                                    <Eye className="mr-2 h-4 w-4" />
+                                                    Review
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    disabled={isUpdating}
+                                                    onClick={() =>
+                                                        onActivateQuestion(
+                                                            selectedQuestion,
+                                                        )
+                                                    }
+                                                >
+                                                    <Play className="mr-2 h-4 w-4" />
+                                                    Display
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            <QuestionEditor
                             mode="edit"
                             sessionId={
                                 sessionId
@@ -322,6 +419,7 @@ export function QuestionsWorkspace({
                                 );
                             }}
                         />
+                        </>
                     ) : (
                         <div className="flex min-h-[500px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center dark:border-slate-700 dark:bg-slate-950">
                             <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
