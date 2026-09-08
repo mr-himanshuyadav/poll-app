@@ -9,7 +9,10 @@ import type {
 
 import { LiveQuestionPanel } from "./live-question-panel";
 import { ResponseProgressPanel } from "./response-progress-panel";
+import { ResponseWorkspace } from "./response-workspace";
 import { ResponseDistribution } from "./response-distribution";
+import { ResponseParticipants } from "./response-participants";
+import { ResponseActivity } from "./response-activity";
 import { Users, CheckCircle2, Clock3, Plus, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -290,24 +293,20 @@ response.id
                         }
                     />
 
-                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
-                            <div className="min-w-0">
-                                <ResponseDistribution
-                                    question={viewedQuestion}
-                                    analytics={questionAnalytics}
-                                    responses={viewedQuestionResponses}
-                                    visualizationType={
-                                        projectorVisualizationType ??
-                                        "horizontal-bar"
-                                    }
-                                    onVisualizationChange={
-                                        onProjectorVisualizationChange
-                                    }
+                    <ResponseWorkspace
+                        responseCount={responseCount}
+                        participantCount={totalParticipants}
+                        participantsLabel="View all participants & response history"
+                        onParticipantsNavigate={() => {}}
+                        overview={(navigateToParticipants) => (
+                            <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+                                <ResponseProgressPanel
+                                    totalParticipants={totalParticipants}
+                                    responseCount={responseCount}
+                                    activeQuestion={viewedQuestion ?? activeQuestion}
+                                    embedded
                                 />
-                            </div>
-
-                            <div className="border-t border-slate-200 p-5 dark:border-slate-800 lg:border-l lg:border-t-0">
+                                <div className="border-t border-slate-100 pt-5 dark:border-slate-800 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -335,19 +334,20 @@ response.id
                                 </div>
 
                                 <div className="mt-5 grid grid-cols-2 gap-3">
-                                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
+                                    <button type="button" onClick={() => navigateToParticipants("responded")} className="rounded-xl bg-slate-50 p-3 text-left transition hover:bg-indigo-50 dark:bg-slate-900/60 dark:hover:bg-indigo-950/30">
                                         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
                                             <CheckCircle2 className="h-4 w-4" />
                                             Responded
                                         </div>
                                         <p className="mt-2 text-xl font-bold">{responseCount}</p>
-                                    </div>
-                                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
+                                    </button>
+                                    <button type="button" onClick={() => navigateToParticipants("waiting")} className="rounded-xl bg-slate-50 p-3 text-left transition hover:bg-indigo-50 dark:bg-slate-900/60 dark:hover:bg-indigo-950/30">
                                         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
                                             <Clock3 className="h-4 w-4" />
                                             Waiting
                                         </div>
                                         <p className="mt-2 text-xl font-bold">{remainingParticipants}</p>
+                                    </button>
                                     </div>
                                 </div>
 
@@ -373,8 +373,44 @@ response.id
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </section>
+                        )}
+                        distribution={(navigateToParticipants) => (
+                            <div className="p-0">
+                                <ResponseDistribution
+                                    question={viewedQuestion}
+                                    analytics={questionAnalytics}
+                                    responses={viewedQuestionResponses}
+                                    visualizationType={
+                                        projectorVisualizationType ??
+                                        "horizontal-bar"
+                                    }
+                                    embedded
+                                    onOptionSelect={(answer) =>
+                                        navigateToParticipants("responded", answer)
+                                    }
+                                    onVisualizationChange={
+                                        onProjectorVisualizationChange
+                                    }
+                                />
+                            </div>
+                        )}
+                        participants={(activeFilter, activeAnswer) => (
+                            <ResponseParticipants
+                                participants={participants}
+                                responses={viewedQuestionResponses}
+                                allResponses={responses}
+                                questions={questions}
+                                activeFilter={activeFilter}
+                                activeAnswer={activeAnswer}
+                            />
+                        )}
+                        activity={
+                            <ResponseActivity
+                                participants={participants}
+                                responses={viewedQuestionResponses}
+                            />
+                        }
+                    />
                 </div>
 
                 <aside className="space-y-6">

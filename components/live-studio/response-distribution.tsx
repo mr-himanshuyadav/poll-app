@@ -46,6 +46,9 @@ interface ResponseDistributionProps {
     onVisualizationChange?: (
         visualization: ResponseVisualizationType,
     ) => void;
+
+    embedded?: boolean;
+    onOptionSelect?: (answer: string) => void;
 }
 
 export function ResponseDistribution({
@@ -54,6 +57,8 @@ export function ResponseDistribution({
     responses,
     visualizationType = "horizontal-bar",
     onVisualizationChange,
+    embedded = false,
+    onOptionSelect,
 }: ResponseDistributionProps) {
     const [
         selectedVisualization,
@@ -63,7 +68,13 @@ export function ResponseDistribution({
     );
     if (!question) {
         return (
-            <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-6">
+            <section
+                className={
+                    embedded
+                        ? "p-5 sm:p-6"
+                        : "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-6"
+                }
+            >
                 <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-900">
                         <ChartBar className="h-5 w-5" />
@@ -305,7 +316,8 @@ export function ResponseDistribution({
                         .map((option, index) => (
                             <div
                                 key={option.key}
-                                className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition-all dark:border-slate-800"
+                                onClick={() => onOptionSelect?.(option.label)}
+                                className={`flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition-all dark:border-slate-800 ${onOptionSelect ? "cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/40 dark:hover:border-indigo-900 dark:hover:bg-indigo-950/20" : ""}`}
                             >
                                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">
                                     #{index + 1}
@@ -331,7 +343,8 @@ export function ResponseDistribution({
                     {distribution.map((option, index) => (
                         <div
                             key={option.key}
-                            className="rounded-xl border border-slate-100 p-4 dark:border-slate-800"
+                            onClick={() => onOptionSelect?.(option.label)}
+                            className={`rounded-xl border border-slate-100 p-4 transition-all dark:border-slate-800 ${onOptionSelect ? "cursor-pointer hover:border-indigo-200 hover:bg-indigo-50/40 dark:hover:border-indigo-900 dark:hover:bg-indigo-950/20" : ""}`}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <span className="line-clamp-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -356,7 +369,7 @@ export function ResponseDistribution({
         return (
             <div className="space-y-4">
                 {distribution.map((option, index) => (
-                    <div key={option.key}>
+                    <div key={option.key} onClick={() => onOptionSelect?.(option.label)} className={onOptionSelect ? "cursor-pointer rounded-lg p-1 transition hover:bg-indigo-50/60 dark:hover:bg-indigo-950/20" : ""}>
                         <div className="mb-2 flex items-center justify-between gap-4">
                             <div className="flex min-w-0 items-center gap-3">
                                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
@@ -390,7 +403,13 @@ export function ResponseDistribution({
     };
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <section
+            className={
+                embedded
+                    ? "bg-transparent"
+                    : "rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
+            }
+        >
             <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:px-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
