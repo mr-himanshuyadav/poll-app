@@ -94,6 +94,7 @@ response.id
                     <LiveQuestionPanel
                         sessionId={sessionId}
                         question={viewedQuestion}
+                        activeQuestion={activeQuestion}
                         questions={questions}
                         isUpdating={isUpdating}
                         onActivateQuestion={
