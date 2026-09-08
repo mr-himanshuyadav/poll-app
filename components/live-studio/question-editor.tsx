@@ -13,7 +13,6 @@ import {
 } from "react";
 
 import {
-    AlertTriangle,
     BarChart3,
     Plus,
     Save,
@@ -51,13 +50,6 @@ const QUESTION_TYPES: Array<{ value: QuestionType; title: string; description: s
     { value: "scale", title: "Scale", description: "Participants select a value from a range." },
 ];
 
-const RESULTS_MODES: Array<{ value: ResultsMode; title: string; description: string }> = [
-    { value: "default", title: "Default", description: "Follow the session's result mode." },
-    { value: "live", title: "Live", description: "Show results automatically for this question." },
-    { value: "on_command", title: "On command", description: "Reveal results when you are ready." },
-    { value: "hidden", title: "Hidden", description: "Keep results hidden for this question." },
-];
-
 function createOption(value = ""): QuestionFormOption {
     return { id: crypto.randomUUID(), value };
 }
@@ -78,7 +70,7 @@ function getInitialFormState(question?: SessionQuestion | null): QuestionFormSta
         scaleMaxLabel: getStringConfig(question?.config?.maxLabel),
         scaleLabels: (question?.config?.scaleLabels as Record<string, string> | undefined) ?? {},
         scalePreset: (question?.config?.scalePreset as QuestionFormState["scalePreset"] | undefined) ?? "numeric",
-        resultsMode: question?.results_mode ?? "default",
+        resultsMode: "default",
     };
 }
 
@@ -100,15 +92,13 @@ export function QuestionEditor({ mode, sessionId, question, isSaving = false, se
     const isScale = form.questionType === "scale";
     const validOptions = useMemo(() => form.options.filter((option) => option.value.trim().length > 0), [form.options]);
     const scalePreview = useMemo(() => resolveScaleConfig({ min: form.scaleMin, max: form.scaleMax, minLabel: form.scaleMinLabel, maxLabel: form.scaleMaxLabel, scaleLabels: form.scaleLabels, scalePreset: form.scalePreset } as QuestionConfig), [form.scaleLabels, form.scaleMax, form.scaleMaxLabel, form.scaleMin, form.scaleMinLabel, form.scalePreset]);
-    const effectiveResultsMode = form.resultsMode === "default" ? sessionResultsMode : form.resultsMode;
-    const sessionHidesResults = sessionResultsMode === "hidden";
     const isValid = useMemo(() => !!form.question.trim() && (!isMultipleChoice ? (!isScale || (Number.isFinite(form.scaleMin) && Number.isFinite(form.scaleMax) && form.scaleMin < form.scaleMax)) : validOptions.length >= 2), [form.question, form.scaleMax, form.scaleMin, isMultipleChoice, isScale, validOptions.length]);
     const updateForm = (updates: Partial<QuestionFormState>) => setForm((current) => ({ ...current, ...updates }));
     const applyPreset = (preset: ScalePreset) => updateForm({ scalePreset: preset, scaleMin: preset === "numeric" ? form.scaleMin : 1, scaleMax: preset === "numeric" ? form.scaleMax : 5, scaleLabels: preset === "custom" ? form.scaleLabels : { ...SCALE_PRESETS[preset] } });
     const handleSave = async () => {
         if (!isValid) return;
         const existingConfig = question?.config ?? {};
-        await onSave({ session_id: sessionId, text: form.question.trim(), type: form.questionType, options: isMultipleChoice ? validOptions.map((option) => option.value.trim()) : [], config: isScale ? { ...existingConfig, min: Number(form.scaleMin), max: Number(form.scaleMax), minLabel: form.scaleMinLabel.trim(), maxLabel: form.scaleMaxLabel.trim(), scaleLabels: form.scaleLabels, scalePreset: form.scalePreset } : { ...existingConfig }, results_mode: form.resultsMode });
+        await onSave({ session_id: sessionId, text: form.question.trim(), type: form.questionType, options: isMultipleChoice ? validOptions.map((option) => option.value.trim()) : [], config: isScale ? { ...existingConfig, min: Number(form.scaleMin), max: Number(form.scaleMax), minLabel: form.scaleMinLabel.trim(), maxLabel: form.scaleMaxLabel.trim(), scaleLabels: form.scaleLabels, scalePreset: form.scalePreset } : { ...existingConfig }, results_mode: "default" });
     };
 
     return (
@@ -131,7 +121,10 @@ export function QuestionEditor({ mode, sessionId, question, isSaving = false, se
 
                 {isScale ? <div className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/30"><div><Label className="text-sm font-bold">Scale Configuration</Label><p className="mt-1 text-xs text-slate-500">Configure numeric values separately from their participant-facing meaning.</p></div><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{SCALE_PRESET_OPTIONS.map((preset) => <button key={preset.value} type="button" onClick={() => applyPreset(preset.value)} className={["rounded-xl border p-3 text-left transition", form.scalePreset === preset.value ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300" : "border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"].join(" ")}><span className="block text-xs font-bold">{preset.title}</span><span className="mt-1 block text-[11px] leading-4 opacity-70">{preset.description}</span></button>)}</div><div className="grid gap-4 sm:grid-cols-2"><div><Label>Minimum value</Label><Input type="number" value={form.scaleMin} onChange={(e) => updateForm({ scaleMin: Number(e.target.value), scalePreset: "custom" })} className="mt-1.5" /></div><div><Label>Maximum value</Label><Input type="number" value={form.scaleMax} onChange={(e) => updateForm({ scaleMax: Number(e.target.value), scalePreset: "custom" })} className="mt-1.5" /></div></div>{scalePreview.values.length <= 20 ? <div><div className="mb-3 flex items-center justify-between"><Label className="text-sm font-bold">Value labels</Label><span className="text-xs text-slate-500">Optional</span></div><div className="grid gap-2 sm:grid-cols-2">{scalePreview.values.map((item) => <div key={item.value} className="flex items-center gap-3"><span className="flex h-9 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">{item.value}</span><Input value={form.scaleLabels[String(item.value)] ?? ""} placeholder={item.label ?? "Optional label"} onChange={(e) => updateForm({ scalePreset: "custom", scaleLabels: { ...form.scaleLabels, [String(item.value)]: e.target.value } })} /></div>)}</div></div> : null}</div> : null}
 
-                <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"><div className="mb-3"><Label className="text-sm font-bold">Question Result Mode</Label><p className="mt-1 text-xs text-slate-500">The question can follow the session or override it.</p></div>{sessionHidesResults ? <div className="mb-3 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-950/20 dark:text-amber-200"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><p>The session is currently set to hide results. That session setting overrides question settings. Change the session Results Mode to <strong>Live</strong> or <strong>On command</strong> to use question-specific settings.</p></div> : null}<div className="grid gap-2 sm:grid-cols-2">{RESULTS_MODES.map((option) => { const disabled = sessionHidesResults && option.value !== "default"; return <button key={option.value} type="button" disabled={disabled} onClick={() => updateForm({ resultsMode: option.value })} className={["rounded-xl border p-3 text-left transition", disabled ? "cursor-not-allowed opacity-40" : "", form.resultsMode === option.value ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40" : "border-slate-200 dark:border-slate-800"].join(" ")}><span className="block text-sm font-bold">{option.title}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{option.description}</span></button>; })}</div><div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-900/60">Effective mode: <strong>{effectiveResultsMode === "on_command" ? "On command" : effectiveResultsMode === "live" ? "Live" : "Hidden"}</strong></div></div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900/30 dark:text-slate-300">
+                    Result display always follows the session setting.
+                </div>
+
             </div>
         </section>
     );
