@@ -77,7 +77,7 @@ export function useSessionParticipants({
         useState<Error | null>(null);
 
     const fetchParticipants =
-        useCallback(async () => {
+        useCallback(async (silent = false) => {
             if (!sessionId) {
                 setParticipants([]);
                 setError(null);
@@ -86,8 +86,10 @@ export function useSessionParticipants({
                 return;
             }
 
-            setIsLoading(true);
-            setError(null);
+            if (!silent) {
+                setIsLoading(true);
+                setError(null);
+            }
 
             try {
                 const {
@@ -138,7 +140,9 @@ export function useSessionParticipants({
                 setError(normalizedError);
                 setParticipants([]);
             } finally {
-                setIsLoading(false);
+                if (!silent) {
+                    setIsLoading(false);
+                }
             }
         }, [sessionId]);
 
@@ -275,7 +279,7 @@ export function useSessionParticipants({
                     status === "CHANNEL_ERROR" ||
                     status === "TIMED_OUT"
                 ) {
-                    void fetchParticipants();
+                    void fetchParticipants(true);
                 }
             });
 
