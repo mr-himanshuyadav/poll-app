@@ -1,6 +1,7 @@
 "use client";
 
 import {
+import { ScaleResponseInput } from "@/components/live-studio/scale-response-input";
   use,
   useEffect,
   useMemo,
@@ -1488,83 +1489,12 @@ export default function JoinPage({
         question.type ===
           "rating"
       ) {
-        const min =
-          Number(
-            question.config.min ??
-              1,
-          );
-
-        const max =
-          Number(
-            question.config.max ??
-              5,
-          );
-
-        const values =
-          Array.from(
-            {
-              length: Math.max(
-                1,
-                max -
-                  min +
-                  1,
-              ),
-            },
-            (_, index) =>
-              min + index,
-          );
-
-        const scaleLabels =
-          (question.config.scaleLabels as Record<string, string> | undefined) ?? {};
-
         return (
-          <div className="space-y-4">
-            {(question.config.minLabel || question.config.maxLabel || scaleLabels[String(min)] || scaleLabels[String(max)]) && (
-              <div className="flex justify-between gap-4 text-xs font-semibold text-muted-foreground">
-                <span>{scaleLabels[String(min)] || question.config.minLabel || min}</span>
-                <span className="text-right">{scaleLabels[String(max)] || question.config.maxLabel || max}</span>
-              </div>
-            )}
-            <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
-            {values.map(
-              (value) => {
-                const stringValue =
-                  String(value);
-
-                const isSelected =
-                  selectedAnswer ===
-                  stringValue;
-
-                return (
-                  <button
-                    key={
-                      stringValue
-                    }
-                    type="button"
-                    onClick={() =>
-                      setSelectedAnswer(
-                        stringValue,
-                      )
-                    }
-                    className={[
-                      "rounded-xl border p-3 font-semibold",
-                      isSelected
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-muted",
-                    ].join(" ")}
-                  >
-                    <span className="text-base font-black">{value}</span>
-                    {scaleLabels[stringValue]?.trim() ? (
-                      <span className="mt-1 block text-[10px] leading-tight text-muted-foreground">
-                        {scaleLabels[stringValue]}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              },
-            )}
-            </div>
-          </div>
+          <ScaleResponseInput
+            config={question.config}
+            value={selectedAnswer}
+            onChange={setSelectedAnswer}
+          />
         );
       }
 
