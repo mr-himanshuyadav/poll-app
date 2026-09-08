@@ -933,6 +933,49 @@ export default function LiveStudioPage() {
             "Results Hidden",
         );
     }}
+    onShowResultsOnProjector={async () => {
+        if (!viewedQuestion) {
+            return;
+        }
+
+        await updateSession({
+            projector_display_type:
+                "results",
+            projector_question_id:
+                viewedQuestion.id,
+        });
+
+        showNotice(
+            "success",
+            "Results are now displayed on the projector.",
+            "Projector Updated",
+        );
+    }}
+    onShowResultsOnBoth={async () => {
+        if (!viewedQuestion) {
+            return;
+        }
+
+        await updateQuestion(
+            viewedQuestion.id,
+            {
+                results_visible: true,
+            },
+        );
+
+        await updateSession({
+            projector_display_type:
+                "results",
+            projector_question_id:
+                viewedQuestion.id,
+        });
+
+        showNotice(
+            "success",
+            "Results are now displayed to students and on the projector.",
+            "Results Shown",
+        );
+    }}
     onConfirmReplaceLiveQuestion={(question) => {
         setPendingLiveQuestion(question);
     }}
