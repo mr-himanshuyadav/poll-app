@@ -1940,11 +1940,10 @@ export default function JoinPage({
                 className="mx-auto flex text-muted-foreground"
                 onClick={() => {
                   setNextJoinCode("");
-                  window.location.assign("/session");
                 }}
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
-                Enter a different session
+                Clear join code
               </Button>
             </CardContent>
           </Card>
