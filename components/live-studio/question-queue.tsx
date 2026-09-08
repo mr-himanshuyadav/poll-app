@@ -22,6 +22,8 @@ interface QuestionQueueProps {
 
     isUpdating?: boolean;
 
+    isCompleted?: boolean;
+
     onSelectQuestion: (
         question: SessionQuestion,
     ) => void;
@@ -40,6 +42,7 @@ export function QuestionQueue({
     selectedQuestionId,
     activeQuestionId,
     isUpdating = false,
+    isCompleted = false,
     onSelectQuestion,
     onActivateQuestion,
 }: QuestionQueueProps) {
@@ -102,6 +105,7 @@ export function QuestionQueue({
                             isUpdating={
                                 isUpdating
                             }
+                            viewOnly={isCompleted}
                             onSelect={() =>
                                 onSelectQuestion(
                                     question,
