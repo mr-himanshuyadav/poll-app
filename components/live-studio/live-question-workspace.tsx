@@ -293,15 +293,14 @@ response.id
 
                     <ResponseWorkspace
                         overview={
-                            <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-                                <div>
-                                    <ResponseProgressPanel
-                                        totalParticipants={totalParticipants}
-                                        responseCount={responseCount}
-                                        activeQuestion={viewedQuestion ?? activeQuestion}
-                                    />
-                                </div>
-                                <div className="p-5">
+                            <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+                                <ResponseProgressPanel
+                                    totalParticipants={totalParticipants}
+                                    responseCount={responseCount}
+                                    activeQuestion={viewedQuestion ?? activeQuestion}
+                                    embedded
+                                />
+                                <div className="border-t border-slate-100 pt-5 dark:border-slate-800 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
