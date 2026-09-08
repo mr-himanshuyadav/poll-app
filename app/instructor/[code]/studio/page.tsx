@@ -1268,6 +1268,14 @@ export default function LiveStudioPage() {
                                         const question = pendingResultsQuestion;
                                         setPendingResultsQuestion(null);
 
+                                        await updateQuestion(
+                                            question.id,
+                                            {
+                                                results_mode: "live",
+                                                results_visible: false,
+                                            },
+                                        );
+
                                         await updateSession({
                                             projector_display_type: "results",
                                             projector_question_id: question.id,
