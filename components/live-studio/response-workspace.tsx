@@ -8,7 +8,7 @@ interface ResponseWorkspaceProps {
     participantCount?: number;
     participantsLabel?: string;
     onParticipantsNavigate?: (filter?: "all" | "responded" | "waiting") => void;
-    participants?: React.ReactNode | ((filter: "all" | "responded" | "waiting") => React.ReactNode);
+    participants?: React.ReactNode | ((filter: "all" | "responded" | "waiting", answer?: string | null) => React.ReactNode);
     overview: React.ReactNode | ((navigate: (filter: "all" | "responded" | "waiting") => void) => React.ReactNode);
     distribution: React.ReactNode;
     activity?: React.ReactNode;
@@ -41,11 +41,14 @@ export function ResponseWorkspace({
         useState<ResponseWorkspaceView>("overview");
     const [participantFilter, setParticipantFilter] =
         useState<"all" | "responded" | "waiting">("all");
+    const [participantAnswer, setParticipantAnswer] = useState<string | null>(null);
 
     const navigateToParticipants = (
         filter: "all" | "responded" | "waiting" = "all",
+        answer: string | null = null,
     ) => {
         setParticipantFilter(filter);
+        setParticipantAnswer(answer);
         onParticipantsNavigate?.(filter);
         setActiveView("participants");
     };
@@ -57,7 +60,7 @@ export function ResponseWorkspace({
               ? distribution
               : activeView === "participants"
                 ? (typeof participants === "function"
-                    ? participants(participantFilter)
+                    ? participants(participantFilter, participantAnswer)
                     : participants) ?? (
                     <WorkspacePlaceholder
                         title="Participants"
