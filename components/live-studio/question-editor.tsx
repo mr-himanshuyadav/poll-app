@@ -182,11 +182,35 @@ function getInitialFormState(
                 question?.config?.maxLabel,
             ),
 
+        scaleLabels:
+            (question?.config?.scaleLabels as Record<string, string> | undefined) ?? {},
+
+        scalePreset:
+            (question?.config?.scalePreset as "numeric" | "agreement" | "satisfaction" | "custom" | undefined) ?? "numeric",
+
         resultsMode:
             question?.results_mode ??
             "on_command",
     };
 }
+
+const SCALE_PRESETS = {
+    numeric: {},
+    agreement: {
+        "1": "Strongly disagree",
+        "2": "Disagree",
+        "3": "Neither agree nor disagree",
+        "4": "Agree",
+        "5": "Strongly agree",
+    },
+    satisfaction: {
+        "1": "Very dissatisfied",
+        "2": "Dissatisfied",
+        "3": "Neutral",
+        "4": "Satisfied",
+        "5": "Very satisfied",
+    },
+} as const;
 
 export function QuestionEditor({
     mode,
@@ -393,6 +417,12 @@ export function QuestionEditor({
 
                               maxLabel:
                                   form.scaleMaxLabel.trim(),
+
+                              scaleLabels:
+                                  form.scaleLabels,
+
+                              scalePreset:
+                                  form.scalePreset,
                           }
                         : {
                               ...existingConfig,
@@ -666,131 +696,67 @@ export function QuestionEditor({
                     </div>
                 ) : null}
 
-                {isScale ? (
-                    <div>
-                        <Label className="text-sm font-bold">
-                            Scale Range
-                        </Label>
+                {isScale ? (() => {
+                    const values = Array.from(
+                        { length: Math.max(0, form.scaleMax - form.scaleMin + 1) },
+                        (_, index) => form.scaleMin + index,
+                    );
 
-                        <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                            <div>
-                                <Label
-                                    htmlFor="scale-min"
-                                    className="text-xs text-slate-500"
-                                >
-                                    Minimum
-                                </Label>
+                    const applyPreset = (
+                        preset: "numeric" | "agreement" | "satisfaction" | "custom",
+                    ) => {
+                        const labels = preset === "custom"
+                            ? form.scaleLabels
+                            : { ...SCALE_PRESETS[preset] };
 
-                                <Input
-                                    id="scale-min"
-                                    type="number"
-                                    value={
-                                        form.scaleMin
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) =>
-                                        updateForm({
-                                            scaleMin:
-                                                Number(
-                                                    event
-                                                        .target
-                                                        .value,
-                                                ),
-                                        })
-                                    }
-                                    className="mt-1.5"
-                                />
-                            </div>
+                        updateForm({
+                            scalePreset: preset,
+                            scaleMin: preset === "numeric" ? form.scaleMin : 1,
+                            scaleMax: preset === "numeric" ? form.scaleMax : 5,
+                            scaleLabels: labels,
+                        });
+                    };
 
-                            <div>
-                                <Label
-                                    htmlFor="scale-max"
-                                    className="text-xs text-slate-500"
-                                >
-                                    Maximum
-                                </Label>
-
-                                <Input
-                                    id="scale-max"
-                                    type="number"
-                                    value={
-                                        form.scaleMax
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) =>
-                                        updateForm({
-                                            scaleMax:
-                                                Number(
-                                                    event
-                                                        .target
-                                                        .value,
-                                                ),
-                                        })
-                                    }
-                                    className="mt-1.5"
-                                />
-                            </div>
-
-                            <div>
-                                <Label
-                                    htmlFor="scale-min-label"
-                                    className="text-xs text-slate-500"
-                                >
-                                    Minimum Label
-                                </Label>
-
-                                <Input
-                                    id="scale-min-label"
-                                    value={
-                                        form.scaleMinLabel
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) =>
-                                        updateForm({
-                                            scaleMinLabel:
-                                                event
-                                                    .target
-                                                    .value,
-                                        })
-                                    }
-                                    placeholder="e.g. Strongly disagree"
-                                    className="mt-1.5"
-                                />
-                            </div>
-
-                            <div>
-                                <Label
-                                    htmlFor="scale-max-label"
-                                    className="text-xs text-slate-500"
-                                >
-                                    Maximum Label
-                                </Label>
-
-                                <Input
-                                    id="scale-max-label"
-                                    value={
-                                        form.scaleMaxLabel
-                                    }
-                                    onChange={(
-                                        event,
-                                    ) =>
-                                        updateForm({
-                                            scaleMaxLabel:
-                                                event
-                                                    .target
-                                                    .value,
-                                        })
-                                    }
-                                    placeholder="e.g. Strongly agree"
-                                    className="mt-1.5"
-                                />
-                            </div>
+                    return (
+                    <div className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/30">
+                        <div>
+                            <Label className="text-sm font-bold">Scale Configuration</Label>
+                            <p className="mt-1 text-xs text-slate-500">Values are stored as numbers. Labels are only the participant-facing meaning, so analytics can still filter and calculate by value.</p>
                         </div>
+
+                        <div className="grid gap-2 sm:grid-cols-4">
+                            {[
+                                ["numeric", "Numeric range"],
+                                ["agreement", "Agreement (1–5)"],
+                                ["satisfaction", "Satisfaction (1–5)"],
+                                ["custom", "Custom labels"],
+                            ].map(([value, label]) => (
+                                <button key={value} type="button" onClick={() => applyPreset(value as typeof form.scalePreset)} className={[
+                                    "rounded-xl border px-3 py-3 text-left text-xs font-semibold transition",
+                                    form.scalePreset === value ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300" : "border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300",
+                                ].join(" ")}>{label}</button>
+                            ))}
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div><Label htmlFor="scale-min" className="text-xs text-slate-500">Minimum value</Label><Input id="scale-min" type="number" value={form.scaleMin} onChange={(event) => updateForm({ scaleMin: Number(event.target.value), scalePreset: "custom" })} className="mt-1.5" /></div>
+                            <div><Label htmlFor="scale-max" className="text-xs text-slate-500">Maximum value</Label><Input id="scale-max" type="number" value={form.scaleMax} onChange={(event) => updateForm({ scaleMax: Number(event.target.value), scalePreset: "custom" })} className="mt-1.5" /></div>
+                        </div>
+
+                        {values.length > 0 && values.length <= 20 ? (
+                            <div>
+                                <div className="mb-3 flex items-center justify-between"><Label className="text-sm font-bold">Value labels</Label><span className="text-xs text-slate-500">Optional — blank labels show the numeric value</span></div>
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    {values.map((value) => {
+                                        const key = String(value);
+                                        return <div key={key} className="flex items-center gap-3"><span className="flex h-9 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">{value}</span><Input value={form.scaleLabels[key] ?? ""} placeholder={value === form.scaleMin ? "e.g. Strongly disagree" : value === form.scaleMax ? "e.g. Strongly agree" : "Optional label"} onChange={(event) => updateForm({ scalePreset: "custom", scaleLabels: { ...form.scaleLabels, [key]: event.target.value } })} /></div>;
+                                    })}
+                                </div>
+                            </div>
+                        ) : values.length > 20 ? <p className="text-xs text-amber-600">For ranges above 20 values, labels are intentionally hidden to keep the editor manageable.</p> : null}
                     </div>
-                ) : null}
+                    );
+                })() : null}
 
                 <div>
                     <Label className="text-sm font-bold">
