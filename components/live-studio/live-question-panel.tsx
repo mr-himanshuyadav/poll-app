@@ -155,11 +155,7 @@ export function LiveQuestionPanel({
                     </h2>
 
                     <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
-                        Select a question from
-                        your queue and make it
-                        live when you are ready
-                        for participants to
-                        respond.
+                        Select a question from your queue to review it. Completed sessions are view-only and no question can be made live.
                     </p>
 
                     {!isCompleted && nextQuestion ? (
