@@ -380,27 +380,28 @@ export default function JoinPage({
           1;
       }
 
+      const min = Number(currentQuestion.config.min ?? 1);
+      const max = Number(currentQuestion.config.max ?? 5);
+      const labels =
+        (currentQuestion.config.scaleLabels as Record<string, string> | undefined) ?? {};
+
       const entries =
-        Object.entries(
-          counts,
-        )
-          .sort(
-            ([a], [b]) =>
-              Number(a) -
-              Number(b),
-          )
-          .map(
-            ([option, count]) => ({
-              option,
-              count,
-              percentage:
-                Math.round(
-                  (count /
-                    numericValues.length) *
-                    100,
-                ),
-            }),
-          );
+        Array.from(
+          { length: Math.max(0, max - min + 1) },
+          (_, index) => min + index,
+        ).map((value) => {
+          const key = String(value);
+          const count = counts[key] ?? 0;
+          const label = labels[key]?.trim();
+
+          return {
+            option: label ? `${value} — ${label}` : key,
+            count,
+            percentage: Math.round(
+              (count / numericValues.length) * 100,
+            ),
+          };
+        });
 
       setResultEntries(
         entries,
@@ -1513,8 +1514,18 @@ export default function JoinPage({
               min + index,
           );
 
+        const scaleLabels =
+          (question.config.scaleLabels as Record<string, string> | undefined) ?? {};
+
         return (
-          <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+          <div className="space-y-4">
+            {(question.config.minLabel || question.config.maxLabel || scaleLabels[String(min)] || scaleLabels[String(max)]) && (
+              <div className="flex justify-between gap-4 text-xs font-semibold text-muted-foreground">
+                <span>{scaleLabels[String(min)] || question.config.minLabel || min}</span>
+                <span className="text-right">{scaleLabels[String(max)] || question.config.maxLabel || max}</span>
+              </div>
+            )}
+            <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
             {values.map(
               (value) => {
                 const stringValue =
@@ -1542,11 +1553,17 @@ export default function JoinPage({
                         : "hover:bg-muted",
                     ].join(" ")}
                   >
-                    {value}
+                    <span className="text-base font-black">{value}</span>
+                    {scaleLabels[stringValue]?.trim() ? (
+                      <span className="mt-1 block text-[10px] leading-tight text-muted-foreground">
+                        {scaleLabels[stringValue]}
+                      </span>
+                    ) : null}
                   </button>
                 );
               },
             )}
+            </div>
           </div>
         );
       }
