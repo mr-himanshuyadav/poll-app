@@ -145,11 +145,7 @@ export default function JoinPage({
   ) => {
     const canShowResults =
       activeSession?.student_display_type === "results" ||
-      (
-        currentQuestion.results_mode === "live" &&
-        Boolean(activeParticipant?.participantId) &&
-        Boolean(existingResponse)
-      );
+      currentQuestion.results_mode === "live";
 
     if (!canShowResults) {
       setResponseCount(0);
