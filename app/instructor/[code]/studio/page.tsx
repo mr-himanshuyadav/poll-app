@@ -139,6 +139,9 @@ export default function LiveStudioPage() {
             null,
         );
 
+    const [pendingLiveQuestion, setPendingLiveQuestion] =
+        useState<SessionQuestion | null>(null);
+
     const [viewedQuestionId, setViewedQuestionId] =
         useState<string | null>(null);
 
@@ -888,6 +891,9 @@ export default function LiveStudioPage() {
             null,
         );
     }}
+    onConfirmReplaceLiveQuestion={(question) => {
+        setPendingLiveQuestion(question);
+    }}
 />
                 ) : null}
 
@@ -967,6 +973,59 @@ export default function LiveStudioPage() {
                     />
                 ) : null}
             </main>
+
+            {pendingLiveQuestion ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
+                    <div className="w-full max-w-md animate-in zoom-in-95 slide-in-from-bottom-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl duration-200 dark:border-slate-800 dark:bg-slate-950">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                                <AlertTriangle className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <h2 className="text-base font-bold">
+                                    Replace live question?
+                                </h2>
+
+                                <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                                    This will close the current question and display the selected question to students.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() =>
+                                    setPendingLiveQuestion(null)
+                                }
+                            >
+                                Cancel
+                            </Button>
+
+                            <Button
+                                type="button"
+                                disabled={areQuestionsSaving}
+                                onClick={async () => {
+                                    const question =
+                                        pendingLiveQuestion;
+
+                                    setPendingLiveQuestion(null);
+
+                                    await handleSetActiveQuestion(
+                                        question.id,
+                                    );
+                                }}
+                            >
+                                <Radio className="mr-2 h-4 w-4" />
+
+                                Replace & Display
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             <SessionSettingsDrawer
                 open={settingsOpen}
