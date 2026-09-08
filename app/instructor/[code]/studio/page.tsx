@@ -966,6 +966,24 @@ export default function LiveStudioPage() {
             : null
     }
     projectorDisplayType={session.projector_display_type}
+    projectorVisualizationType={
+        session.projector_visualization_type ??
+        "horizontal-bar"
+    }
+    onProjectorVisualizationChange={async (
+        visualization,
+    ) => {
+        await updateSession({
+            projector_visualization_type:
+                visualization,
+        });
+
+        showNotice(
+            "success",
+            "Projector visualization updated.",
+            "Visualization Updated",
+        );
+    }}
     projectorQuestion={
         questions.find((question) => question.id === session.projector_question_id) ?? null
     }
