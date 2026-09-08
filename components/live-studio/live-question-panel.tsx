@@ -10,6 +10,7 @@ import {
     Play,
     Radio,
     Square,
+    X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,10 @@ interface LiveQuestionPanelProps {
     onShowResults?: () => void;
 
     onHideResults?: () => void;
+
+    onConfirmReplaceLiveQuestion?: (
+        question: SessionQuestion,
+    ) => void;
 }
 
 function getScaleNumber(
@@ -89,6 +94,7 @@ export function LiveQuestionPanel({
     onCloseQuestion,
     onShowResults,
     onHideResults,
+    onConfirmReplaceLiveQuestion,
 }: LiveQuestionPanelProps) {
     if (!question) {
         const nextQuestion =
@@ -191,6 +197,22 @@ export function LiveQuestionPanel({
                   questions,
               )
             : null;
+
+    const handleDisplayToStudents =
+        () => {
+            if (
+                anotherQuestionIsLive &&
+                onConfirmReplaceLiveQuestion
+            ) {
+                onConfirmReplaceLiveQuestion(
+                    question,
+                );
+
+                return;
+            }
+
+            onActivateQuestion(question);
+        };
 
     const scaleMin =
         getScaleNumber(
@@ -311,10 +333,8 @@ export function LiveQuestionPanel({
                             <Button
                                 type="button"
                                 disabled={isUpdating}
-                                onClick={() =>
-                                    onActivateQuestion(
-                                        question,
-                                    )
+                                onClick={
+                                    handleDisplayToStudents
                                 }
                             >
                                 <Play className="mr-2 h-4 w-4" />
