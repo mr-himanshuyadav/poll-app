@@ -1,6 +1,10 @@
 "use client";
 
-import { SCALE_PRESET_LABELS } from "@/lib/scale-config";
+import {
+    resolveScaleConfig,
+    SCALE_PRESET_LABELS,
+    type ScalePreset,
+} from "@/lib/scale-config";
 
 import {
     useEffect,
@@ -20,6 +24,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+
+import type { QuestionConfig } from "@/lib/types";
 
 import type {
     QuestionFormOption,
@@ -188,7 +194,7 @@ function getInitialFormState(
             (question?.config?.scaleLabels as Record<string, string> | undefined) ?? {},
 
         scalePreset:
-            (question?.config?.scalePreset as "numeric" | "agreement" | "satisfaction" | "custom" | undefined) ?? "numeric",
+            (question?.config?.scalePreset as QuestionFormState["scalePreset"] | undefined) ?? "numeric",
 
         resultsMode:
             question?.results_mode ??
@@ -197,6 +203,43 @@ function getInitialFormState(
 }
 
 const SCALE_PRESETS = SCALE_PRESET_LABELS;
+
+const SCALE_PRESET_OPTIONS: Array<{
+    value: ScalePreset;
+    title: string;
+    description: string;
+}> = [
+    {
+        value: "numeric",
+        title: "Numeric range",
+        description: "Use values such as 1–5 or 1–10 without meanings.",
+    },
+    {
+        value: "agreement",
+        title: "Agreement",
+        description: "Strongly disagree → Strongly agree.",
+    },
+    {
+        value: "satisfaction",
+        title: "Satisfaction",
+        description: "Very dissatisfied → Very satisfied.",
+    },
+    {
+        value: "frequency",
+        title: "Frequency",
+        description: "Never → Always.",
+    },
+    {
+        value: "quality",
+        title: "Quality",
+        description: "Very poor → Excellent.",
+    },
+    {
+        value: "custom",
+        title: "Custom labels",
+        description: "Define the meaning of every value yourself.",
+    },
+];
 
 
 export function QuestionEditor({
@@ -244,6 +287,26 @@ export function QuestionEditor({
                         .length > 0,
             ),
         [form.options],
+    );
+
+    const scalePreview = useMemo(
+        () =>
+            resolveScaleConfig({
+                min: form.scaleMin,
+                max: form.scaleMax,
+                minLabel: form.scaleMinLabel,
+                maxLabel: form.scaleMaxLabel,
+                scaleLabels: form.scaleLabels,
+                scalePreset: form.scalePreset,
+            } as QuestionConfig),
+        [
+            form.scaleLabels,
+            form.scaleMax,
+            form.scaleMaxLabel,
+            form.scaleMin,
+            form.scaleMinLabel,
+            form.scalePreset,
+        ],
     );
 
     const isValid = useMemo(() => {
@@ -711,23 +774,75 @@ export function QuestionEditor({
                             <p className="mt-1 text-xs text-slate-500">Values are stored as numbers. Labels are only the participant-facing meaning, so analytics can still filter and calculate by value.</p>
                         </div>
 
-                        <div className="grid gap-2 sm:grid-cols-4">
-                            {[
-                                ["numeric", "Numeric range"],
-                                ["agreement", "Agreement (1–5)"],
-                                ["satisfaction", "Satisfaction (1–5)"],
-                                ["custom", "Custom labels"],
-                            ].map(([value, label]) => (
-                                <button key={value} type="button" onClick={() => applyPreset(value as typeof form.scalePreset)} className={[
-                                    "rounded-xl border px-3 py-3 text-left text-xs font-semibold transition",
-                                    form.scalePreset === value ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300" : "border-slate-200 bg-white text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300",
-                                ].join(" ")}>{label}</button>
+                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                            {SCALE_PRESET_OPTIONS.map((preset) => (
+                                <button
+                                    key={preset.value}
+                                    type="button"
+                                    onClick={() => applyPreset(preset.value)}
+                                    className={[
+                                        "rounded-xl border p-3 text-left transition",
+                                        form.scalePreset === preset.value
+                                            ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
+                                            : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300",
+                                    ].join(" ")}
+                                >
+                                    <span className="block text-xs font-bold">
+                                        {preset.title}
+                                    </span>
+                                    <span className="mt-1 block text-[11px] leading-4 opacity-70">
+                                        {preset.description}
+                                    </span>
+                                </button>
                             ))}
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div><Label htmlFor="scale-min" className="text-xs text-slate-500">Minimum value</Label><Input id="scale-min" type="number" value={form.scaleMin} onChange={(event) => updateForm({ scaleMin: Number(event.target.value), scalePreset: "custom" })} className="mt-1.5" /></div>
                             <div><Label htmlFor="scale-max" className="text-xs text-slate-500">Maximum value</Label><Input id="scale-max" type="number" value={form.scaleMax} onChange={(event) => updateForm({ scaleMax: Number(event.target.value), scalePreset: "custom" })} className="mt-1.5" /></div>
+                        </div>
+
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                                <div>
+                                    <Label className="text-sm font-bold">Participant preview</Label>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        This is how the configured scale will be interpreted by participants.
+                                    </p>
+                                </div>
+                                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:bg-slate-900">
+                                    {scalePreview.preset}
+                                </span>
+                            </div>
+
+                            {(scalePreview.minLabel || scalePreview.maxLabel) && (
+                                <div className="mb-3 flex justify-between gap-4 text-xs font-semibold text-slate-500">
+                                    <span>{scalePreview.minLabel}</span>
+                                    <span className="text-right">{scalePreview.maxLabel}</span>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+                                {scalePreview.values.slice(0, 10).map((item) => (
+                                    <div
+                                        key={item.value}
+                                        className="min-h-[54px] rounded-lg border border-slate-200 px-2 py-2 text-center dark:border-slate-800"
+                                    >
+                                        <span className="block text-sm font-black">{item.value}</span>
+                                        {item.label ? (
+                                            <span className="mt-1 block text-[10px] leading-tight text-slate-500">
+                                                {item.label}
+                                            </span>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {scalePreview.values.length > 10 ? (
+                                <p className="mt-3 text-center text-xs text-slate-500">
+                                    Preview shows the first 10 of {scalePreview.values.length} values.
+                                </p>
+                            ) : null}
                         </div>
 
                         {values.length > 0 && values.length <= 20 ? (
