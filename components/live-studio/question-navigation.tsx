@@ -274,7 +274,30 @@ export function QuestionNavigation({
                                                 </Button>
 
                                                 {!isLive ? (
-                                                    <Button type="button" size="icon" variant="ghost" disabled={isUpdating} className="h-8 w-8" onClick={() => onActivateQuestion(question)} aria-label="Make question live" title="Make question live">
+                                                    <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="ghost"
+                                                        disabled={isUpdating}
+                                                        className="h-8 w-8"
+                                                        onClick={() => {
+                                                            if (
+                                                                liveQuestionId &&
+                                                                liveQuestionId !== question.id
+                                                            ) {
+                                                                onConfirmReplaceLiveQuestion?.(
+                                                                    question,
+                                                                );
+                                                                return;
+                                                            }
+
+                                                            onActivateQuestion(
+                                                                question,
+                                                            );
+                                                        }}
+                                                        aria-label="Make question live"
+                                                        title="Make question live"
+                                                    >
                                                         <Radio className="h-4 w-4" />
                                                     </Button>
                                                 ) : null}
