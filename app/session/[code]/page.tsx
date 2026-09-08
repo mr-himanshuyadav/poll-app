@@ -143,7 +143,15 @@ export default function JoinPage({
     currentSessionId: string,
     currentQuestion: SessionQuestion,
   ) => {
-    if (!currentQuestion.results_visible) {
+    const canShowResults =
+      activeSession?.student_display_type === "results" ||
+      (
+        currentQuestion.results_mode === "live" &&
+        Boolean(activeParticipant?.participantId) &&
+        Boolean(existingResponse)
+      );
+
+    if (!canShowResults) {
       setResponseCount(0);
       setResultEntries([]);
       setAverageValue(null);
@@ -628,12 +636,18 @@ export default function JoinPage({
       }
     }
 
+    const initialDisplayQuestionId =
+      currentSession.student_display_type === "waiting"
+        ? null
+        : currentSession.student_question_id ??
+          currentSession.active_question_id;
+
     if (
-      currentSession.active_question_id &&
+      initialDisplayQuestionId &&
       storedParticipant
     ) {
       await loadQuestion(
-        currentSession.active_question_id,
+        initialDisplayQuestionId,
         currentSession,
         storedParticipant,
       );
@@ -659,9 +673,13 @@ export default function JoinPage({
    */
 
   useEffect(() => {
-    if (
-      !session?.active_question_id
-    ) {
+    const displayQuestionId =
+      session?.student_display_type === "waiting"
+        ? null
+        : session?.student_question_id ??
+          session?.active_question_id;
+
+    if (!displayQuestionId) {
       setQuestion(null);
       setExistingResponse(null);
       setSelectedAnswer("");
@@ -676,9 +694,11 @@ export default function JoinPage({
     }
 
     void loadQuestion(
-      session.active_question_id,
+      displayQuestionId,
     );
   }, [
+    session?.student_display_type,
+    session?.student_question_id,
     session?.active_question_id,
     participant?.participantId,
   ]);
@@ -745,7 +765,12 @@ export default function JoinPage({
 
             if (
               changedQuestion.id !==
-              session.active_question_id
+              (
+                session.student_display_type === "waiting"
+                  ? null
+                  : session.student_question_id ??
+                    session.active_question_id
+              )
             ) {
               return;
             }
@@ -801,6 +826,8 @@ export default function JoinPage({
   }, [
     session?.id,
     session?.active_question_id,
+    session?.student_display_type,
+    session?.student_question_id,
   ]);
 
   /*
@@ -1589,10 +1616,11 @@ export default function JoinPage({
     () => {
       if (
         !question ||
-        (!question.results_visible &&
+        (session.student_display_type !== "results" &&
           !(
             question.results_mode === "live" &&
-            existingResponse
+            existingResponse &&
+            session.active_question_id === question.id
           ))
       ) {
         return null;
@@ -1922,6 +1950,8 @@ export default function JoinPage({
 
   const canAnswer =
     session.status === "live" &&
+    session.student_display_type === "question" &&
+    session.student_question_id === question?.id &&
     !session.is_offline &&
     question?.status ===
       "active";
