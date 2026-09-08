@@ -949,6 +949,9 @@ export default function LiveStudioPage() {
                     <LiveQuestionWorkspace
     sessionId={session.id}
     questions={questions}
+    defaultResultVisibility={
+        session.default_result_visibility ?? "both"
+    }
     projectorResultsQuestionId={
         session.projector_display_type ===
         "results"
@@ -1033,8 +1036,19 @@ export default function LiveStudioPage() {
             null,
         );
     }}
-    onShowResults={() => {
-        void handleRequestShowResults("students");
+    onShowResults={(target) => {
+        if (target === "projector") {
+            void updateSession({
+                projector_display_type: "results",
+                projector_question_id:
+                    viewedQuestion?.id ?? null,
+            });
+            return;
+        }
+
+        void handleRequestShowResults(
+            target === "both" ? "both" : "students",
+        );
     }}
     onRequestShowResults={() => {
         void handleRequestShowResults();
