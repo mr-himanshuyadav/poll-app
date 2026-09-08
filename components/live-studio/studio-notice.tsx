@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     CheckCircle2,
     Info,
@@ -110,13 +110,35 @@ export function StudioNotice({
 
     const Icon = styles.Icon;
     const [progress, setProgress] = useState(100);
+    const [isHovered, setIsHovered] = useState(false);
+    const remainingRef = useRef(5000);
+    const lastTickRef = useRef<number | null>(null);
+
     useEffect(() => {
+        remainingRef.current = 5000;
+        lastTickRef.current = performance.now();
         setProgress(100);
-        const started = Date.now();
-        const tick = window.setInterval(() => setProgress(Math.max(0, 100 - ((Date.now() - started) / 10000) * 100)), 50);
-        const timeout = window.setTimeout(() => onClose?.(), 10000);
-        return () => { window.clearInterval(tick); window.clearTimeout(timeout); };
-    }, [message, onClose]);
+    }, [message]);
+
+    useEffect(() => {
+        if (isHovered) {
+            lastTickRef.current = null;
+            return;
+        }
+
+        lastTickRef.current = performance.now();
+        const interval = window.setInterval(() => {
+            const now = performance.now();
+            const previous = lastTickRef.current ?? now;
+            const elapsed = now - previous;
+            lastTickRef.current = now;
+            remainingRef.current = Math.max(0, remainingRef.current - elapsed);
+            setProgress((remainingRef.current / 5000) * 100);
+            if (remainingRef.current <= 0) onClose?.();
+        }, 50);
+
+        return () => window.clearInterval(interval);
+    }, [isHovered, onClose]);
 
     return (
         <div
@@ -124,6 +146,8 @@ export function StudioNotice({
                 "animate-in slide-in-from-right-4 fade-in flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-2xl",
                 styles.wrapper,
             ].join(" ")}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             role={
                 type === "error"
                     ? "alert"
