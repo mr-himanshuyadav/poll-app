@@ -20,10 +20,12 @@ interface StudioActionDialogProps {
     description: string;
     confirmLabel: string;
     cancelLabel?: string;
+    secondaryLabel?: string;
     variant?: StudioActionDialogVariant;
     isLoading?: boolean;
     onCancel: () => void;
     onConfirm: () => void | Promise<void>;
+    onSecondary?: () => void | Promise<void>;
 }
 
 const variantConfig = {
@@ -50,10 +52,12 @@ export function StudioActionDialog({
     description,
     confirmLabel,
     cancelLabel = "Cancel",
+    secondaryLabel,
     variant = "warning",
     isLoading = false,
     onCancel,
     onConfirm,
+    onSecondary,
 }: StudioActionDialogProps) {
     const config = variantConfig[variant];
     const Icon = config.icon;
@@ -75,10 +79,20 @@ export function StudioActionDialog({
                     </div>
                 </AlertDialogHeader>
 
-                <AlertDialogFooter>
+                <AlertDialogFooter className="flex-wrap gap-2 sm:justify-end">
                     <Button type="button" variant="outline" disabled={isLoading} onClick={onCancel}>
                         {cancelLabel}
                     </Button>
+                    {secondaryLabel && onSecondary ? (
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            disabled={isLoading}
+                            onClick={() => void onSecondary()}
+                        >
+                            {isLoading ? "Working..." : secondaryLabel}
+                        </Button>
+                    ) : null}
                     <Button
                         type="button"
                         variant={config.buttonVariant}
