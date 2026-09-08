@@ -142,6 +142,9 @@ export default function LiveStudioPage() {
     const [pendingLiveQuestion, setPendingLiveQuestion] =
         useState<SessionQuestion | null>(null);
 
+    const [pendingProjectorQuestion, setPendingProjectorQuestion] =
+        useState<SessionQuestion | null>(null);
+
     const [pendingResultsQuestion, setPendingResultsQuestion] =
         useState<SessionQuestion | null>(null);
 
@@ -951,6 +954,10 @@ export default function LiveStudioPage() {
         "results"
             ? session.projector_question_id
             : null
+    }
+    projectorDisplayType={session.projector_display_type}
+    projectorQuestion={
+        questions.find((question) => question.id === session.projector_question_id) ?? null
     }
     viewedQuestion={viewedQuestion}
     activeQuestion={activeQuestion}
