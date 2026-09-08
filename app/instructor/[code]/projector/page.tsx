@@ -187,6 +187,7 @@ export default function ProjectorPage({
             );
 
             setSession(currentSession);
+            setDisplayType(currentSession.projector_display_type ?? "waiting");
 
             if (
                 currentSession.status ===
@@ -210,7 +211,8 @@ export default function ProjectorPage({
                 ) {
                     await loadQuestion(
                         currentSession.id,
-                        currentSession.active_question_id,
+                        currentSession.projector_question_id ??
+                            currentSession.active_question_id,
                     );
                 }
 
@@ -219,11 +221,12 @@ export default function ProjectorPage({
             }
 
             if (
-                currentSession.active_question_id
+                currentSession.projector_display_type !== "waiting" &&
+                currentSession.projector_question_id
             ) {
                 await loadQuestion(
                     currentSession.id,
-                    currentSession.active_question_id,
+                    currentSession.projector_question_id,
                 );
 
                 setPhase("live");
@@ -274,6 +277,9 @@ export default function ProjectorPage({
                         payload.new as Session;
 
                     setSession(updatedSession);
+                    setDisplayType(
+                        updatedSession.projector_display_type ?? "waiting",
+                    );
 
                     /*
                      * Session ended
@@ -308,11 +314,13 @@ export default function ProjectorPage({
                          */
 
                         if (
+                            updatedSession.projector_question_id ??
                             updatedSession.active_question_id
                         ) {
                             await loadQuestion(
                                 updatedSession.id,
-                                updatedSession.active_question_id,
+                                updatedSession.projector_question_id ??
+                                    updatedSession.active_question_id,
                             );
                         }
 
