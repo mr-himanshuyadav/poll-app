@@ -7,10 +7,10 @@ interface ResponseWorkspaceProps {
     responseCount?: number;
     participantCount?: number;
     participantsLabel?: string;
-    onParticipantsNavigate?: () => void;
+    onParticipantsNavigate?: (filter?: "all" | "responded" | "waiting") => void;
+    participants?: React.ReactNode | ((filter: "all" | "responded" | "waiting") => React.ReactNode);
     overview: React.ReactNode;
     distribution: React.ReactNode;
-    participants?: React.ReactNode;
     activity?: React.ReactNode;
 }
 
@@ -39,6 +39,16 @@ export function ResponseWorkspace({
 }: ResponseWorkspaceProps) {
     const [activeView, setActiveView] =
         useState<ResponseWorkspaceView>("overview");
+    const [participantFilter, setParticipantFilter] =
+        useState<"all" | "responded" | "waiting">("all");
+
+    const navigateToParticipants = (
+        filter: "all" | "responded" | "waiting" = "all",
+    ) => {
+        setParticipantFilter(filter);
+        onParticipantsNavigate?.(filter);
+        setActiveView("participants");
+    };
 
     const content =
         activeView === "overview"
@@ -46,7 +56,9 @@ export function ResponseWorkspace({
             : activeView === "distribution"
               ? distribution
               : activeView === "participants"
-                ? participants ?? (
+                ? (typeof participants === "function"
+                    ? participants(participantFilter)
+                    : participants) ?? (
                     <WorkspacePlaceholder
                         title="Participants"
                         description="Participant response tools will be added in the next step."
@@ -80,7 +92,7 @@ export function ResponseWorkspace({
                             <button
                                 key={view.id}
                                 type="button"
-                                onClick={() => setActiveView(view.id)}
+                                onClick={() => view.id === "participants" ? navigateToParticipants("all") : setActiveView(view.id)}
                                 className={[
                                     "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200",
                                     active
@@ -111,8 +123,7 @@ export function ResponseWorkspace({
                     <button
                         type="button"
                         onClick={() => {
-                            onParticipantsNavigate();
-                            setActiveView("participants");
+                            navigateToParticipants("all");
                         }}
                         className="text-sm font-semibold text-indigo-600 transition hover:text-indigo-700 dark:text-indigo-400"
                     >
