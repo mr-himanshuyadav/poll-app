@@ -196,7 +196,7 @@ export default function ProjectorPage({
                 currentSession.is_offline
             ) {
                 if (
-                    currentSession.active_question_id
+                    currentSession.projector_question_id
                 ) {
                     await loadQuestion(
                         currentSession.id,
@@ -313,8 +313,14 @@ export default function ProjectorPage({
                      * Question cleared
                      */
 
+                    /*
+                     * Projector has no active content.
+                     */
+
                     if (
-                        !updatedSession.active_question_id
+                        updatedSession.projector_display_type ===
+                            "waiting" ||
+                        !updatedSession.projector_question_id
                     ) {
                         setQuestion(null);
                         setResponses([]);
@@ -323,13 +329,14 @@ export default function ProjectorPage({
                     }
 
                     /*
-                     * Active question changed or session
-                     * returned to live.
+                     * The authoritative projector display
+                     * changed. Load exactly the question
+                     * selected for the projector.
                      */
 
                     await loadQuestion(
                         updatedSession.id,
-                        updatedSession.active_question_id,
+                        updatedSession.projector_question_id,
                     );
 
                     setPhase("live");
@@ -371,20 +378,6 @@ export default function ProjectorPage({
 
                         return updatedQuestion;
                     });
-
-                    /*
-                     * If the active question itself
-                     * was closed, update projector state.
-                     */
-
-                    if (
-                        updatedQuestion.id ===
-                        question?.id &&
-                        updatedQuestion.status ===
-                        "closed"
-                    ) {
-                        setPhase("closed");
-                    }
 
                     /*
                      * Refresh responses when question
