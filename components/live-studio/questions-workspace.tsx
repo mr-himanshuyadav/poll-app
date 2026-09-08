@@ -36,24 +36,24 @@ interface QuestionsWorkspaceProps {
 
     onCreateQuestion: (
         question: Partial<SessionQuestion>,
-    ) => Promise<void> | void;
+    ) => Promise<SessionQuestion> | Promise<void> | void;
 
     onUpdateQuestion: (
         questionId: string,
         updates: Partial<SessionQuestion>,
-    ) => Promise<void> | void;
+    ) => Promise<SessionQuestion> | Promise<void> | void;
 
     onDeleteQuestion: (
         question: SessionQuestion,
-    ) => Promise<void> | void;
+    ) => Promise<SessionQuestion> | Promise<void> | void;
 
     onActivateQuestion: (
         question: SessionQuestion,
-    ) => Promise<void> | void;
+    ) => Promise<SessionQuestion> | Promise<void> | void;
 
     onReorderQuestions?: (
         questions: SessionQuestion[],
-    ) => Promise<void> | void;
+    ) => Promise<SessionQuestion> | Promise<void> | void;
 }
 
 export function QuestionsWorkspace({
