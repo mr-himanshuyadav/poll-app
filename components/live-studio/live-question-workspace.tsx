@@ -19,6 +19,10 @@ interface LiveQuestionWorkspaceProps {
 
     projectorResultsQuestionId?: string | null;
 
+    projectorDisplayType?: "waiting" | "question" | "results";
+
+    projectorQuestion: SessionQuestion | null;
+
     viewedQuestion: SessionQuestion | null;
 
     activeQuestion: SessionQuestion | null;
@@ -67,6 +71,8 @@ export function LiveQuestionWorkspace({
     sessionId,
     questions,
     projectorResultsQuestionId,
+    projectorDisplayType = "waiting",
+    projectorQuestion,
     viewedQuestion,
     activeQuestion,
     responses,
@@ -108,8 +114,29 @@ response.id
             ),
         ).size;
 
+    const projectorLabel =
+        projectorDisplayType === "waiting"
+            ? "Waiting"
+            : projectorQuestion
+            ? `Q${questions.findIndex((item) => item.id === projectorQuestion.id) + 1} — ${projectorDisplayType === "results" ? "Results" : "Question"}`
+            : "Updating";
+
     return (
         <div className="mx-auto w-full max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 lg:px-8 md:pb-8">
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">🖥️</span>
+                    <div>
+                        <p className="text-xs font-medium text-slate-500">Projector</p>
+                        <p className="font-semibold text-slate-800 dark:text-slate-100">{projectorLabel}</p>
+                    </div>
+                </div>
+                <span className={[
+                    "h-2.5 w-2.5 rounded-full",
+                    projectorDisplayType === "waiting" ? "bg-slate-300" : "bg-emerald-500 animate-pulse",
+                ].join(" ")} />
+            </div>
+
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="min-w-0 space-y-6">
                     <LiveQuestionPanel
