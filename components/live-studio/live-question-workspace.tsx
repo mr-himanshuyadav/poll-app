@@ -29,6 +29,7 @@ interface LiveQuestionWorkspaceProps {
     participants: SessionParticipant[];
     questionAnalytics: QuestionAnalytics | null;
     isUpdating?: boolean;
+    isCompleted?: boolean;
     onActivateQuestion: (question: SessionQuestion) => void;
     onViewQuestion: (question: SessionQuestion) => void;
     onCloseQuestion: () => void;
@@ -82,7 +83,7 @@ export function LiveQuestionWorkspace({
                         onShowResults={onRequestShowResults ?? onShowResults} onShowResultsOnProjector={onShowResultsOnProjector}
                         onShowResultsOnBoth={onShowResultsOnBoth} onHideResults={onHideResults} onHideProjectorResults={onHideProjectorResults}
                         onConfirmReplaceLiveQuestion={onConfirmReplaceLiveQuestion}
-                        onEditQuestion={viewedQuestion ? () => setQuestionEditorMode("edit") : undefined}
+                        onEditQuestion={!isCompleted && viewedQuestion ? () => setQuestionEditorMode("edit") : undefined}
                     />
 
                     <ResponseWorkspace
@@ -105,7 +106,7 @@ export function LiveQuestionWorkspace({
                 </div>
 
                 <aside className="space-y-6">
-                    <QuestionNavigation questions={questions} activeQuestion={viewedQuestion} liveQuestionId={activeQuestion?.id ?? null} isUpdating={isUpdating} onSelectQuestion={onViewQuestion} onActivateQuestion={onActivateQuestion} onConfirmReplaceLiveQuestion={onConfirmReplaceLiveQuestion} onPreviousQuestion={onPreviousQuestion} onNextQuestion={onNextQuestion} onAddQuestion={onCreateQuestion ? () => setQuestionEditorMode("create") : undefined} />
+                    <QuestionNavigation questions={questions} activeQuestion={viewedQuestion} liveQuestionId={activeQuestion?.id ?? null} isUpdating={isUpdating} onSelectQuestion={onViewQuestion} onActivateQuestion={onActivateQuestion} onConfirmReplaceLiveQuestion={onConfirmReplaceLiveQuestion} onPreviousQuestion={onPreviousQuestion} onNextQuestion={onNextQuestion} onAddQuestion={!isCompleted && onCreateQuestion ? () => setQuestionEditorMode("create") : undefined} />
                 </aside>
             </div>
 
