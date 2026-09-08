@@ -298,7 +298,7 @@ response.id
                         participantCount={totalParticipants}
                         participantsLabel="View all participants & response history"
                         onParticipantsNavigate={() => {}}
-                        overview={
+                        overview={(navigateToParticipants) => (
                             <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
                                 <ResponseProgressPanel
                                     totalParticipants={totalParticipants}
@@ -334,19 +334,20 @@ response.id
                                 </div>
 
                                 <div className="mt-5 grid grid-cols-2 gap-3">
-                                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
+                                    <button type="button" onClick={() => navigateToParticipants("responded")} className="rounded-xl bg-slate-50 p-3 text-left transition hover:bg-indigo-50 dark:bg-slate-900/60 dark:hover:bg-indigo-950/30">
                                         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
                                             <CheckCircle2 className="h-4 w-4" />
                                             Responded
                                         </div>
                                         <p className="mt-2 text-xl font-bold">{responseCount}</p>
-                                    </div>
-                                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
+                                    </button>
+                                    <button type="button" onClick={() => navigateToParticipants("waiting")} className="rounded-xl bg-slate-50 p-3 text-left transition hover:bg-indigo-50 dark:bg-slate-900/60 dark:hover:bg-indigo-950/30">
                                         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
                                             <Clock3 className="h-4 w-4" />
                                             Waiting
                                         </div>
                                         <p className="mt-2 text-xl font-bold">{remainingParticipants}</p>
+                                    </button>
                                     </div>
                                 </div>
 
@@ -373,7 +374,7 @@ response.id
                                 </div>
                             </div>
                             </div>
-                        }
+                        )}
                         distribution={
                             <div className="p-0">
                                 <ResponseDistribution
@@ -391,14 +392,15 @@ response.id
                                 />
                             </div>
                         }
-                        participants={
+                        participants={(activeFilter) => (
                             <ResponseParticipants
                                 participants={participants}
                                 responses={viewedQuestionResponses}
                                 allResponses={responses}
                                 questions={questions}
+                                activeFilter={activeFilter}
                             />
-                        }
+                        )}
                         activity={
                             <ResponseActivity
                                 participants={participants}
