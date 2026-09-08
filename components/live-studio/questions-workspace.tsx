@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
     CheckCircle2,
     CircleDot,
+    ChevronRight,
     Eye,
     Pencil,
     Play,
@@ -303,6 +304,76 @@ export function QuestionsWorkspace({
                         />
                     ) : selectedQuestion ? (
                         <>
+                            {(() => {
+                                const isSelectedLive =
+                                    selectedQuestion.id ===
+                                        activeQuestion?.id ||
+                                    selectedQuestion.status ===
+                                        "active";
+                                const isSelectedClosed =
+                                    selectedQuestion.status ===
+                                    "closed";
+
+                                const steps = [
+                                    {
+                                        label: "Ready",
+                                        complete:
+                                            isSelectedLive ||
+                                            isSelectedClosed,
+                                        current:
+                                            !isSelectedLive &&
+                                            !isSelectedClosed,
+                                    },
+                                    {
+                                        label: "Live",
+                                        complete: isSelectedClosed,
+                                        current: isSelectedLive,
+                                    },
+                                    {
+                                        label: "Closed",
+                                        complete: isSelectedClosed,
+                                        current: isSelectedClosed,
+                                    },
+                                ];
+
+                                return (
+                                    <div className="mb-3 flex items-center gap-1 overflow-x-auto px-1 py-1">
+                                        {steps.map((step, index) => (
+                                            <div
+                                                key={step.label}
+                                                className="flex shrink-0 items-center gap-1"
+                                            >
+                                                {index > 0 ? (
+                                                    <ChevronRight className="h-3.5 w-3.5 text-slate-300 dark:text-slate-700" />
+                                                ) : null}
+                                                <div
+                                                    className={[
+                                                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition-all",
+                                                        step.current
+                                                            ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300"
+                                                            : step.complete
+                                                              ? "text-emerald-600 dark:text-emerald-400"
+                                                              : "text-slate-400 dark:text-slate-500",
+                                                    ].join(" ")}
+                                                >
+                                                    <span
+                                                        className={[
+                                                            "h-1.5 w-1.5 rounded-full",
+                                                            step.current
+                                                                ? "bg-indigo-500 animate-pulse"
+                                                                : step.complete
+                                                                  ? "bg-emerald-500"
+                                                                  : "bg-slate-300 dark:bg-slate-700",
+                                                        ].join(" ")}
+                                                    />
+                                                    {step.label}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            })()}
+
                             {(() => {
                                 const isSelectedLive =
                                     selectedQuestion.id ===
