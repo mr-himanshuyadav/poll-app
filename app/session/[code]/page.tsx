@@ -1,6 +1,7 @@
 "use client";
 
 import { ScaleResponseInput } from "@/components/live-studio/scale-response-input";
+import { resolveScaleConfig } from "@/lib/scale-config";
 
 import {
   use,
@@ -382,28 +383,26 @@ export default function JoinPage({
           1;
       }
 
-      const min = Number(currentQuestion.config.min ?? 1);
-      const max = Number(currentQuestion.config.max ?? 5);
-      const labels =
-        (currentQuestion.config.scaleLabels as Record<string, string> | undefined) ?? {};
+      const scaleConfig = resolveScaleConfig(
+        currentQuestion.config,
+      );
 
-      const entries =
-        Array.from(
-          { length: Math.max(0, max - min + 1) },
-          (_, index) => min + index,
-        ).map((value) => {
-          const key = String(value);
+      const entries = scaleConfig.values.map(
+        (scaleValue) => {
+          const key = String(scaleValue.value);
           const count = counts[key] ?? 0;
-          const label = labels[key]?.trim();
 
           return {
-            option: label ? `${value} — ${label}` : key,
+            option: scaleValue.label
+              ? `${scaleValue.value} — ${scaleValue.label}`
+              : key,
             count,
             percentage: Math.round(
               (count / numericValues.length) * 100,
             ),
           };
-        });
+        },
+      );
 
       setResultEntries(
         entries,
