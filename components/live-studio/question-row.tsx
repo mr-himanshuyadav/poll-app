@@ -32,6 +32,8 @@ interface QuestionRowProps {
 
     isUpdating?: boolean;
 
+    viewOnly?: boolean;
+
     onSelect: () => void;
 
     onActivate: () => void;
@@ -43,6 +45,7 @@ export function QuestionRow({
     isSelected,
     isActive,
     isUpdating = false,
+    viewOnly = false,
     onSelect,
     onActivate,
 }: QuestionRowProps) {
@@ -77,7 +80,9 @@ export function QuestionRow({
                               : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300",
                     ].join(" ")}
                 >
-                    {isLive ? (
+                    {viewOnly ? (
+                        <Eye className="h-4 w-4" />
+                    ) : isLive ? (
                         <Radio className="h-4 w-4" />
                     ) : isClosed ? (
                         <CheckCircle2 className="h-4 w-4" />
@@ -118,7 +123,9 @@ export function QuestionRow({
 
             <div className="flex items-center justify-between gap-3 px-3 pb-3">
                 <div>
-                    {isLive ? (
+                    {viewOnly ? (
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-400"><Eye className="h-3.5 w-3.5" />View only</span>
+                    ) : isLive ? (
                         <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
                             <span className="relative flex h-2 w-2">
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
@@ -138,7 +145,9 @@ export function QuestionRow({
                     )}
                 </div>
 
-                {isLive ? (
+                {viewOnly ? (
+                    <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={(event) => { event.stopPropagation(); onSelect(); }}><Eye className="mr-1.5 h-3.5 w-3.5" />View</Button>
+                ) : isLive ? (
                     <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                         Managing
                     </span>
