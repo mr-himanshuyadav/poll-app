@@ -3,7 +3,9 @@
 import {
     ChevronLeft,
     ChevronRight,
+    Eye,
     ListChecks,
+    Radio,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,9 +26,15 @@ interface QuestionNavigationProps {
 
     activeQuestion: SessionQuestion | null;
 
+    liveQuestionId?: string | null;
+
     isUpdating?: boolean;
 
     onSelectQuestion: (
+        question: SessionQuestion,
+    ) => void;
+
+    onActivateQuestion: (
         question: SessionQuestion,
     ) => void;
 
@@ -38,8 +46,10 @@ interface QuestionNavigationProps {
 export function QuestionNavigation({
     questions,
     activeQuestion,
+    liveQuestionId = null,
     isUpdating = false,
     onSelectQuestion,
+    onActivateQuestion,
     onPreviousQuestion,
     onNextQuestion,
 }: QuestionNavigationProps) {
@@ -156,6 +166,10 @@ export function QuestionNavigation({
                                     activeQuestion?.id ===
                                     question.id;
 
+                                const isLive =
+                                    liveQuestionId ===
+                                    question.id;
+
                                 const position =
                                     getQuestionPosition(
                                         question,
@@ -177,7 +191,7 @@ export function QuestionNavigation({
                                             )
                                         }
                                         className={[
-                                            "w-full rounded-xl border p-3 text-left transition",
+                                            "relative w-full rounded-xl border p-3 text-left transition",
                                             isActive
                                                 ? "border-indigo-200 bg-indigo-50/70 dark:border-indigo-900/60 dark:bg-indigo-950/30"
                                                 : "border-transparent bg-slate-50 hover:border-slate-200 hover:bg-white dark:bg-slate-900/50 dark:hover:border-slate-800 dark:hover:bg-slate-900",
@@ -185,7 +199,7 @@ export function QuestionNavigation({
                                             " ",
                                         )}
                                     >
-                                        <div className="flex gap-3">
+                                        <div className="flex gap-3 pr-16">
                                             <span
                                                 className={[
                                                     "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold",
@@ -224,6 +238,23 @@ export function QuestionNavigation({
                                                         )}
                                                     </span>
                                                 </div>
+                                            </div>
+
+                                            <div
+                                                className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1"
+                                                onClick={(event) =>
+                                                    event.stopPropagation()
+                                                }
+                                            >
+                                                <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={() => onSelectQuestion(question)} aria-label="View question" title="View question">
+                                                    <Eye className="h-4 w-4" />
+                                                </Button>
+
+                                                {!isLive ? (
+                                                    <Button type="button" size="icon" variant="ghost" disabled={isUpdating} className="h-8 w-8" onClick={() => onActivateQuestion(question)} aria-label="Make question live" title="Make question live">
+                                                        <Radio className="h-4 w-4" />
+                                                    </Button>
+                                                ) : null}
                                             </div>
                                         </div>
                                     </button>
