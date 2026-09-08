@@ -82,6 +82,11 @@ export default function LiveStudioPage() {
     }, [refetchAnalytics, refetchParticipants, refetchQuestions, refetchResponses, refetchSession, showNotice]);
     const handleBack = useCallback(() => router.back(), [router]);
 
+    const handleTabChange = useCallback((tab: StudioTab) => {
+        setActiveTab(tab);
+    }, []);
+
+
     const handlePauseSession = useCallback(async () => {
         if (!session || session.status === "completed") return;
         try { await updateSession({ status: "paused", paused_at: new Date().toISOString() }); showNotice("success", "Participants cannot submit responses until the session is resumed.", "Session Paused"); }
