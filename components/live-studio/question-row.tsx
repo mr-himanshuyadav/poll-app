@@ -114,7 +114,7 @@ export function QuestionRow({
                 </div>
             </button>
 
-            <div className="absolute bottom-2 right-2 flex items-center gap-1">
+            <div className="flex items-center justify-end gap-1 px-3 pb-3">
                 <Button
                     type="button"
                     size="icon"
