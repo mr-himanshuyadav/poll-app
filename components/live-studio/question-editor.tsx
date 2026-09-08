@@ -1,6 +1,7 @@
 "use client";
 
 import {
+import { SCALE_PRESET_LABELS } from "@/lib/scale-config";
     useEffect,
     useMemo,
     useState,
@@ -194,23 +195,8 @@ function getInitialFormState(
     };
 }
 
-const SCALE_PRESETS = {
-    numeric: {},
-    agreement: {
-        "1": "Strongly disagree",
-        "2": "Disagree",
-        "3": "Neither agree nor disagree",
-        "4": "Agree",
-        "5": "Strongly agree",
-    },
-    satisfaction: {
-        "1": "Very dissatisfied",
-        "2": "Dissatisfied",
-        "3": "Neutral",
-        "4": "Satisfied",
-        "5": "Very satisfied",
-    },
-} as const;
+const SCALE_PRESETS = SCALE_PRESET_LABELS;
+
 
 export function QuestionEditor({
     mode,
