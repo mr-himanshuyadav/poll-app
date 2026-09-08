@@ -1,7 +1,13 @@
 "use client";
 
+import { useState } from "react";
+
 import {
     BarChart3,
+    ChartColumn,
+    CircleGauge,
+    ListOrdered,
+    Percent,
     Users,
 } from "lucide-react";
 
@@ -44,6 +50,12 @@ export function ResponseDistribution({
     responses,
     visualizationType = "horizontal-bar",
 }: ResponseDistributionProps) {
+    const [
+        selectedVisualization,
+        setSelectedVisualization,
+    ] = useState<ResponseVisualizationType>(
+        visualizationType,
+    );
     if (!question) {
         return (
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950 sm:p-6">
@@ -160,7 +172,7 @@ export function ResponseDistribution({
     ];
 
     const renderVisualization = () => {
-        if (visualizationType === "donut") {
+        if (selectedVisualization === "donut") {
             const gradient = distribution
                 .reduce<string[]>(
                     (segments, option, index) => {
@@ -237,7 +249,7 @@ export function ResponseDistribution({
             );
         }
 
-        if (visualizationType === "vertical-bar") {
+        if (selectedVisualization === "vertical-bar") {
             const maxPercentage = Math.max(
                 ...distribution.map(
                     (item) => item.percentage,
@@ -277,7 +289,7 @@ export function ResponseDistribution({
             );
         }
 
-        if (visualizationType === "ranked") {
+        if (selectedVisualization === "ranked") {
             return (
                 <div className="space-y-3">
                     {[...distribution]
@@ -308,7 +320,7 @@ export function ResponseDistribution({
             );
         }
 
-        if (visualizationType === "percentage") {
+        if (selectedVisualization === "percentage") {
             return (
                 <div className="grid gap-3 sm:grid-cols-2">
                     {distribution.map((option, index) => (
@@ -393,7 +405,66 @@ export function ResponseDistribution({
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 self-start rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-slate-900 sm:self-auto">
+                    <div className="flex flex-wrap items-center gap-2 self-start sm:justify-end">
+                        <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900">
+                            {[
+                                {
+                                    type: "horizontal-bar" as const,
+                                    label: "Horizontal bars",
+                                    icon: BarChart3,
+                                },
+                                {
+                                    type: "vertical-bar" as const,
+                                    label: "Vertical bars",
+                                    icon: ChartColumn,
+                                },
+                                {
+                                    type: "donut" as const,
+                                    label: "Donut chart",
+                                    icon: CircleGauge,
+                                },
+                                {
+                                    type: "ranked" as const,
+                                    label: "Ranked results",
+                                    icon: ListOrdered,
+                                },
+                                {
+                                    type: "percentage" as const,
+                                    label: "Percentage cards",
+                                    icon: Percent,
+                                },
+                            ].map((item) => {
+                                const Icon = item.icon;
+                                const active =
+                                    selectedVisualization ===
+                                    item.type;
+
+                                return (
+                                    <button
+                                        key={item.type}
+                                        type="button"
+                                        title={item.label}
+                                        aria-label={item.label}
+                                        onClick={() =>
+                                            setSelectedVisualization(
+                                                item.type,
+                                            )
+                                        }
+                                        className={
+                                            `flex h-8 w-8 items-center justify-center rounded-md transition-all duration-200 ${
+                                                active
+                                                    ? "bg-white text-indigo-600 shadow-sm dark:bg-slate-800 dark:text-indigo-400"
+                                                    : "text-slate-400 hover:bg-white hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                                            }`
+                                        }
+                                    >
+                                        <Icon className="h-4 w-4" />
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                    <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-xs dark:bg-slate-900">
                         <Users className="h-3.5 w-3.5 text-slate-400" />
 
                         <span className="font-semibold text-slate-700 dark:text-slate-200">
@@ -403,6 +474,7 @@ export function ResponseDistribution({
                         <span className="text-slate-500 dark:text-slate-400">
                             responses
                         </span>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -415,8 +487,10 @@ export function ResponseDistribution({
                 </p>
 
                 {hasDistribution ? (
-                    renderVisualization()
-: (
+                    <div className="animate-in fade-in duration-300">
+                        {renderVisualization()}
+                    </div>
+                ) : (
                     <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-900">
                             <BarChart3 className="h-5 w-5" />
