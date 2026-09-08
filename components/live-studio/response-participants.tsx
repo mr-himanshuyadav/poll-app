@@ -6,6 +6,7 @@ import {
     ArrowUp,
     ArrowUpDown,
     CheckCircle2,
+    ArrowLeft,
     Clock3,
     Eye,
     Search,
@@ -268,7 +269,7 @@ export function ResponseParticipants({
                 })}
             </div>
 
-            {selectedParticipant ? (
+            {false && selectedParticipant ? (
                 <div className="mt-5 overflow-hidden rounded-2xl border border-indigo-100 bg-indigo-50/40 dark:border-indigo-900/50 dark:bg-indigo-950/10">
                     <div className="flex items-start justify-between gap-4 border-b border-indigo-100 px-4 py-3 dark:border-indigo-900/50">
                         <div>
@@ -311,7 +312,7 @@ export function ResponseParticipants({
                             return (
                                 <div
                                     key={participant.id}
-                                    className="grid grid-cols-[minmax(130px,1.2fr)_minmax(90px,.7fr)_minmax(140px,1.5fr)_auto] items-center gap-4 px-4 py-3 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/50"
+                                    className="grid grid-cols-[minmax(130px,1.2fr)_minmax(90px,.7fr)_minmax(140px,1.5fr)_auto_auto] items-center gap-4 px-4 py-3 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/50"
                                 >
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
