@@ -1200,6 +1200,10 @@ export default function LiveStudioPage() {
             viewedQuestion.id,
             {
                 results_visible: false,
+                results_mode:
+                    viewedQuestion.results_mode === "live"
+                        ? "hidden"
+                        : viewedQuestion.results_mode,
             },
         );
 
