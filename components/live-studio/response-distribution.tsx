@@ -28,6 +28,7 @@ interface ResponseDistributionProps {
 export function ResponseDistribution({
     question,
     analytics,
+    responses,
 }: ResponseDistributionProps) {
     if (!question) {
         return (
@@ -51,14 +52,68 @@ export function ResponseDistribution({
         );
     }
 
+    const responseCounts = responses.reduce(
+        (counts, response) => {
+            const answer =
+                typeof response.answer === "string"
+                    ? response.answer
+                    : String(response.answer ?? "");
+
+            counts.set(
+                answer,
+                (counts.get(answer) ?? 0) + 1,
+            );
+
+            return counts;
+        },
+        new Map<string, number>(),
+    );
+
+    const fallbackDistribution =
+        question.options.map(
+            (option, index) => {
+                const key =
+                    String(option.id ?? index);
+
+                const label =
+                    String(
+                        option.label ??
+                        option.text ??
+                        option.value ??
+                        option,
+                    );
+
+                const count =
+                    responseCounts.get(key) ??
+                    responseCounts.get(label) ??
+                    0;
+
+                return {
+                    key,
+                    label,
+                    count,
+                    percentage:
+                        responses.length > 0
+                            ? (count / responses.length) * 100
+                            : 0,
+                };
+            },
+        );
+
     const distribution =
-        analytics?.optionDistribution ?? [];
+        analytics?.optionDistribution?.length
+            ? analytics.optionDistribution
+            : fallbackDistribution;
 
     const totalResponses =
-        analytics?.totalResponses ?? 0;
+        analytics?.totalResponses ??
+        responses.length;
 
     const hasDistribution =
-        distribution.length > 0;
+        totalResponses > 0 ||
+        distribution.some(
+            (option) => option.count > 0,
+        );
 
     return (
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
