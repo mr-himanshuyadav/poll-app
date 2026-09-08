@@ -435,6 +435,10 @@ export default function LiveStudioPage() {
                         status: "live",
                         active_question_id:
                             questionId,
+                        projector_display_type:
+                            "question",
+                        projector_question_id:
+                            questionId,
                         started_at:
                             session.started_at ??
                             now,
@@ -475,6 +479,9 @@ export default function LiveStudioPage() {
 
                     await updateSession({
                         active_question_id: null,
+                        projector_display_type:
+                            "waiting",
+                        projector_question_id: null,
                     });
 
                     showNotice(
@@ -501,7 +508,6 @@ export default function LiveStudioPage() {
             showNotice,
             updateQuestion,
             updateSession,
-            refetchQuestions,
         ],
     );
 
