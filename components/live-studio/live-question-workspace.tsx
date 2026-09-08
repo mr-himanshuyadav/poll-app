@@ -51,7 +51,7 @@ interface LiveQuestionWorkspaceProps {
 
 export function LiveQuestionWorkspace({
     sessionId, questions, projectorResultsQuestionId, defaultResultVisibility = "both", projectorDisplayType = "waiting", projectorVisualizationType = "horizontal-bar", onProjectorVisualizationChange,
-    projectorQuestion, viewedQuestion, activeQuestion, responses, participants, questionAnalytics, isUpdating = false,
+    projectorQuestion, viewedQuestion, activeQuestion, responses, participants, questionAnalytics, isUpdating = false, isCompleted = false,
     onActivateQuestion, onViewQuestion, onCloseQuestion, onShowResults, onRequestShowResults, onShowResultsOnProjector, onShowResultsOnBoth, onShowLiveResults,
     onHideResults, onHideProjectorResults, onConfirmReplaceLiveQuestion, onPreviousQuestion, onNextQuestion, isSavingQuestion = false, onCreateQuestion, onUpdateQuestion, onClearView,
 }: LiveQuestionWorkspaceProps) {
