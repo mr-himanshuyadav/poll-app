@@ -158,6 +158,9 @@ response.id
                         onActivateQuestion={
                             onActivateQuestion
                         }
+                        onConfirmReplaceLiveQuestion={
+                            onConfirmReplaceLiveQuestion
+                        }
                         onPreviousQuestion={
                             onPreviousQuestion
                         }
