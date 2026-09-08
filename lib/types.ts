@@ -29,6 +29,11 @@ export type ParticipantMode =
   | "anonymous"
   | "identified";
 
+export type ProjectorDisplayType =
+  | "waiting"
+  | "question"
+  | "results";
+
 export type SessionEventType =
   | "session_created"
   | "session_started"
@@ -111,6 +116,8 @@ export interface Session {
   allow_answer_change: boolean;
   is_offline: boolean;
   active_question_id: string | null;
+  projector_display_type: ProjectorDisplayType;
+  projector_question_id: string | null;
   created_at: string;
   started_at: string | null;
   paused_at: string | null;
