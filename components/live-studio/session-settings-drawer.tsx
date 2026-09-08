@@ -194,6 +194,7 @@ export function SessionSettingsDrawer({
                         <Input
                             id="session-name"
                             value={name}
+                            disabled={isCompleted}
                             onChange={(event) =>
                                 setName(
                                     event.target
@@ -212,7 +213,7 @@ export function SessionSettingsDrawer({
                         </p>
                     </div>
 
-                    <div className={isCompleted ? "hidden" : undefined}>
+                    <div className={isCompleted ? "opacity-70" : undefined}>
                         <Label
                             htmlFor="session-results-mode"
                             className="text-sm font-bold"
@@ -223,6 +224,7 @@ export function SessionSettingsDrawer({
                         <select
                             id="session-results-mode"
                             value={resultsMode}
+                            disabled={isCompleted}
                             onChange={(event) =>
                                 setResultsMode(
                                     event.target.value as ResultsMode,
@@ -247,7 +249,7 @@ export function SessionSettingsDrawer({
                         </p>
                     </div>
 
-                    <div className={isCompleted ? "hidden" : undefined}>
+                    <div className={isCompleted ? "opacity-70" : undefined}>
                         <Label
                             htmlFor="default-result-visibility"
                             className="text-sm font-bold"
@@ -258,6 +260,7 @@ export function SessionSettingsDrawer({
                         <select
                             id="default-result-visibility"
                             value={defaultResultVisibility}
+                            disabled={isCompleted}
                             onChange={(event) =>
                                 setDefaultResultVisibility(
                                     event.target.value as ResultVisibilityTarget,
@@ -282,7 +285,7 @@ export function SessionSettingsDrawer({
                         </p>
                     </div>
 
-                    <div className={["rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40", isCompleted ? "hidden" : ""].join(" ")}>
+                    <div className={["rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40", isCompleted ? "opacity-70" : ""].join(" ")}>
                         <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
                             Participant Link
                         </p>
@@ -311,7 +314,7 @@ export function SessionSettingsDrawer({
                                     handleCopyLink
                                 }
                                 disabled={
-                                    !participantUrl
+                                    isCompleted || !participantUrl
                                 }
                             >
                                 <Copy className="h-4 w-4" />
@@ -322,7 +325,7 @@ export function SessionSettingsDrawer({
                                 </span>
                             </Button>
 
-                            {participantUrl ? (
+                            {!isCompleted && participantUrl ? (
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -379,6 +382,7 @@ export function SessionSettingsDrawer({
                         type="button"
                         className="flex-1"
                         disabled={
+                            isCompleted ||
                             isSaving ||
                             !name.trim()
                         }
@@ -386,9 +390,11 @@ export function SessionSettingsDrawer({
                     >
                         <Save className="mr-2 h-4 w-4" />
 
-                        {isSaving
-                            ? "Saving..."
-                            : "Save Changes"}
+                        {isCompleted
+                            ? "View Only"
+                            : isSaving
+                                ? "Saving..."
+                                : "Save Changes"}
                     </Button>
                 </div>
             </aside>
