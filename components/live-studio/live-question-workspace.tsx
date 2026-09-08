@@ -2,7 +2,6 @@
 
 import type { QuestionAnalytics, SessionParticipant, SessionQuestion, SessionResponse } from "./live-studio-types";
 import { LiveQuestionPanel } from "./live-question-panel";
-import { ResponseProgressPanel } from "./response-progress-panel";
 import { ResponseWorkspace } from "./response-workspace";
 import { ResponseDistribution } from "./response-distribution";
 import { ResponseParticipants } from "./response-participants";
@@ -88,9 +87,8 @@ export function LiveQuestionWorkspace({
                     <ResponseWorkspace
                         responseCount={responseCount} participantCount={totalParticipants} participantsLabel="View all participants & response history" onParticipantsNavigate={() => {}}
                         overview={(navigateToParticipants) => (
-                            <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
-                                <ResponseProgressPanel totalParticipants={totalParticipants} responseCount={responseCount} activeQuestion={viewedQuestion ?? activeQuestion} embedded />
-                                <div className="border-t border-slate-100 pt-5 dark:border-slate-800 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                            <div className="w-full p-5">
+                                <div className="w-full">
                                     <div className="flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Response Pulse</p><p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{responseCount} / {totalParticipants}</p></div><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300"><Users className="h-5 w-5" /></div></div>
                                     <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div className="h-full rounded-full bg-indigo-600 transition-all duration-500" style={{ width: `${percentage}%` }} /></div>
                                     <div className="mt-2 flex items-center justify-between text-xs text-slate-500"><span>{percentage}% participation</span><span>{remainingParticipants} waiting</span></div>
