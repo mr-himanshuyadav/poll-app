@@ -96,6 +96,8 @@ export function SessionSettingsDrawer({
         return null;
     }
 
+    const isCompleted = session?.status === "completed";
+
     const sessionCode =
         session?.join_code ?? "";
 
@@ -137,9 +139,7 @@ export function SessionSettingsDrawer({
 
             await onSave({
                 name: trimmedName,
-                results_mode: resultsMode,
-                default_result_visibility:
-                    defaultResultVisibility,
+                ...(isCompleted ? {} : { results_mode: resultsMode, default_result_visibility: defaultResultVisibility }),
             });
         };
 
@@ -183,7 +183,7 @@ export function SessionSettingsDrawer({
                 </div>
 
                 <div className="flex-1 space-y-7 overflow-y-auto p-5">
-                    <div>
+                    {isCompleted ? null : <div>
                         <Label
                             htmlFor="session-name"
                             className="text-sm font-bold"
@@ -362,7 +362,7 @@ export function SessionSettingsDrawer({
                             {sessionCode || "—"}
                         </p>
                     </div>
-                </div>
+                </div>}
 
                 <div className="flex gap-3 border-t border-slate-200 p-5 dark:border-slate-800">
                     <Button
