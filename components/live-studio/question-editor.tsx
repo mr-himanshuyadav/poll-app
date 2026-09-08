@@ -44,6 +44,7 @@ interface QuestionEditorProps {
     onSave: (question: Partial<SessionQuestion>) => Promise<void> | void;
     onDelete?: () => Promise<void> | void;
     onCancel?: () => void;
+    readOnly?: boolean;
 }
 
 const QUESTION_TYPES: Array<{ value: QuestionType; title: string; description: string }> = [
@@ -92,7 +93,7 @@ const SCALE_PRESET_OPTIONS: Array<{ value: ScalePreset; title: string; descripti
     { value: "custom", title: "Custom labels", description: "Define the meaning of every value yourself." },
 ];
 
-export function QuestionEditor({ mode, sessionId, question, isSaving = false, sessionResultsMode = "on_command", onSave, onDelete, onCancel }: QuestionEditorProps) {
+export function QuestionEditor({ mode, sessionId, question, isSaving = false, sessionResultsMode = "on_command", onSave, onDelete, onCancel, readOnly = false }: QuestionEditorProps) {
     const [form, setForm] = useState<QuestionFormState>(() => getInitialFormState(question));
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     useEffect(() => { setForm(getInitialFormState(question)); setShowDeleteConfirm(false); }, [question?.id]);
@@ -116,9 +117,9 @@ export function QuestionEditor({ mode, sessionId, question, isSaving = false, se
             <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between sm:px-6">
                 <div><p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Question Editor</p><h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-slate-50">{mode === "create" ? "Create Question" : "Edit Question"}</h2></div>
                 <div className="flex flex-wrap gap-2">
-                    {mode === "edit" && onDelete ? <Button type="button" variant="outline" size="sm" disabled={isSaving} onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2 h-4 w-4" />Delete</Button> : null}
-                    {mode === "create" && onCancel ? <Button type="button" variant="outline" size="sm" disabled={isSaving} onClick={onCancel}><X className="mr-2 h-4 w-4" />Cancel</Button> : null}
-                    <Button type="button" size="sm" disabled={!isValid || isSaving} onClick={handleSave}><Save className="mr-2 h-4 w-4" />{isSaving ? "Saving..." : mode === "create" ? "Create Question" : "Save Changes"}</Button>
+                    {!readOnly && mode === "edit" && onDelete ? <Button type="button" variant="outline" size="sm" disabled={isSaving} onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2 h-4 w-4" />Delete</Button> : null}
+                    {!readOnly && mode === "create" && onCancel ? <Button type="button" variant="outline" size="sm" disabled={isSaving} onClick={onCancel}><X className="mr-2 h-4 w-4" />Cancel</Button> : null}
+                    {!readOnly ? <Button type="button" size="sm" disabled={!isValid || isSaving} onClick={handleSave}><Save className="mr-2 h-4 w-4" />{isSaving ? "Saving..." : mode === "create" ? "Create Question" : "Save Changes"}</Button> : null}
                 </div>
             </div>
 
