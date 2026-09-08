@@ -11,7 +11,12 @@ import {
     Radio,
     Square,
     X,
+    ChevronDown,
+    Users,
+    MonitorUp,
 } from "lucide-react";
+
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -96,6 +101,9 @@ export function LiveQuestionPanel({
     onHideResults,
     onConfirmReplaceLiveQuestion,
 }: LiveQuestionPanelProps) {
+    const [resultsMenuOpen, setResultsMenuOpen] =
+        useState(false);
+
     if (!question) {
         const nextQuestion =
             [...questions]
@@ -499,21 +507,70 @@ export function LiveQuestionPanel({
 
                         {!resultsVisible &&
                         onShowResults ? (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                disabled={
-                                    isUpdating
-                                }
-                                onClick={
-                                    onShowResults
-                                }
-                            >
-                                <Eye className="mr-2 h-4 w-4" />
+                            <div className="relative">
+                                <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={isUpdating}
+                                        className="rounded-none"
+                                        onClick={onShowResults}
+                                    >
+                                        <Eye className="mr-2 h-4 w-4" />
+                                        Show Results
+                                    </Button>
 
-                                Show Results
-                            </Button>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={isUpdating}
+                                        aria-label="Choose result display"
+                                        className="rounded-none border-l border-slate-200 px-2 dark:border-slate-700"
+                                        onClick={() =>
+                                            setResultsMenuOpen(
+                                                (open) => !open,
+                                            )
+                                        }
+                                    >
+                                        <ChevronDown className={[
+                                            "h-4 w-4 transition-transform duration-200",
+                                            resultsMenuOpen
+                                                ? "rotate-180"
+                                                : "",
+                                        ].join(" ")} />
+                                    </Button>
+                                </div>
+
+                                {resultsMenuOpen ? (
+                                    <div className="absolute bottom-full right-0 z-20 mb-2 w-56 animate-in fade-in slide-in-from-bottom-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl duration-200 dark:border-slate-800 dark:bg-slate-950">
+                                        <button
+                                            type="button"
+                                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-900"
+                                            onClick={() => {
+                                                setResultsMenuOpen(false);
+                                                onShowResults();
+                                            }}
+                                        >
+                                            <Users className="h-4 w-4 text-indigo-500" />
+                                            <span>Show to Students</span>
+                                        </button>
+
+                                        <div className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-400 opacity-70">
+                                            <MonitorUp className="h-4 w-4" />
+                                            <span>Projector</span>
+                                            <span className="ml-auto text-[10px] font-bold uppercase">Next</span>
+                                        </div>
+
+                                        <div className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-400 opacity-70">
+                                            <Eye className="h-4 w-4" />
+                                            <span>Both</span>
+                                            <span className="ml-auto text-[10px] font-bold uppercase">Next</span>
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </div>
                         ) : null}
 
                         {question.status ===
