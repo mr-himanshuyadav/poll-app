@@ -27,6 +27,7 @@ interface QuestionNavigationProps {
     activeQuestion: SessionQuestion | null;
     liveQuestionId?: string | null;
     isUpdating?: boolean;
+    isCompleted?: boolean;
     onSelectQuestion: (question: SessionQuestion) => void;
     onActivateQuestion: (question: SessionQuestion) => void;
     onConfirmReplaceLiveQuestion?: (question: SessionQuestion) => void;
@@ -40,6 +41,7 @@ export function QuestionNavigation({
     activeQuestion,
     liveQuestionId = null,
     isUpdating = false,
+    isCompleted = false,
     onSelectQuestion,
     onActivateQuestion,
     onConfirmReplaceLiveQuestion,
@@ -200,7 +202,7 @@ export function QuestionNavigation({
                                                 <Eye className="h-4 w-4" />
                                             </Button>
 
-                                            {!isLive ? (
+                                            {!isCompleted && !isLive ? (
                                                 <Button
                                                     type="button"
                                                     size="icon"
