@@ -116,38 +116,35 @@ export function LiveStudioHeader({
                                 <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:inline-flex dark:bg-slate-900 dark:text-slate-400">
                                     Live Studio
                                 </span>
+                                {onOpenSettings ? <Button type="button" variant="ghost" size="icon" onClick={onOpenSettings} disabled={isUpdating} aria-label="Session settings" title="Session settings" className="h-8 w-8"><Settings className="h-4 w-4" /></Button> : null}
+                                <ThemeToggle />
                             </div>
-                            
                         </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                        <SessionStatusIndicator status={session.status} />
                         {!isCompleted && isPaused && onResumeSession ? <Button type="button" variant="outline" disabled={isUpdating} onClick={onResumeSession}><Play className="mr-2 h-4 w-4" /> Resume</Button> : null}
                         {!isCompleted && !isPaused && onPauseSession ? <Button type="button" variant="outline" disabled={isUpdating} onClick={onPauseSession}><Pause className="h-4 w-4" /> Pause</Button> : null}
                         {onEndSession ? <Button type="button" variant="destructive" disabled={isUpdating || isCompleted} onClick={onEndSession}><Square className="h-4 w-4 fill-current" /> End</Button> : null}
-                        <SessionStatusIndicator status={session.status} />
                     </div>
                 </div>
 
                 <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-3 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                        {onOpenSettings ? <Button type="button" variant="outline" size="icon" onClick={onOpenSettings} disabled={isUpdating} aria-label="Session settings" title="Session settings"><Settings className="h-4 w-4" /></Button> : null}
-                        <ThemeToggle />
-                        <div className="h-8 w-px bg-slate-200 dark:bg-slate-800" />
-                        <div className="flex min-h-[58px] items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                        <div className="flex h-[58px] items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900">
                             <div className="flex items-center gap-1.5"><Gauge className="h-5 w-5 text-indigo-500" /><span className="text-lg font-extrabold text-slate-700 dark:text-slate-200">{activeParticipantCount}</span><span className="text-slate-500">active</span></div>
                             <span className="text-slate-300 dark:text-slate-700">/</span><span className="font-bold text-slate-700 dark:text-slate-200">{participantCount}</span><span className="text-slate-500">joined</span>
                         </div>
                         <div className="h-8 w-px bg-slate-200 dark:bg-slate-800" />
-                        <div className="flex min-h-[58px] items-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="px-2"><span className="text-[10px] font-bold uppercase text-slate-400">Session Code</span><div className="font-mono text-lg font-extrabold tracking-widest text-slate-900 dark:text-slate-100">{session.join_code}</div></div>{onCopyJoinCode ? <Button type="button" variant="ghost" size="icon" onClick={onCopyJoinCode} aria-label="Copy join code"><Copy className="h-4 w-4" /></Button> : null}{onCopyStudentLink ? <Button type="button" variant="ghost" size="icon" onClick={onCopyStudentLink} aria-label="Copy session link"><ExternalLink className="h-4 w-4" /></Button> : null}</div>
+                        <div className="flex h-[58px] items-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="px-2"><span className="text-[10px] font-bold uppercase text-slate-400">Session Code</span><div className="font-mono text-lg font-extrabold tracking-widest text-slate-900 dark:text-slate-100">{session.join_code}</div></div>{onCopyJoinCode ? <Button type="button" variant="ghost" size="icon" onClick={onCopyJoinCode} aria-label="Copy join code"><Copy className="h-4 w-4" /></Button> : null}{onCopyStudentLink ? <Button type="button" variant="ghost" size="icon" onClick={onCopyStudentLink} aria-label="Copy session link"><ExternalLink className="h-4 w-4" /></Button> : null}</div>
                     </div>
                     <div className="ml-auto flex items-center gap-3"><div
-div
                             className={["flex min-w-0 items-center gap-3 rounded-2xl border bg-slate-50 px-3 py-2.5 text-left shadow-sm dark:bg-slate-900/70", studentLive ? "border-indigo-300 dark:border-indigo-800/70" : "border-slate-200 dark:border-slate-800"].join(" ")}
                             title="What students are currently seeing"
                         >
                             <div className={["relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border", studentLive ? "border-indigo-400 bg-white text-indigo-600 dark:border-indigo-700 dark:bg-slate-950 dark:text-indigo-400" : "border-slate-200 bg-white text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500"].join(" ")}>
-                                {studentLive ? <><span className="pointer-events-none absolute inset-0 rounded-xl border border-emerald-400/70 studio-live-wave" /><span className="pointer-events-none absolute inset-0 rounded-xl border border-emerald-400/40 studio-live-wave studio-live-wave-delay" /></> : null}
+                                {studentLive ? <><span className="pointer-events-none absolute inset-0 rounded-xl border border-indigo-400/70 studio-live-wave" /><span className="pointer-events-none absolute inset-0 rounded-xl border border-indigo-400/40 studio-live-wave studio-live-wave-delay" /></> : null}
                                 <Users className="relative z-10 h-5 w-5" />
                             </div>
                             <div className="min-w-0">
@@ -164,7 +161,7 @@ div
                             title="Open projector in a new tab"
                         >
                             <div className={["relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border", projectorLive ? "border-emerald-200 bg-white text-emerald-600 dark:border-emerald-900/60 dark:bg-slate-950 dark:text-emerald-400" : "border-slate-200 bg-white text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500"].join(" ") }>
-                                {projectorLive ? <><span className="pointer-events-none absolute inset-0 rounded-xl border border-indigo-400/70 studio-live-wave" /><span className="pointer-events-none absolute inset-0 rounded-xl border border-indigo-400/40 studio-live-wave studio-live-wave-delay" /></> : null}
+                                {projectorLive ? <><span className="pointer-events-none absolute inset-0 rounded-xl border border-emerald-400/70 studio-live-wave" /><span className="pointer-events-none absolute inset-0 rounded-xl border border-emerald-400/40 studio-live-wave studio-live-wave-delay" /></> : null}
                                 <Presentation className="relative z-10 h-5 w-5" />
                             </div>
                             <div className="min-w-0">
