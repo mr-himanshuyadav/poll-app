@@ -2,7 +2,7 @@
 
 import {
     useCallback,
-    Radio,
+    RadioTower,
     useMemo,
     useState,
     useEffect
@@ -1019,7 +1019,7 @@ export default function LiveStudioPage() {
                                     );
                                 }}
                             >
-                                <Radio className="mr-2 h-4 w-4" />
+                                <RadioTower className="mr-2 h-4 w-4" />
 
                                 Replace & Display
                             </Button>
