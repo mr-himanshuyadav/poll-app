@@ -83,10 +83,6 @@ export function QuestionsWorkspace({
         const query =
             searchQuery.trim().toLowerCase();
 
-        if (!query) {
-            return sortedQuestions;
-        }
-
         return sortedQuestions.filter((question) => {
             const content = question.text.toLowerCase();
 
