@@ -183,7 +183,7 @@ export function SessionSettingsDrawer({
                 </div>
 
                 <div className="flex-1 space-y-7 overflow-y-auto p-5">
-                    {isCompleted ? null : <div>
+                    <div>
                         <Label
                             htmlFor="session-name"
                             className="text-sm font-bold"
