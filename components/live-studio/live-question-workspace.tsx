@@ -41,7 +41,8 @@ interface LiveQuestionWorkspaceProps {
         | "vertical-bar"
         | "donut"
         | "ranked"
-        | "percentage";
+        | "percentage"
+        | "likert";
 
     onProjectorVisualizationChange?: (
         visualization:
@@ -49,7 +50,8 @@ interface LiveQuestionWorkspaceProps {
             | "vertical-bar"
             | "donut"
             | "ranked"
-            | "percentage",
+            | "percentage"
+            | "likert",
     ) => void;
 
     projectorQuestion: SessionQuestion | null;
