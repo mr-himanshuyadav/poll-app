@@ -149,9 +149,15 @@ export default function ProjectorPage({
 
         let cancelled = false;
 
-        const loadSession = async () => {
-            setPhase("connecting");
-            setError(null);
+        const loadSession = async (
+            options?: { silent?: boolean },
+        ) => {
+            const silent = options?.silent ?? false;
+
+            if (!silent) {
+                setPhase("connecting");
+                setError(null);
+            }
 
             const {
                 data,
@@ -255,7 +261,7 @@ export default function ProjectorPage({
 
             try {
                 supabase.realtime.connect();
-                await loadSession();
+                await loadSession({ silent: true });
             } finally {
                 recovering = false;
             }
