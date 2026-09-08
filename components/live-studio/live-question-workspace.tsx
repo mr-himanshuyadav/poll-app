@@ -17,6 +17,8 @@ interface LiveQuestionWorkspaceProps {
 
     questions: SessionQuestion[];
 
+    projectorResultsQuestionId?: string | null;
+
     viewedQuestion: SessionQuestion | null;
 
     activeQuestion: SessionQuestion | null;
@@ -52,6 +54,8 @@ interface LiveQuestionWorkspaceProps {
 
     onHideResults?: () => void;
 
+    onHideProjectorResults?: () => void;
+
     onPreviousQuestion?: () => void;
 
     onNextQuestion?: () => void;
@@ -60,6 +64,7 @@ interface LiveQuestionWorkspaceProps {
 export function LiveQuestionWorkspace({
     sessionId,
     questions,
+    projectorResultsQuestionId,
     viewedQuestion,
     activeQuestion,
     responses,
@@ -73,6 +78,7 @@ export function LiveQuestionWorkspace({
     onShowResultsOnProjector,
     onShowResultsOnBoth,
     onHideResults,
+    onHideProjectorResults,
     onConfirmReplaceLiveQuestion,
     onPreviousQuestion,
     onNextQuestion,
@@ -108,6 +114,10 @@ response.id
                         question={viewedQuestion}
                         activeQuestion={activeQuestion}
                         questions={questions}
+                        projectorResultsVisible={
+                            projectorResultsQuestionId ===
+                            viewedQuestion?.id
+                        }
                         isUpdating={isUpdating}
                         onActivateQuestion={
                             onActivateQuestion
@@ -123,6 +133,9 @@ response.id
                             onShowResultsOnBoth
                         }
                         onHideResults={onHideResults}
+                        onHideProjectorResults={
+                            onHideProjectorResults
+                        }
                         onConfirmReplaceLiveQuestion={
                             onConfirmReplaceLiveQuestion
                         }
