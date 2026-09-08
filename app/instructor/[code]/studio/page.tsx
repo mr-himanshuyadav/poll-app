@@ -142,6 +142,9 @@ export default function LiveStudioPage() {
     const [pendingLiveQuestion, setPendingLiveQuestion] =
         useState<SessionQuestion | null>(null);
 
+    const [pendingResultsQuestion, setPendingResultsQuestion] =
+        useState<SessionQuestion | null>(null);
+
     const [viewedQuestionId, setViewedQuestionId] =
         useState<string | null>(null);
 
@@ -510,6 +513,124 @@ export default function LiveStudioPage() {
             updateSession,
         ],
     );
+
+    const showResultsToStudents =
+        useCallback(
+            async (
+                question: SessionQuestion,
+                options?: {
+                    closeQuestion?: boolean;
+                    showOnProjector?: boolean;
+                },
+            ) => {
+                const now =
+                    new Date().toISOString();
+
+                // A student-facing result replaces any
+                // previously visible student result.
+                await Promise.all(
+                    questions
+                        .filter(
+                            (item) =>
+                                item.id !== question.id &&
+                                item.results_visible === true,
+                        )
+                        .map((item) =>
+                            updateQuestion(
+                                item.id,
+                                {
+                                    results_visible: false,
+                                },
+                            ),
+                        ),
+                );
+
+                if (options?.closeQuestion) {
+                    await updateQuestion(
+                        question.id,
+                        {
+                            status: "closed",
+                            closed_at: now,
+                            results_visible: true,
+                        },
+                    );
+
+                    await updateSession({
+                        active_question_id: null,
+                        ...(options.showOnProjector
+                            ? {
+                                  projector_display_type:
+                                      "results" as const,
+                                  projector_question_id:
+                                      question.id,
+                              }
+                            : {}),
+                    });
+                } else {
+                    await updateQuestion(
+                        question.id,
+                        {
+                            results_visible: true,
+                        },
+                    );
+
+                    if (options?.showOnProjector) {
+                        await updateSession({
+                            projector_display_type:
+                                "results",
+                            projector_question_id:
+                                question.id,
+                        });
+                    }
+                }
+
+                showNotice(
+                    "success",
+                    options?.closeQuestion
+                        ? "The question was closed and results are now visible."
+                        : "Results are now visible to students.",
+                    "Results Shown",
+                );
+            },
+            [
+                questions,
+                showNotice,
+                updateQuestion,
+                updateSession,
+            ],
+        );
+
+    const handleRequestShowResults =
+        useCallback(() => {
+            if (!viewedQuestion) {
+                return;
+            }
+
+            if (
+                activeQuestion &&
+                activeQuestion.id === viewedQuestion.id
+            ) {
+                setPendingResultsQuestion(
+                    viewedQuestion,
+                );
+                return;
+            }
+
+            if (activeQuestion) {
+                setPendingResultsQuestion(
+                    viewedQuestion,
+                );
+                return;
+            }
+
+            void showResultsToStudents(
+                viewedQuestion,
+            );
+        }, [
+            activeQuestion,
+            showResultsToStudents,
+            viewedQuestion,
+        ]);
 
     const handleSaveSettings =
         useCallback(
@@ -903,23 +1024,11 @@ export default function LiveStudioPage() {
             null,
         );
     }}
-    onShowResults={async () => {
-        if (!viewedQuestion) {
-            return;
-        }
-
-        await updateQuestion(
-            viewedQuestion.id,
-            {
-                results_visible: true,
-            },
-        );
-
-        showNotice(
-            "success",
-            "Results are now visible to students.",
-            "Results Shown",
-        );
+    onShowResults={() => {
+        void handleRequestShowResults();
+    }}
+    onRequestShowResults={() => {
+        void handleRequestShowResults();
     }}
     onHideProjectorResults={async () => {
         await updateSession({
