@@ -1,6 +1,8 @@
 "use client";
 
 import { ScaleResponseInput } from "@/components/live-studio/scale-response-input";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Radio } from "lucide-react";
 import { resolveScaleConfig } from "@/lib/scale-config";
 
 import {
@@ -1464,10 +1466,10 @@ export default function JoinPage({
                       )
                     }
                     className={[
-                      "w-full rounded-xl border p-4 text-left transition",
+                      "w-full rounded-2xl border p-4 text-left font-semibold shadow-sm transition-all duration-200",
                       isSelected
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-muted",
+                        ? "border-indigo-400 bg-gradient-to-r from-indigo-500/15 to-violet-500/10 ring-2 ring-indigo-500/20"
+                        : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-indigo-400/50 dark:hover:bg-white/[0.08]",
                     ].join(" ")}
                   >
                     {option}
@@ -1527,10 +1529,10 @@ export default function JoinPage({
                       )
                     }
                     className={[
-                      "rounded-xl border p-4 font-semibold",
+                      "rounded-2xl border p-4 font-semibold transition-all",
                       isSelected
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-muted",
+                        ? "border-indigo-400 bg-indigo-500/15 ring-2 ring-indigo-500/20"
+                        : "border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-indigo-400/50",
                     ].join(" ")}
                   >
                     {option}
@@ -1731,7 +1733,7 @@ export default function JoinPage({
 
   if (isLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 dark:bg-slate-950">
         <p className="font-semibold">
           Loading session...
         </p>
@@ -1747,7 +1749,7 @@ export default function JoinPage({
 
   if (!session) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
+      <main className="relative flex min-h-screen items-center justify-center bg-slate-100 p-4 dark:bg-slate-950">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>
@@ -1779,7 +1781,7 @@ export default function JoinPage({
       "archived"
   ) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
+      <main className="relative flex min-h-screen items-center justify-center bg-slate-100 p-4 dark:bg-slate-950">
         <Card className="w-full max-w-md text-center">
           <CardHeader>
             <CardTitle>
@@ -1810,7 +1812,7 @@ export default function JoinPage({
       !session.allow_late_join;
 
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
+      <main className="relative flex min-h-screen items-center justify-center bg-slate-100 p-4 dark:bg-slate-950">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader>
             <CardTitle>
@@ -1939,15 +1941,25 @@ export default function JoinPage({
    */
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 dark:bg-slate-950">
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-xl items-center">
-        <Card className="w-full shadow-lg">
-          <CardHeader>
+    <main className="relative min-h-screen overflow-hidden bg-slate-100 p-4 text-slate-950 dark:bg-slate-950 dark:text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_5%,rgba(99,102,241,0.14),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(14,165,233,0.12),transparent_30%)] dark:bg-[radial-gradient(circle_at_75%_10%,rgba(79,70,229,0.18),transparent_28%),radial-gradient(circle_at_20%_90%,rgba(14,165,233,0.12),transparent_32%)]" />
+      <div className="relative mx-auto flex min-h-[calc(100vh-2rem)] max-w-2xl items-center">
+        <Card className="w-full overflow-hidden border-slate-200/80 bg-white/85 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
+          <CardHeader className="border-b border-slate-200/70 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-5 dark:border-white/10 dark:from-indigo-950/40 dark:via-slate-950/40 dark:to-violet-950/30 sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-300"><Radio className="h-4 w-4" /></span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Participant View</span>
+                </div>
             <CardTitle>
               {session.name}
             </CardTitle>
+              </div>
+              <ThemeToggle />
+            </div>
 
-            <p className="text-xs text-muted-foreground">
+            <p className="mt-3 text-xs text-muted-foreground">
               {session.participant_mode ===
               "anonymous"
                 ? "Anonymous participation"
@@ -1955,7 +1967,7 @@ export default function JoinPage({
             </p>
           </CardHeader>
 
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-6 p-5 sm:p-7">
             {error && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {error}
@@ -1965,7 +1977,7 @@ export default function JoinPage({
             {session.status ===
                 "paused" ||
             session.is_offline ? (
-              <div className="rounded-2xl border bg-yellow-50 p-6 text-center dark:bg-yellow-950/30">
+              <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-8 text-center shadow-sm dark:border-amber-500/20 dark:from-amber-950/30 dark:to-orange-950/20">
                 <h2 className="text-xl font-bold">
                   Session Paused
                 </h2>
@@ -1976,7 +1988,7 @@ export default function JoinPage({
                 </p>
               </div>
             ) : !question ? (
-              <div className="rounded-2xl border border-dashed p-8 text-center">
+              <div className="rounded-3xl border border-dashed border-indigo-200 bg-indigo-50/40 p-10 text-center dark:border-indigo-400/20 dark:bg-indigo-500/[0.04]">
                 <h2 className="text-xl font-bold">
                   Waiting for the
                   instructor
@@ -1991,21 +2003,15 @@ export default function JoinPage({
             ) : (
               <div className="space-y-5">
                 <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Live Question
-                  </div>
+                  <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-300"><span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]" />Live Question</div>
 
-                  <h2 className="text-2xl font-bold">
-                    {
-                      question.text
-                    }
-                  </h2>
+                  <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">{question.text}</h2>
                 </div>
 
                 {existingResponse &&
                 !isEditingResponse ? (
                   <div className="space-y-4">
-                    <div className="rounded-2xl border bg-muted/30 p-5">
+                    <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-cyan-50 p-5 shadow-sm dark:border-emerald-500/20 dark:from-emerald-950/20 dark:to-cyan-950/20">
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Your Answer
                       </p>
