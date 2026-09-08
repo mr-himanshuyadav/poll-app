@@ -33,6 +33,7 @@ interface QuestionsWorkspaceProps {
     isSaving?: boolean;
 
     isUpdating?: boolean;
+    isCompleted?: boolean;
 
     onCreateQuestion: (
         question: Partial<SessionQuestion>,
@@ -62,6 +63,7 @@ export function QuestionsWorkspace({
     activeQuestion,
     isSaving = false,
     isUpdating = false,
+    isCompleted = false,
     onCreateQuestion,
     onUpdateQuestion,
     onDeleteQuestion,
@@ -187,7 +189,7 @@ export function QuestionsWorkspace({
                     </p>
                 </div>
 
-                <Button
+                {!isCompleted ? <Button
                     type="button"
                     onClick={handleCreateQuestion}
                     disabled={
@@ -198,7 +200,7 @@ export function QuestionsWorkspace({
                     <Plus className="mr-2 h-4 w-4" />
 
                     Add Question
-                </Button>
+                </Button> : null}
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
@@ -462,6 +464,7 @@ export function QuestionsWorkspace({
                             })()}
 
                             <QuestionEditor
+                            readOnly={isCompleted}
                             mode="edit"
                             sessionId={
                                 sessionId
@@ -522,7 +525,7 @@ export function QuestionsWorkspace({
                                 Create Question
                             </Button>
                         </div>
-                    )}
+                    ) : null}
                 </main>
             </div>
         </div>
