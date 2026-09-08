@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
     CheckCircle2,
     Info,
@@ -107,13 +108,20 @@ export function StudioNotice({
     const styles =
         noticeStyles[type];
 
-    const Icon =
-        styles.Icon;
+    const Icon = styles.Icon;
+    const [progress, setProgress] = useState(100);
+    useEffect(() => {
+        setProgress(100);
+        const started = Date.now();
+        const tick = window.setInterval(() => setProgress(Math.max(0, 100 - ((Date.now() - started) / 10000) * 100)), 50);
+        const timeout = window.setTimeout(() => onClose?.(), 10000);
+        return () => { window.clearInterval(tick); window.clearTimeout(timeout); };
+    }, [message, onClose]);
 
     return (
         <div
             className={[
-                "flex items-start gap-3 rounded-xl border px-4 py-3",
+                "animate-in slide-in-from-right-4 fade-in flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-2xl",
                 styles.wrapper,
             ].join(" ")}
             role={
@@ -163,7 +171,7 @@ export function StudioNotice({
                         styles.icon,
                     ].join(" ")}
                 >
-                    <X className="h-4 w-4" />
+                    <span className="relative flex h-6 w-6 items-center justify-center"><svg className="absolute inset-0 h-6 w-6 -rotate-90" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="2"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="56.5" strokeDashoffset={56.5 * (1 - progress / 100)} strokeLinecap="round"/></svg><X className="h-3.5 w-3.5" /></span>
 
                     <span className="sr-only">
                         Dismiss notification
