@@ -52,109 +52,87 @@ export function ResponseDistribution({
         );
     }
 
-    const normalizeAnswerValues = (
+    /*
+     * The Live Studio distribution must be based on the
+     * realtime response rows for the viewed question.
+     *
+     * Session analytics refreshes independently and can contain
+     * stale or differently-normalized values after schema changes.
+     */
+    const answerToString = (
         answer: unknown,
-    ): string[] => {
-        if (Array.isArray(answer)) {
-            return answer.flatMap(
-                normalizeAnswerValues,
-            );
+    ): string => {
+        if (typeof answer === "string") {
+            return answer;
         }
 
         if (
-            answer !== null &&
-            typeof answer === "object"
+            typeof answer === "number" ||
+            typeof answer === "boolean"
         ) {
-            const value =
-                (answer as Record<string, unknown>)
-                    .option_id ??
-                (answer as Record<string, unknown>)
-                    .optionId ??
-                (answer as Record<string, unknown>)
-                    .value ??
-                (answer as Record<string, unknown>)
-                    .answer;
-
-            return value === undefined
-                ? []
-                : normalizeAnswerValues(value);
+            return String(answer);
         }
 
-        return answer === null ||
-            answer === undefined
-            ? []
-            : [String(answer)];
+        if (answer === null) {
+            return "";
+        }
+
+        if (Array.isArray(answer)) {
+            return answer
+                .map(answerToString)
+                .join(", ");
+        }
+
+        try {
+            return JSON.stringify(answer);
+        } catch {
+            return String(answer);
+        }
     };
 
-    const responseCounts = responses.reduce(
-        (counts, response) => {
-            for (const value of normalizeAnswerValues(
-                response.answer,
-            )) {
-                counts.set(
-                    value,
-                    (counts.get(value) ?? 0) + 1,
-                );
-            }
-
-            return counts;
-        },
-        new Map<string, number>(),
+    const optionLabels = question.options.map(
+        (option) => String(option),
     );
 
-    const fallbackDistribution =
-        question.options.map(
-            (option, index) => {
-                const optionRecord =
-                    option as unknown as Record<
-                        string,
-                        unknown
-                    >;
+    const responseCounts = new Map<
+        string,
+        number
+    >();
 
-                const key = String(
-                    optionRecord.id ??
-                    optionRecord.option_id ??
-                    index,
-                );
-
-                const label = String(
-                    optionRecord.label ??
-                    optionRecord.text ??
-                    optionRecord.value ??
-                    option,
-                );
-
-                const count =
-                    responseCounts.get(key) ??
-                    responseCounts.get(label) ??
-                    0;
-
-                return {
-                    key,
-                    label,
-                    count,
-                    percentage:
-                        responses.length > 0
-                            ? (count / responses.length) * 100
-                            : 0,
-                };
-            },
+    for (const response of responses) {
+        const answer = answerToString(
+            response.answer,
         );
 
-    const distribution =
-        analytics?.optionDistribution?.length
-            ? analytics.optionDistribution
-            : fallbackDistribution;
+        responseCounts.set(
+            answer,
+            (responseCounts.get(answer) ?? 0) +
+                1,
+        );
+    }
 
-    const totalResponses =
-        analytics?.totalResponses ??
-        responses.length;
+    const totalResponses = responses.length;
+
+    const distribution = optionLabels.map(
+        (label, index) => {
+            const count =
+                responseCounts.get(label) ?? 0;
+
+            return {
+                key: `${index}-${label}`,
+                label,
+                count,
+                percentage:
+                    totalResponses > 0
+                        ? (count / totalResponses) *
+                          100
+                        : 0,
+            };
+        },
+    );
 
     const hasDistribution =
-        totalResponses > 0 ||
-        distribution.some(
-            (option) => option.count > 0,
-        );
+        totalResponses > 0;
 
     return (
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
