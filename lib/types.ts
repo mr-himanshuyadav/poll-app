@@ -77,6 +77,12 @@ export interface QuestionConfig {
   min?: number;
   max?: number;
   step?: number;
+  minLabel?: string;
+  maxLabel?: string;
+  /** Optional label for every numeric scale value, indexed by value. */
+  scaleLabels?: Record<string, string>;
+  /** Presentation mode for a numeric scale. */
+  scalePreset?: "numeric" | "agreement" | "satisfaction" | "custom";
   [key: string]: unknown;
 }
 
