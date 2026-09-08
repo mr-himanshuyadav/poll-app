@@ -2114,7 +2114,8 @@ export default function JoinPage({
                       </p>
 
                       <p className="mt-2 text-lg font-semibold">
-                        {answerToString(
+                        {getResponseDisplayLabel(
+                          question,
                           existingResponse.answer,
                         )}
                       </p>
