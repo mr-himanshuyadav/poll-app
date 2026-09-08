@@ -984,6 +984,9 @@ export default function LiveStudioPage() {
             "Visualization Updated",
         );
     }}
+    isSavingQuestion={areQuestionsSaving}
+    onCreateQuestion={handleCreateQuestion}
+    onUpdateQuestion={handleUpdateQuestion}
     projectorQuestion={
         questions.find((question) => question.id === session.projector_question_id) ?? null
     }
