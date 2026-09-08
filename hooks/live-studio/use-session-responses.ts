@@ -65,7 +65,7 @@ export function useSessionResponses({
         useState<Error | null>(null);
 
     const fetchResponses =
-        useCallback(async () => {
+        useCallback(async (silent = false) => {
             if (!sessionId) {
                 setResponses([]);
                 setIsLoading(false);
@@ -73,8 +73,10 @@ export function useSessionResponses({
                 return;
             }
 
-            setIsLoading(true);
-            setError(null);
+            if (!silent) {
+                setIsLoading(true);
+                setError(null);
+            }
 
             try {
                 const { data, error } =
@@ -114,7 +116,9 @@ export function useSessionResponses({
                 setError(normalizedError);
                 setResponses([]);
             } finally {
-                setIsLoading(false);
+                if (!silent) {
+                    setIsLoading(false);
+                }
             }
         }, [sessionId]);
 
