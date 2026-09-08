@@ -38,6 +38,10 @@ interface QuestionNavigationProps {
         question: SessionQuestion,
     ) => void;
 
+    onConfirmReplaceLiveQuestion?: (
+        question: SessionQuestion,
+    ) => void;
+
     onPreviousQuestion?: () => void;
 
     onNextQuestion?: () => void;
@@ -50,6 +54,7 @@ export function QuestionNavigation({
     isUpdating = false,
     onSelectQuestion,
     onActivateQuestion,
+    onConfirmReplaceLiveQuestion,
     onPreviousQuestion,
     onNextQuestion,
 }: QuestionNavigationProps) {
