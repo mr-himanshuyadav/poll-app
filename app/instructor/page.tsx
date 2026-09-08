@@ -35,15 +35,9 @@ import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
 import {
   Activity,
-  BookOpen,
   ChevronRight,
-  Clock3,
   LayoutGrid,
   LogOut,
-  Play,
-  Plus,
-  Radio,
-  Search,
   Sparkles,
   Zap,
 } from "lucide-react";
