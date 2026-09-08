@@ -39,6 +39,10 @@ interface LiveQuestionWorkspaceProps {
 
     onCloseQuestion: () => void;
 
+    onConfirmReplaceLiveQuestion?: (
+        question: SessionQuestion,
+    ) => void;
+
     onShowResults?: () => void;
 
     onHideResults?: () => void;
@@ -60,6 +64,7 @@ export function LiveQuestionWorkspace({
     onActivateQuestion,
     onViewQuestion,
     onCloseQuestion,
+    onConfirmReplaceLiveQuestion,
     onShowResults,
     onHideResults,
     onPreviousQuestion,
