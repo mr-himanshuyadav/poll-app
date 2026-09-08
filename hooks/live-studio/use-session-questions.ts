@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { useLiveRecovery } from "@/hooks/use-live-recovery";
 
 import type {
     SessionQuestion,
