@@ -4,6 +4,7 @@ import { use, useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { ChevronLeft, ChevronRight, QrCode, Users } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { supabase } from "@/lib/supabase";
 import type { Session, SessionQuestion } from "@/lib/types";
 
@@ -694,7 +695,7 @@ export default function ProjectorPage({
                     >
                         <div className="absolute inset-10 flex flex-col items-center justify-center rounded-full bg-slate-950">
                             <span className="text-5xl font-black">{totalResponses}</span>
-                            <span className="mt-2 text-xs font-bold uppercase tracking-widest text-white/40">Responses</span>
+                            <span className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40">Responses</span>
                         </div>
                     </div>
                     <div className="space-y-4">
@@ -729,7 +730,7 @@ export default function ProjectorPage({
                         return (
                             <div key={item.option} className="grid grid-cols-[minmax(150px,1fr)_minmax(180px,3fr)_72px] items-center gap-5">
                                 <span className="text-right text-lg font-bold text-white/80">{item.option}</span>
-                                <div className="h-11 overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-1">
+                                <div className="h-11 overflow-hidden rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-1">
                                     <div className={`flex h-full items-center rounded-xl bg-gradient-to-r px-4 text-sm font-black shadow-lg transition-all duration-700 ${palette[index % palette.length]}`} style={{ width: `${Math.max(item.count ? 9 : 0, (item.count / maxCount) * 100)}%` }}>
                                         {item.count || ""}
                                     </div>
@@ -753,7 +754,7 @@ export default function ProjectorPage({
                     {data.map((item, index) => (
                         <div key={item.option} className="flex flex-1 flex-col items-center gap-3">
                             <span className="text-xl font-black">{Math.round(item.percentage)}%</span>
-                            <div className="flex h-80 w-full items-end rounded-2xl bg-white/5 p-2">
+                            <div className="flex h-80 w-full items-end rounded-2xl bg-slate-100/80 dark:bg-white/5 p-2">
                                 <div
                                     className="w-full rounded-xl transition-all duration-500"
                                     style={{
@@ -769,7 +770,7 @@ export default function ProjectorPage({
                                     }}
                                 />
                             </div>
-                            <span className="text-center text-sm font-bold text-white/70">{item.option}</span>
+                            <span className="text-center text-sm font-bold text-slate-600 dark:text-white/70">{item.option}</span>
                         </div>
                     ))}
                 </div>
@@ -780,11 +781,11 @@ export default function ProjectorPage({
             return (
                 <div className="space-y-4">
                     {[...data].sort((a, b) => b.count - a.count).map((item, index) => (
-                        <div key={item.option} className="flex items-center gap-5 rounded-2xl border border-white/10 bg-white/5 p-5">
+                        <div key={item.option} className="flex items-center gap-5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-5">
                             <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-xl font-black">#{index + 1}</span>
                             <span className="flex-1 text-2xl font-bold">{item.option}</span>
                             <span className="text-2xl font-black">{item.count}</span>
-                            <span className="w-20 text-right text-xl font-bold text-white/50">{Math.round(item.percentage)}%</span>
+                            <span className="w-20 text-right text-xl font-bold text-slate-500 dark:text-white/50">{Math.round(item.percentage)}%</span>
                         </div>
                     ))}
                 </div>
@@ -795,11 +796,11 @@ export default function ProjectorPage({
             return (
                 <div className="grid gap-5 md:grid-cols-2">
                     {data.map((item) => (
-                        <div key={item.option} className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                            <p className="text-xl font-bold text-white/70">{item.option}</p>
+                        <div key={item.option} className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-6">
+                            <p className="text-xl font-bold text-slate-600 dark:text-white/70">{item.option}</p>
                             <div className="mt-5 flex items-end justify-between">
                                 <span className="text-5xl font-black">{Math.round(item.percentage)}%</span>
-                                <span className="text-lg font-bold text-white/40">{item.count} votes</span>
+                                <span className="text-lg font-bold text-slate-400 dark:text-white/40">{item.count} votes</span>
                             </div>
                         </div>
                     ))}
@@ -854,7 +855,7 @@ export default function ProjectorPage({
             <main className="flex min-h-screen items-center justify-center bg-slate-950 p-8 text-white">
                 <div className="text-center">
 
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/50">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-white/50">
                         Live Session
                     </p>
 
@@ -862,7 +863,7 @@ export default function ProjectorPage({
                         Unable to connect
                     </h1>
 
-                    <p className="mt-3 max-w-lg text-white/60">
+                    <p className="mt-3 max-w-lg text-slate-500 dark:text-white/60">
                         {error}
                     </p>
 
@@ -886,7 +887,7 @@ export default function ProjectorPage({
 
                 <div className="text-center">
 
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5">
 
                         <div className="h-7 w-7 animate-spin rounded-full border-4 border-white/20 border-t-white" />
 
@@ -909,7 +910,8 @@ export default function ProjectorPage({
      */
 
     return (
-        <main className="relative flex h-screen overflow-hidden bg-slate-950 text-white">
+        <main className="relative flex h-screen overflow-hidden bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-white">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_15%,rgba(79,70,229,0.12),transparent_28%),radial-gradient(circle_at_30%_90%,rgba(14,165,233,0.10),transparent_32%)] dark:bg-[radial-gradient(circle_at_75%_15%,rgba(79,70,229,0.18),transparent_28%),radial-gradient(circle_at_30%_90%,rgba(14,165,233,0.12),transparent_32%)]" />
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_15%,rgba(79,70,229,0.18),transparent_28%),radial-gradient(circle_at_30%_90%,rgba(14,165,233,0.12),transparent_32%)]" />
 
             {/* ========================================
@@ -917,7 +919,7 @@ export default function ProjectorPage({
          ======================================== */}
 
             {sidebarVisible && (
-            <aside className="relative z-10 flex w-[27%] min-w-[280px] flex-col justify-between border-r border-white/10 bg-gradient-to-b from-slate-900 via-slate-950 to-indigo-950/50 p-8 shadow-2xl">
+            <aside className="relative z-10 flex w-[27%] min-w-[280px] flex-col justify-between border-r border-slate-200/80 dark:border-white/10 bg-gradient-to-b from-white via-slate-50 to-indigo-50/70 p-8 shadow-2xl dark:from-slate-900 dark:via-slate-950 dark:to-indigo-950/50">
 
                 <div>
 
@@ -939,7 +941,7 @@ export default function ProjectorPage({
 
                     <div className="mt-10 rounded-3xl border border-indigo-400/15 bg-white/[0.035] p-5">
 
-                        <p className="text-sm font-semibold text-white/60">
+                        <p className="text-sm font-semibold text-slate-500 dark:text-white/60">
                             Join the session
                         </p>
 
@@ -957,7 +959,7 @@ export default function ProjectorPage({
 
                         <div className="mt-5 text-center">
 
-                            <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-white/40">
                                 Join Code
                             </p>
 
@@ -975,11 +977,11 @@ export default function ProjectorPage({
 
                 <div className="space-y-3">
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-5">
 
                         <div className="flex items-center justify-between">
 
-                            <span className="text-sm text-white/60">
+                            <span className="text-sm text-slate-500 dark:text-white/60">
                                 Session
                             </span>
 
@@ -991,11 +993,11 @@ export default function ProjectorPage({
 
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-5">
 
                         <div className="flex items-center justify-between">
 
-                            <span className="text-sm text-white/60">
+                            <span className="text-sm text-slate-500 dark:text-white/60">
                                 Responses
                             </span>
 
@@ -1020,7 +1022,7 @@ export default function ProjectorPage({
 
                 {/* TOP STATUS BAR */}
 
-                <div className="flex items-center justify-between border-b border-white/10 bg-slate-950/50 px-6 py-5 backdrop-blur-xl lg:px-8">
+                <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/10 bg-white/70 px-6 py-5 backdrop-blur-xl dark:bg-slate-950/50 lg:px-8">
 
                     <div className="flex items-center gap-3">
 
@@ -1033,7 +1035,7 @@ export default function ProjectorPage({
                                 }`}
                         />
 
-                        <span className="text-sm font-semibold text-white/70">
+                        <span className="text-sm font-semibold text-slate-600 dark:text-white/70">
                             {phase === "live"
                                 ? "Live"
                                 : phase === "paused"
@@ -1051,7 +1053,7 @@ export default function ProjectorPage({
 
                         <div className="flex items-center gap-2">
 
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/60">
+                            <span className="rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 px-3 py-1 text-xs font-semibold text-slate-500 dark:text-white/60">
                                 {question.results_mode ===
                                     "live"
                                     ? "Live Results"
@@ -1067,10 +1069,12 @@ export default function ProjectorPage({
 
                     )}
 
+                    <ThemeToggle className="ml-auto" />
+
                     <button
                         type="button"
                         onClick={() => setSidebarVisible((visible) => !visible)}
-                        className="ml-4 flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 text-sm font-bold text-white/70 transition hover:bg-white/10 hover:text-white"
+                        className="ml-4 flex h-10 items-center gap-2 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 px-3 text-sm font-bold text-slate-600 dark:text-white/70 transition hover:bg-white/10 hover:text-white"
                         title={sidebarVisible ? "Hide join panel" : "Show join panel"}
                     >
                         {sidebarVisible ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -1096,7 +1100,7 @@ export default function ProjectorPage({
                                 Waiting for the instructor
                             </h2>
 
-                            <p className="mx-auto mt-6 max-w-2xl text-xl leading-relaxed text-white/50">
+                            <p className="mx-auto mt-6 max-w-2xl text-xl leading-relaxed text-slate-500 dark:text-white/50">
                                 The next question will appear here
                                 automatically.
                             </p>
@@ -1117,7 +1121,7 @@ export default function ProjectorPage({
                                 Session Paused
                             </h2>
 
-                            <p className="mx-auto mt-6 max-w-2xl text-xl text-white/50">
+                            <p className="mx-auto mt-6 max-w-2xl text-xl text-slate-500 dark:text-white/50">
                                 Please wait while the instructor
                                 resumes the session.
                             </p>
@@ -1138,11 +1142,11 @@ export default function ProjectorPage({
                                 Thank you
                             </h2>
 
-                            <p className="mx-auto mt-6 max-w-2xl text-xl text-white/50">
+                            <p className="mx-auto mt-6 max-w-2xl text-xl text-slate-500 dark:text-white/50">
                                 This live session has ended.
                             </p>
 
-                            <p className="mt-8 text-base font-semibold text-white/40">
+                            <p className="mt-8 text-base font-semibold text-slate-400 dark:text-white/40">
                                 Responses are now closed for this session.
                             </p>
 
@@ -1170,7 +1174,7 @@ export default function ProjectorPage({
                     {phase === "live" &&
                         question && (
 
-                            <div className="w-full max-w-6xl rounded-[2rem] border border-white/10 bg-slate-950/35 p-6 shadow-2xl backdrop-blur-sm lg:p-10">
+                            <div className="w-full max-w-6xl rounded-[2rem] border border-slate-200/80 dark:border-white/10 bg-white/70 p-6 shadow-2xl backdrop-blur-sm dark:bg-slate-950/35 lg:p-10">
 
                                 {/* QUESTION */}
 
@@ -1193,17 +1197,17 @@ export default function ProjectorPage({
                                     question.type === "scale" ||
                                     question.type === "rating"
                                 ) && (
-                                    <div className="mt-12 rounded-3xl border border-white/10 bg-white/[0.035] p-5 shadow-inner lg:p-8">
+                                    <div className="mt-12 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 p-5 shadow-inner dark:bg-white/[0.035] lg:p-8">
                                         {showResults ? (
                                             <div className="animate-in fade-in duration-300">
                                                 {renderResultsVisualization()}
                                             </div>
                                         ) : (
-                                            <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+                                            <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-slate-100/80 p-10 text-center dark:bg-white/5">
                                                 <p className="text-2xl font-bold">
                                                     Responses are being collected
                                                 </p>
-                                                <p className="mt-3 text-lg text-white/40">
+                                                <p className="mt-3 text-lg text-slate-400 dark:text-white/40">
                                                     Results will appear when
                                                     they are revealed.
                                                 </p>
@@ -1214,11 +1218,11 @@ export default function ProjectorPage({
 
                                 {/* RESPONSE FOOTER */}
 
-                                <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row">
+                                <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-slate-200/80 dark:border-white/10 pt-6 sm:flex-row">
 
                                     <div>
 
-                                        <p className="text-sm font-semibold text-white/40">
+                                        <p className="text-sm font-semibold text-slate-400 dark:text-white/40">
                                             Total Responses
                                         </p>
 
@@ -1233,7 +1237,7 @@ export default function ProjectorPage({
 
                                             <div className="text-right">
 
-                                                <p className="text-sm font-semibold text-white/40">
+                                                <p className="text-sm font-semibold text-slate-400 dark:text-white/40">
                                                     Leading Answer
                                                 </p>
 
