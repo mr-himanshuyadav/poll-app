@@ -36,7 +36,7 @@ const noticeStyles: Record<
 > = {
     success: {
         wrapper:
-            "border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/30",
+            "border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/80",
 
         icon:
             "text-emerald-600 dark:text-emerald-400",
@@ -52,7 +52,7 @@ const noticeStyles: Record<
 
     error: {
         wrapper:
-            "border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30",
+            "border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/80",
 
         icon:
             "text-red-600 dark:text-red-400",
@@ -68,7 +68,7 @@ const noticeStyles: Record<
 
     warning: {
         wrapper:
-            "border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/30",
+            "border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/80",
 
         icon:
             "text-amber-600 dark:text-amber-400",
@@ -84,7 +84,7 @@ const noticeStyles: Record<
 
     info: {
         wrapper:
-            "border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-950/30",
+            "border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-950/80",
 
         icon:
             "text-blue-600 dark:text-blue-400",
@@ -109,13 +109,14 @@ export function StudioNotice({
         noticeStyles[type];
 
     const Icon = styles.Icon;
+    const NOTICE_DURATION = 3000;
     const [progress, setProgress] = useState(100);
     const [isHovered, setIsHovered] = useState(false);
-    const remainingRef = useRef(5000);
+    const remainingRef = useRef(NOTICE_DURATION);
     const lastTickRef = useRef<number | null>(null);
 
     useEffect(() => {
-        remainingRef.current = 5000;
+        remainingRef.current = NOTICE_DURATION;
         lastTickRef.current = performance.now();
         setProgress(100);
     }, [message]);
@@ -133,7 +134,7 @@ export function StudioNotice({
             const elapsed = now - previous;
             lastTickRef.current = now;
             remainingRef.current = Math.max(0, remainingRef.current - elapsed);
-            setProgress((remainingRef.current / 5000) * 100);
+            setProgress((remainingRef.current / NOTICE_DURATION) * 100);
             if (remainingRef.current <= 0) onClose?.();
         }, 50);
 
