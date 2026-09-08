@@ -17,6 +17,8 @@ interface LiveQuestionWorkspaceProps {
 
     questions: SessionQuestion[];
 
+    viewedQuestion: SessionQuestion | null;
+
     activeQuestion: SessionQuestion | null;
 
     responses: SessionResponse[];
@@ -28,6 +30,10 @@ interface LiveQuestionWorkspaceProps {
     isUpdating?: boolean;
 
     onActivateQuestion: (
+        question: SessionQuestion,
+    ) => void;
+
+    onViewQuestion: (
         question: SessionQuestion,
     ) => void;
 
@@ -45,24 +51,26 @@ interface LiveQuestionWorkspaceProps {
 export function LiveQuestionWorkspace({
     sessionId,
     questions,
+    viewedQuestion,
     activeQuestion,
     responses,
     participants,
     questionAnalytics,
     isUpdating = false,
     onActivateQuestion,
+    onViewQuestion,
     onCloseQuestion,
     onShowResults,
     onHideResults,
     onPreviousQuestion,
     onNextQuestion,
 }: LiveQuestionWorkspaceProps) {
-    const activeQuestionResponses =
-        activeQuestion
+    const viewedQuestionResponses =
+        viewedQuestion
             ? responses.filter(
                   (response) =>
                       response.question_id ===
-                      activeQuestion.id,
+                      viewedQuestion.id,
               )
             : [];
 
@@ -72,7 +80,7 @@ export function LiveQuestionWorkspace({
     const responseCount =
         questionAnalytics?.uniqueResponders ??
         new Set(
-            activeQuestionResponses.map(
+            viewedQuestionResponses.map(
                 (response) =>
                     response.participant_id ??
 response.id
@@ -85,7 +93,7 @@ response.id
                 <div className="min-w-0 space-y-6">
                     <LiveQuestionPanel
                         sessionId={sessionId}
-                        question={activeQuestion}
+                        question={viewedQuestion}
                         questions={questions}
                         isUpdating={isUpdating}
                         onActivateQuestion={
@@ -108,7 +116,7 @@ response.id
                             questionAnalytics
                         }
                         responses={
-                            activeQuestionResponses
+                            viewedQuestionResponses
                         }
                     />
                 </div>
@@ -122,7 +130,7 @@ response.id
                             responseCount
                         }
                         activeQuestion={
-                            activeQuestion
+                            viewedQuestion
                         }
                     />
 
@@ -133,7 +141,7 @@ response.id
                         }
                         isUpdating={isUpdating}
                         onSelectQuestion={
-                            onActivateQuestion
+                            onViewQuestion
                         }
                         onPreviousQuestion={
                             onPreviousQuestion
