@@ -39,6 +39,13 @@ export type StudentDisplayType =
   | "question"
   | "results";
 
+export type ResponseVisualizationType =
+  | "horizontal-bar"
+  | "vertical-bar"
+  | "donut"
+  | "ranked"
+  | "percentage";
+
 export type SessionEventType =
   | "session_created"
   | "session_started"
@@ -130,6 +137,7 @@ export interface Session {
   student_question_id: string | null;
   projector_display_type: ProjectorDisplayType;
   projector_question_id: string | null;
+  projector_visualization_type: ResponseVisualizationType;
   default_result_visibility: ResultVisibilityTarget;
   created_at: string;
   started_at: string | null;
