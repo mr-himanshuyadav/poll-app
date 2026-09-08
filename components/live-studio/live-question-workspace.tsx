@@ -94,6 +94,8 @@ export function LiveQuestionWorkspace({
     projectorResultsQuestionId,
     defaultResultVisibility = "both",
     projectorDisplayType = "waiting",
+    projectorVisualizationType = "horizontal-bar",
+    onProjectorVisualizationChange,
     projectorQuestion,
     viewedQuestion,
     activeQuestion,
