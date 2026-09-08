@@ -374,7 +374,7 @@ response.id
                                 </div>
                             </div>
                         )}
-                        distribution={
+                        distribution={(navigateToParticipants) => (
                             <div className="p-0">
                                 <ResponseDistribution
                                     question={viewedQuestion}
@@ -385,19 +385,23 @@ response.id
                                         "horizontal-bar"
                                     }
                                     embedded
+                                    onOptionSelect={(answer) =>
+                                        navigateToParticipants("responded", answer)
+                                    }
                                     onVisualizationChange={
                                         onProjectorVisualizationChange
                                     }
                                 />
                             </div>
-                        }
-                        participants={(activeFilter) => (
+                        )}
+                        participants={(activeFilter, activeAnswer) => (
                             <ResponseParticipants
                                 participants={participants}
                                 responses={viewedQuestionResponses}
                                 allResponses={responses}
                                 questions={questions}
                                 activeFilter={activeFilter}
+                                activeAnswer={activeAnswer}
                             />
                         )}
                         activity={
