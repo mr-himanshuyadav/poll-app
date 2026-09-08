@@ -43,8 +43,8 @@ interface LiveQuestionWorkspaceProps {
     onPreviousQuestion?: () => void;
     onNextQuestion?: () => void;
     isSavingQuestion?: boolean;
-    onCreateQuestion?: (question: Partial<SessionQuestion>) => Promise<void> | void;
-    onUpdateQuestion?: (questionId: string, updates: Partial<SessionQuestion>) => Promise<void> | void;
+    onCreateQuestion?: (question: Partial<SessionQuestion>) => Promise<SessionQuestion> | Promise<void> | void;
+    onUpdateQuestion?: (questionId: string, updates: Partial<SessionQuestion>) => Promise<SessionQuestion> | Promise<void> | void;
     onClearView?: () => void;
 }
 
