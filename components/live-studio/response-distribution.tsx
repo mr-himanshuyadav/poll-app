@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+import { resolveScaleConfig } from "@/lib/scale-config";
 
 import {
     ChartBar,
@@ -132,9 +134,18 @@ export function ResponseDistribution({
         }
     };
 
-    const optionLabels = question.options.map(
-        (option) => String(option),
+    const isScaleQuestion =
+        question.type === "scale" ||
+        question.type === "rating";
+
+    const scaleConfig = useMemo(
+        () => resolveScaleConfig(question.config),
+        [question.config],
     );
+
+    const optionLabels = isScaleQuestion
+        ? scaleConfig.values.map((item) => String(item.value))
+        : question.options.map((option) => String(option));
 
     const responseCounts = new Map<
         string,
@@ -162,7 +173,18 @@ export function ResponseDistribution({
 
             return {
                 key: `${index}-${label}`,
-                label,
+                label:
+                    isScaleQuestion
+                        ? (() => {
+                              const value = Number(label);
+                              const item = scaleConfig.values.find(
+                                  (scaleValue) => scaleValue.value === value,
+                              );
+                              return item?.label
+                                  ? `${label} — ${item.label}`
+                                  : label;
+                          })()
+                        : label,
                 count,
                 percentage:
                     totalResponses > 0
@@ -172,6 +194,33 @@ export function ResponseDistribution({
             };
         },
     );
+
+    const numericResponses = isScaleQuestion
+        ? responses
+              .map((response) => Number(response.answer))
+              .filter((value) => Number.isFinite(value))
+        : [];
+
+    const sortedNumericResponses = [...numericResponses].sort(
+        (a, b) => a - b,
+    );
+
+    const scaleAverage = numericResponses.length
+        ? numericResponses.reduce((sum, value) => sum + value, 0) /
+          numericResponses.length
+        : null;
+
+    const scaleMedian = sortedNumericResponses.length
+        ? sortedNumericResponses.length % 2 === 1
+            ? sortedNumericResponses[(sortedNumericResponses.length - 1) / 2]
+            : (sortedNumericResponses[sortedNumericResponses.length / 2 - 1] +
+                  sortedNumericResponses[sortedNumericResponses.length / 2]) /
+              2
+        : null;
+
+    const scaleMode = isScaleQuestion && distribution.length
+        ? [...distribution].sort((a, b) => b.count - a.count)[0]
+        : null;
 
     const hasDistribution =
         totalResponses > 0;
@@ -410,6 +459,15 @@ export function ResponseDistribution({
                     : "rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950"
             }
         >
+            {isScaleQuestion ? (
+                <div className="grid grid-cols-2 gap-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:grid-cols-4 sm:px-6">
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Responses</p><p className="mt-1 text-xl font-black">{totalResponses}</p></div>
+                    <div className="rounded-xl bg-indigo-50 p-3 dark:bg-indigo-950/40"><p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">Average</p><p className="mt-1 text-xl font-black">{scaleAverage === null ? "—" : scaleAverage.toFixed(2)}</p></div>
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Median</p><p className="mt-1 text-xl font-black">{scaleMedian === null ? "—" : scaleMedian.toFixed(2)}</p></div>
+                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900"><p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Most selected</p><p className="mt-1 truncate text-xl font-black">{scaleMode?.count ? scaleMode.label : "—"}</p></div>
+                </div>
+            ) : null}
+
             <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:px-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
