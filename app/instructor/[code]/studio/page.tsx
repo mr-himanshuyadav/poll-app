@@ -823,6 +823,12 @@ export default function LiveStudioPage() {
                     <LiveQuestionWorkspace
     sessionId={session.id}
     questions={questions}
+    projectorResultsQuestionId={
+        session.projector_display_type ===
+        "results"
+            ? session.projector_question_id
+            : null
+    }
     viewedQuestion={viewedQuestion}
     activeQuestion={activeQuestion}
     responses={responses}
@@ -913,6 +919,19 @@ export default function LiveStudioPage() {
             "success",
             "Results are now visible to students.",
             "Results Shown",
+        );
+    }}
+    onHideProjectorResults={async () => {
+        await updateSession({
+            projector_display_type:
+                "waiting",
+            projector_question_id: null,
+        });
+
+        showNotice(
+            "success",
+            "Results are no longer displayed on the projector.",
+            "Projector Updated",
         );
     }}
     onHideResults={async () => {
