@@ -45,6 +45,8 @@ interface LiveQuestionPanelProps {
 
     projectorResultsVisible?: boolean;
 
+    defaultResultVisibility?: "students" | "projector" | "both";
+
     isUpdating?: boolean;
 
     onActivateQuestion: (
@@ -53,7 +55,9 @@ interface LiveQuestionPanelProps {
 
     onCloseQuestion: () => void;
 
-    onShowResults?: () => void;
+    onShowResults?: (
+        target: "students" | "projector" | "both",
+    ) => void;
 
     onShowResultsOnProjector?: () => void;
 
@@ -103,6 +107,7 @@ export function LiveQuestionPanel({
     activeQuestion,
     questions,
     projectorResultsVisible = false,
+    defaultResultVisibility = "both",
     isUpdating = false,
     onActivateQuestion,
     onCloseQuestion,
@@ -528,7 +533,9 @@ export function LiveQuestionPanel({
                                         return;
                                     }
 
-                                    onShowResults?.();
+                                    onShowResults?.(
+                                        defaultResultVisibility,
+                                    );
                                 }}
                             >
                                 {resultsVisible ? (
@@ -572,7 +579,7 @@ export function LiveQuestionPanel({
                                         if (studentsResultsVisible) {
                                             onHideResults?.();
                                         } else {
-                                            onShowResults?.();
+                                            onShowResults?.("students");
                                         }
                                     }}
                                 >
