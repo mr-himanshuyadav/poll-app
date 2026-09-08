@@ -1038,10 +1038,21 @@ export default function LiveStudioPage() {
     }}
     onShowResults={(target) => {
         if (target === "projector") {
+            if (!viewedQuestion) return;
+
+            if (
+                session.projector_display_type !== "waiting" &&
+                session.projector_question_id !== viewedQuestion.id &&
+                !window.confirm(
+                    "The projector is displaying another item. Replace it with this question's results?",
+                )
+            ) {
+                return;
+            }
+
             void updateSession({
                 projector_display_type: "results",
-                projector_question_id:
-                    viewedQuestion?.id ?? null,
+                projector_question_id: viewedQuestion.id,
             });
             return;
         }
