@@ -19,6 +19,8 @@ interface LiveQuestionWorkspaceProps {
 
     projectorResultsQuestionId?: string | null;
 
+    defaultResultVisibility?: "students" | "projector" | "both";
+
     projectorDisplayType?: "waiting" | "question" | "results";
 
     projectorQuestion: SessionQuestion | null;
@@ -50,7 +52,9 @@ interface LiveQuestionWorkspaceProps {
         question: SessionQuestion,
     ) => void;
 
-    onShowResults?: () => void;
+    onShowResults?: (
+        target: "students" | "projector" | "both",
+    ) => void;
 
     onRequestShowResults?: () => void;
 
@@ -71,6 +75,7 @@ export function LiveQuestionWorkspace({
     sessionId,
     questions,
     projectorResultsQuestionId,
+    defaultResultVisibility = "both",
     projectorDisplayType = "waiting",
     projectorQuestion,
     viewedQuestion,
@@ -144,6 +149,9 @@ response.id
                         question={viewedQuestion}
                         activeQuestion={activeQuestion}
                         questions={questions}
+                        defaultResultVisibility={
+                            defaultResultVisibility
+                        }
                         projectorResultsVisible={
                             projectorResultsQuestionId ===
                             viewedQuestion?.id
