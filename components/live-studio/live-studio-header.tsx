@@ -64,7 +64,7 @@ function SessionStatusIndicator({ status }: { status: SessionStatus }) {
                 </span>
             ) : null}
             {isPaused ? <Pause className="h-3.5 w-3.5" /> : null}
-            {status === "completed" ? <Square className="h-3.5 w-3.5" /> : null}
+            {status === "completed" ? <Check className="h-3.5 w-3.5 fill-current text-slate-500 dark:text-slate-400" /> : null}
             {label}
         </div>
     );
@@ -143,7 +143,7 @@ export function LiveStudioHeader({
                         <SessionStatusIndicator status={session.status} />
                         {!isCompleted && isPaused && onResumeSession ? <Button type="button" variant="outline" disabled={isUpdating} onClick={onResumeSession}><Play className="mr-2 h-4 w-4" /> Resume</Button> : null}
                         {!isCompleted && !isPaused && onPauseSession ? <Button type="button" variant="outline" disabled={isUpdating} onClick={onPauseSession}><Pause className="h-4 w-4" /> Pause</Button> : null}
-                        {onEndSession ? <Button type="button" variant="destructive" disabled={isUpdating || isCompleted} onClick={onEndSession}><Square className="h-4 w-4 fill-current" /> End</Button> : null}
+                        {!isCompleted && onEndSession ? <Button type="button" variant="destructive" disabled={isUpdating} onClick={onEndSession}><Square className="h-4 w-4 fill-current" /> End</Button> : null}
                     </div>
                 </div>
 
