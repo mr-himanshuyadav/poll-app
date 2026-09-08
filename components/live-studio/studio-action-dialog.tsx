@@ -5,7 +5,6 @@ import { AlertTriangle, HelpCircle, MonitorPlay } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
-    AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
     AlertDialogFooter,
@@ -77,11 +76,9 @@ export function StudioActionDialog({
                 </AlertDialogHeader>
 
                 <AlertDialogFooter>
-                    <AlertDialogCancel asChild>
-                        <Button type="button" variant="outline" disabled={isLoading} onClick={onCancel}>
-                            {cancelLabel}
-                        </Button>
-                    </AlertDialogCancel>
+                    <Button type="button" variant="outline" disabled={isLoading} onClick={onCancel}>
+                        {cancelLabel}
+                    </Button>
                     <Button
                         type="button"
                         variant={config.buttonVariant}
