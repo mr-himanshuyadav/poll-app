@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { useLiveRecovery } from "@/hooks/use-live-recovery";
 
 import type {
     SessionParticipant,
@@ -76,7 +77,7 @@ export function useSessionParticipants({
         useState<Error | null>(null);
 
     const fetchParticipants =
-        useCallback(async () => {
+        useCallback(async (silent = false) => {
             if (!sessionId) {
                 setParticipants([]);
                 setError(null);
@@ -85,8 +86,10 @@ export function useSessionParticipants({
                 return;
             }
 
-            setIsLoading(true);
-            setError(null);
+            if (!silent) {
+                setIsLoading(true);
+                setError(null);
+            }
 
             try {
                 const {
@@ -137,7 +140,9 @@ export function useSessionParticipants({
                 setError(normalizedError);
                 setParticipants([]);
             } finally {
-                setIsLoading(false);
+                if (!silent) {
+                    setIsLoading(false);
+                }
             }
         }, [sessionId]);
 
@@ -269,7 +274,14 @@ export function useSessionParticipants({
                 },
             )
 
-            .subscribe();
+            .subscribe((status) => {
+                if (
+                    status === "CHANNEL_ERROR" ||
+                    status === "TIMED_OUT"
+                ) {
+                    void fetchParticipants(true);
+                }
+            });
 
         return () => {
             void supabase.removeChannel(

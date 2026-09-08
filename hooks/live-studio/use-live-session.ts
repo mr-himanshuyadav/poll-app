@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { useLiveRecovery } from "@/hooks/use-live-recovery";
 
 import type {
     LiveSession,
@@ -55,7 +56,7 @@ export function useLiveSession({
         useState<Error | null>(null);
 
     const fetchSession =
-        useCallback(async () => {
+        useCallback(async (silent = false) => {
             if (!sessionCode) {
                 setSession(null);
                 setIsLoading(false);
@@ -63,8 +64,10 @@ export function useLiveSession({
                 return;
             }
 
-            setIsLoading(true);
-            setError(null);
+            if (!silent) {
+                setIsLoading(true);
+                setError(null);
+            }
 
             try {
                 
@@ -99,13 +102,64 @@ const { data, error } = await supabase
                 setError(normalizedError);
                 setSession(null);
             } finally {
-                setIsLoading(false);
+                if (!silent) {
+                    setIsLoading(false);
+                }
             }
         }, [sessionCode]);
 
     useEffect(() => {
         void fetchSession();
     }, [fetchSession]);
+
+    useLiveRecovery({
+        onRecover: () => fetchSession(true),
+    });
+
+    useEffect(() => {
+        if (!session?.id) {
+            return;
+        }
+
+        const channel = supabase
+            .channel(
+                `live-session-${session.id}`,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "sessions",
+                    filter:
+                        `id=eq.${session.id}`,
+                },
+                (payload) => {
+                    setSession(
+                        normalizeSession(
+                            payload.new,
+                        ),
+                    );
+                },
+            )
+            .subscribe((status) => {
+                if (
+                    status === "CHANNEL_ERROR" ||
+                    status === "TIMED_OUT"
+                ) {
+                    void fetchSession(true);
+                }
+            });
+
+        return () => {
+            void supabase.removeChannel(
+                channel,
+            );
+        };
+    }, [
+        fetchSession,
+        session?.id,
+    ]);
 
     const updateSession =
         useCallback(

@@ -86,6 +86,10 @@ import {
     useSessionResponses,
 } from "@/hooks/live-studio/use-session-responses";
 
+import {
+    useLiveRecovery,
+} from "@/hooks/use-live-recovery";
+
 interface NoticeState {
     type: StudioNoticeType;
 
@@ -227,6 +231,18 @@ export default function LiveStudioPage() {
         ),
 
         refreshInterval: 10000,
+    });
+
+    useLiveRecovery({
+        onRecover: async () => {
+            await Promise.all([
+                refetchSession(),
+                refetchQuestions(),
+                refetchParticipants(),
+                refetchResponses(),
+                refetchAnalytics(),
+            ]);
+        },
     });
 
     const activeQuestion =

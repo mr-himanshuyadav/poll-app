@@ -15,6 +15,7 @@ import {
 } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { useLiveRecovery } from "@/hooks/use-live-recovery";
 
 import {
   Card,
@@ -599,9 +600,15 @@ export default function JoinPage({
    * ---------------------------------------------
    */
 
-  const loadSession = async () => {
-    setIsLoading(true);
-    setError(null);
+  const loadSession = async (
+    options?: { silent?: boolean },
+  ) => {
+    const silent = options?.silent ?? false;
+
+    if (!silent) {
+      setIsLoading(true);
+      setError(null);
+    }
 
     const {
       data,
@@ -623,7 +630,9 @@ export default function JoinPage({
         "Session not found. Check the join code.",
       );
 
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
 
       return;
     }
@@ -691,8 +700,16 @@ export default function JoinPage({
       );
     }
 
-    setIsLoading(false);
+    if (!silent) {
+      setIsLoading(false);
+    }
   };
+
+  useLiveRecovery({
+    onRecover: async () => {
+      await loadSession({ silent: true });
+    },
+  });
 
   /*
    * ---------------------------------------------
