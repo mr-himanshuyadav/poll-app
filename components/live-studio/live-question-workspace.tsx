@@ -10,6 +10,7 @@ import type {
 import { LiveQuestionPanel } from "./live-question-panel";
 import { ResponseProgressPanel } from "./response-progress-panel";
 import { ResponseDistribution } from "./response-distribution";
+import { Users, CheckCircle2, Clock3 } from "lucide-react";
 import { QuestionNavigation } from "./question-navigation";
 
 interface LiveQuestionWorkspaceProps {
@@ -119,6 +120,26 @@ response.id
             ),
         ).size;
 
+    const percentage =
+        totalParticipants > 0
+            ? Math.round((responseCount / totalParticipants) * 100)
+            : 0;
+
+    const remainingParticipants =
+        Math.max(0, totalParticipants - responseCount);
+
+    const respondedParticipantIds = new Set(
+        viewedQuestionResponses.map(
+            (response) => response.participant_id,
+        ),
+    );
+
+    const recentResponders = participants
+        .filter((participant) =>
+            respondedParticipantIds.has(participant.id),
+        )
+        .slice(0, 4);
+
     const projectorLabel =
         projectorDisplayType === "waiting"
             ? "Waiting"
@@ -182,29 +203,87 @@ response.id
                         }
                     />
 
-                    <ResponseDistribution
-                        question={activeQuestion}
-                        analytics={
-                            questionAnalytics
-                        }
-                        responses={
-                            viewedQuestionResponses
-                        }
-                    />
+                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
+                            <div className="min-w-0">
+                                <ResponseDistribution
+                                    question={viewedQuestion}
+                                    analytics={questionAnalytics}
+                                    responses={viewedQuestionResponses}
+                                />
+                            </div>
+
+                            <div className="border-t border-slate-200 p-5 dark:border-slate-800 lg:border-l lg:border-t-0">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                            Response Pulse
+                                        </p>
+                                        <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">
+                                            {responseCount} / {totalParticipants}
+                                        </p>
+                                    </div>
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300">
+                                        <Users className="h-5 w-5" />
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                                    <div
+                                        className="h-full rounded-full bg-indigo-600 transition-all duration-500"
+                                        style={{ width: `${percentage}%` }}
+                                    />
+                                </div>
+
+                                <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
+                                    <span>{percentage}% participation</span>
+                                    <span>{remainingParticipants} waiting</span>
+                                </div>
+
+                                <div className="mt-5 grid grid-cols-2 gap-3">
+                                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
+                                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+                                            <CheckCircle2 className="h-4 w-4" />
+                                            Responded
+                                        </div>
+                                        <p className="mt-2 text-xl font-bold">{responseCount}</p>
+                                    </div>
+                                    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60">
+                                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+                                            <Clock3 className="h-4 w-4" />
+                                            Waiting
+                                        </div>
+                                        <p className="mt-2 text-xl font-bold">{remainingParticipants}</p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
+                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                                        Recent responders
+                                    </p>
+                                    <div className="mt-3 space-y-2">
+                                        {recentResponders.length > 0 ? (
+                                            recentResponders.map((participant) => (
+                                                <div key={participant.id} className="flex items-center justify-between gap-3 text-sm">
+                                                    <span className="min-w-0 truncate font-medium text-slate-700 dark:text-slate-200">
+                                                        {participant.name || "Anonymous participant"}
+                                                    </span>
+                                                    <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <p className="text-xs leading-5 text-slate-500">
+                                                Responses will appear here as participants answer.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
                 <aside className="space-y-6">
-                    <ResponseProgressPanel
-                        totalParticipants={
-                            totalParticipants
-                        }
-                        responseCount={
-                            responseCount
-                        }
-                        activeQuestion={
-                            viewedQuestion
-                        }
-                    />
 
                     <QuestionNavigation
                         questions={questions}
