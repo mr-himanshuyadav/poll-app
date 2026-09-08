@@ -1613,6 +1613,7 @@ export default function JoinPage({
     () => {
       if (
         !question ||
+        !session ||
         (session.student_display_type !== "results" &&
           !(
             question.results_mode === "live" &&
