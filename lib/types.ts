@@ -103,6 +103,11 @@ export interface SessionQuestion {
   closed_at: string | null;
 }
 
+export type ResultVisibilityTarget =
+  | "students"
+  | "projector"
+  | "both";
+
 export interface Session {
   id: string;
   template_id: string | null;
@@ -118,6 +123,7 @@ export interface Session {
   active_question_id: string | null;
   projector_display_type: ProjectorDisplayType;
   projector_question_id: string | null;
+  default_result_visibility: ResultVisibilityTarget;
   created_at: string;
   started_at: string | null;
   paused_at: string | null;
