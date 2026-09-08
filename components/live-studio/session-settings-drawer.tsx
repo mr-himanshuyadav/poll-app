@@ -212,7 +212,7 @@ export function SessionSettingsDrawer({
                         </p>
                     </div>
 
-                    <div>
+                    <div className={isCompleted ? "hidden" : undefined}>
                         <Label
                             htmlFor="session-results-mode"
                             className="text-sm font-bold"
@@ -247,7 +247,7 @@ export function SessionSettingsDrawer({
                         </p>
                     </div>
 
-                    <div>
+                    <div className={isCompleted ? "hidden" : undefined}>
                         <Label
                             htmlFor="default-result-visibility"
                             className="text-sm font-bold"
@@ -282,7 +282,7 @@ export function SessionSettingsDrawer({
                         </p>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                    <div className={["rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40", isCompleted ? "hidden" : ""].join(" ")}>
                         <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
                             Participant Link
                         </p>
@@ -362,7 +362,7 @@ export function SessionSettingsDrawer({
                             {sessionCode || "—"}
                         </p>
                     </div>
-                </div>}
+                </div>
 
                 <div className="flex gap-3 border-t border-slate-200 p-5 dark:border-slate-800">
                     <Button
