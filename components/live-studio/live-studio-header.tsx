@@ -172,9 +172,10 @@ export function LiveStudioHeader({
                         </div>
                         <button
                             type="button"
-                            onClick={onOpenProjector}
-                            className={["group flex min-w-0 items-center gap-3 rounded-2xl border bg-slate-50 px-3 py-2.5 text-left transition hover:bg-indigo-50 dark:bg-slate-900/70 dark:hover:bg-indigo-950/30", isCompleted ? "border-slate-200 opacity-60 dark:border-slate-800" : projectorLive ? "border-emerald-300 dark:border-emerald-800/70" : "border-slate-200 hover:border-indigo-300 dark:border-slate-800 dark:hover:border-indigo-800"].join(" ")}
-                            title="Open projector in a new tab"
+                            onClick={isCompleted ? undefined : onOpenProjector}
+                            disabled={isCompleted}
+                            className={["group flex min-w-0 items-center gap-3 rounded-2xl border bg-slate-50 px-3 py-2.5 text-left transition dark:bg-slate-900/70", isCompleted ? "cursor-default border-slate-200 opacity-60 dark:border-slate-800" : projectorLive ? "border-emerald-300 hover:bg-indigo-50 dark:border-emerald-800/70 dark:hover:bg-indigo-950/30" : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 dark:border-slate-800 dark:hover:border-indigo-800 dark:hover:bg-indigo-950/30"].join(" ")}
+                            title={isCompleted ? "No projector display for completed sessions" : "Open projector in a new tab"}
                         >
                             <div className={["relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border", projectorLive ? "border-emerald-200 bg-white text-emerald-600 dark:border-emerald-900/60 dark:bg-slate-950 dark:text-emerald-400" : "border-slate-200 bg-white text-slate-400 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-500"].join(" ") }>
                                 {projectorLive ? <><span className="pointer-events-none absolute inset-0 rounded-xl border border-emerald-400/70 studio-live-wave" /><span className="pointer-events-none absolute inset-0 rounded-xl border border-emerald-400/40 studio-live-wave studio-live-wave-delay" /></> : null}
@@ -183,7 +184,7 @@ export function LiveStudioHeader({
                             <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Projector</span>
-                                    <ExternalLink className="h-3 w-3 text-slate-400 transition group-hover:text-indigo-500" />
+                                    {!isCompleted ? <ExternalLink className="h-3 w-3 text-slate-400 transition group-hover:text-indigo-500" /> : null}
                                 </div>
                                 <p className="mt-0.5 truncate text-sm font-bold text-slate-800 dark:text-slate-100">
                                     {projectorTitle}{projectorQuestionNumber ? ` · ${projectorQuestionNumber}` : ""}
