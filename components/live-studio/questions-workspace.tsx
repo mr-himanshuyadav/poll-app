@@ -33,27 +33,28 @@ interface QuestionsWorkspaceProps {
     isSaving?: boolean;
 
     isUpdating?: boolean;
+    isCompleted?: boolean;
 
     onCreateQuestion: (
         question: Partial<SessionQuestion>,
-    ) => Promise<void> | void;
+    ) => Promise<SessionQuestion> | Promise<void> | void;
 
     onUpdateQuestion: (
         questionId: string,
         updates: Partial<SessionQuestion>,
-    ) => Promise<void> | void;
+    ) => Promise<SessionQuestion> | Promise<void> | void;
 
     onDeleteQuestion: (
         question: SessionQuestion,
-    ) => Promise<void> | void;
+    ) => Promise<SessionQuestion> | Promise<void> | void;
 
     onActivateQuestion: (
         question: SessionQuestion,
-    ) => Promise<void> | void;
+    ) => Promise<SessionQuestion> | Promise<void> | void;
 
     onReorderQuestions?: (
         questions: SessionQuestion[],
-    ) => Promise<void> | void;
+    ) => Promise<SessionQuestion> | Promise<void> | void;
 }
 
 export function QuestionsWorkspace({
@@ -62,6 +63,7 @@ export function QuestionsWorkspace({
     activeQuestion,
     isSaving = false,
     isUpdating = false,
+    isCompleted = false,
     onCreateQuestion,
     onUpdateQuestion,
     onDeleteQuestion,
@@ -169,7 +171,7 @@ export function QuestionsWorkspace({
     };
 
     return (
-        <div className="mx-auto w-full max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 lg:px-8 md:pb-8">
+        <div className="w-full px-4 pb-24 pt-6 sm:px-6 lg:px-8 md:pb-8">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
@@ -181,13 +183,11 @@ export function QuestionsWorkspace({
                     </h1>
 
                     <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                        Create, organize and
-                        manage the questions for
-                        this live session.
+                        Review all questions and their configuration for this completed session.
                     </p>
                 </div>
 
-                <Button
+                {!isCompleted ? <Button
                     type="button"
                     onClick={handleCreateQuestion}
                     disabled={
@@ -198,7 +198,7 @@ export function QuestionsWorkspace({
                     <Plus className="mr-2 h-4 w-4" />
 
                     Add Question
-                </Button>
+                </Button> : null}
             </div>
 
             <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
@@ -462,6 +462,7 @@ export function QuestionsWorkspace({
                             })()}
 
                             <QuestionEditor
+                            readOnly={isCompleted}
                             mode="edit"
                             sessionId={
                                 sessionId
@@ -498,19 +499,14 @@ export function QuestionsWorkspace({
                             </div>
 
                             <h2 className="mt-5 text-lg font-bold text-slate-950 dark:text-slate-50">
-                                Select or create a
-                                question
+                                Select a question to review
                             </h2>
 
                             <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
-                                Choose a question
-                                from the queue or
-                                create a new one to
-                                start building your
-                                session.
+                                Choose a question from the queue to review its content and configuration.
                             </p>
 
-                            <Button
+                            {!isCompleted ? <Button
                                 type="button"
                                 className="mt-6"
                                 onClick={
@@ -520,7 +516,7 @@ export function QuestionsWorkspace({
                                 <Plus className="mr-2 h-4 w-4" />
 
                                 Create Question
-                            </Button>
+                            </Button> : null}
                         </div>
                     )}
                 </main>

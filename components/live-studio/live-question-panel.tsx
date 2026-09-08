@@ -8,6 +8,7 @@ import {
     Eye,
     EyeOff,
     Play,
+    Pencil,
     Radio,
     Square,
     X,
@@ -49,6 +50,8 @@ interface LiveQuestionPanelProps {
 
     isUpdating?: boolean;
 
+    isCompleted?: boolean;
+
     onActivateQuestion: (
         question: SessionQuestion,
     ) => void;
@@ -62,6 +65,7 @@ interface LiveQuestionPanelProps {
     onShowResultsOnProjector?: () => void;
 
     onShowResultsOnBoth?: () => void;
+    onShowLiveResults?: () => void;
 
     onHideResults?: () => void;
 
@@ -70,6 +74,7 @@ interface LiveQuestionPanelProps {
     onConfirmReplaceLiveQuestion?: (
         question: SessionQuestion,
     ) => void;
+    onEditQuestion?: () => void;
 }
 
 function getScaleNumber(
@@ -109,14 +114,17 @@ export function LiveQuestionPanel({
     projectorResultsVisible = false,
     defaultResultVisibility = "both",
     isUpdating = false,
+    isCompleted = false,
     onActivateQuestion,
     onCloseQuestion,
     onShowResults,
     onShowResultsOnProjector,
     onShowResultsOnBoth,
+    onShowLiveResults,
     onHideResults,
     onHideProjectorResults,
     onConfirmReplaceLiveQuestion,
+    onEditQuestion,
 }: LiveQuestionPanelProps) {
     const [resultsMenuOpen, setResultsMenuOpen] =
         useState(false);
@@ -147,14 +155,10 @@ export function LiveQuestionPanel({
                     </h2>
 
                     <p className="mt-2 max-w-md text-sm leading-6 text-slate-500 dark:text-slate-400">
-                        Select a question from
-                        your queue and make it
-                        live when you are ready
-                        for participants to
-                        respond.
+                        Select a question from your queue to review it. Completed sessions are view-only and no question can be made live.
                     </p>
 
-                    {nextQuestion ? (
+                    {!isCompleted && nextQuestion ? (
                         <Button
                             type="button"
                             className="mt-6"
@@ -300,6 +304,11 @@ export function LiveQuestionPanel({
             question.config?.maxLabel,
         );
 
+    const scaleLabels =
+        question.config?.scaleLabels && typeof question.config.scaleLabels === "object"
+            ? question.config.scaleLabels as Record<string, string>
+            : {};
+
     return (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 ease-out dark:border-slate-800 dark:bg-slate-950">
             {anotherQuestionIsLive ? (
@@ -368,32 +377,9 @@ export function LiveQuestionPanel({
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        {canActivate ? (
-                            <Button
-                                type="button"
-                                disabled={isUpdating}
-                                onClick={
-                                    handleDisplayToStudents
-                                }
-                            >
-                                <Play className="mr-2 h-4 w-4" />
-
-                                Display to Students
-                            </Button>
-                        ) : null}
-
-                        {canClose ? (
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                disabled={isUpdating}
-                                onClick={onCloseQuestion}
-                            >
-                                <Square className="mr-2 h-4 w-4" />
-
-                                Close Question
-                            </Button>
-                        ) : null}
+                        {onEditQuestion ? (<Button type="button" variant="outline" disabled={isUpdating} onClick={onEditQuestion}><Pencil className="h-4 w-4" /> Edit</Button>) : null}
+                        {!isCompleted && canActivate ? (<Button type="button" disabled={isUpdating} onClick={handleDisplayToStudents}><Play className="h-4 w-4 fill-current" /> Go Live</Button>) : null}
+                        {!isCompleted && canClose ? (<Button type="button" variant="destructive" disabled={isUpdating} onClick={onCloseQuestion}><Square className="mr-2 h-4 w-4 fill-current" /> Stop</Button>) : null}
                     </div>
                 </div>
             </div>
@@ -474,9 +460,10 @@ export function LiveQuestionPanel({
                                 (value) => (
                                     <div
                                         key={value}
-                                        className="flex h-10 min-w-10 flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                                        className="flex min-h-10 min-w-10 flex-1 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white px-1 py-2 text-center dark:border-slate-700 dark:bg-slate-950"
                                     >
-                                        {value}
+                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{value}</span>
+                                        {scaleLabels[String(value)] ? <span className="mt-1 text-[14px] font-medium leading-tight text-slate-500 dark:text-slate-400">{scaleLabels[String(value)]}</span> : null}
                                     </div>
                                 ),
                             )}
@@ -501,6 +488,7 @@ export function LiveQuestionPanel({
                     </div>
                 ) : null}
 
+                {!isCompleted ? (
                 <div className="mt-8 flex flex-col gap-3 border-t border-slate-100 pt-5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                         <CircleDot className="h-4 w-4" />
@@ -619,6 +607,20 @@ export function LiveQuestionPanel({
                                     </span>
                                 </button>
 
+                                {isLive && onShowLiveResults ? (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-900"
+                                        onClick={() => {
+                                            setResultsMenuOpen(false);
+                                            onShowLiveResults();
+                                        }}
+                                    >
+                                        <Radio className="h-4 w-4 text-indigo-500" />
+                                        <span>Show Live Results</span>
+                                    </button>
+                                ) : null}
+
                                 <button
                                     type="button"
                                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-900"
@@ -655,6 +657,7 @@ export function LiveQuestionPanel({
                         ) : null}
                     </div>
                 </div>
+                ) : null}
             </div>
         </section>
     );

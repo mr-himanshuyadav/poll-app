@@ -96,6 +96,8 @@ export function SessionSettingsDrawer({
         return null;
     }
 
+    const isCompleted = session?.status === "completed";
+
     const sessionCode =
         session?.join_code ?? "";
 
@@ -137,9 +139,7 @@ export function SessionSettingsDrawer({
 
             await onSave({
                 name: trimmedName,
-                results_mode: resultsMode,
-                default_result_visibility:
-                    defaultResultVisibility,
+                ...(isCompleted ? {} : { results_mode: resultsMode, default_result_visibility: defaultResultVisibility }),
             });
         };
 
@@ -150,7 +150,7 @@ export function SessionSettingsDrawer({
                 onClick={onClose}
             />
 
-            <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+            <aside className="fixed inset-y-0 left-0 z-50 flex w-full max-w-md flex-col border-r border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
                 <div className="flex items-center justify-between border-b border-slate-200 px-5 py-5 dark:border-slate-800">
                     <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
@@ -194,6 +194,7 @@ export function SessionSettingsDrawer({
                         <Input
                             id="session-name"
                             value={name}
+                            disabled={isCompleted}
                             onChange={(event) =>
                                 setName(
                                     event.target
@@ -212,7 +213,7 @@ export function SessionSettingsDrawer({
                         </p>
                     </div>
 
-                    <div>
+                    <div className={isCompleted ? "opacity-70" : undefined}>
                         <Label
                             htmlFor="session-results-mode"
                             className="text-sm font-bold"
@@ -223,6 +224,7 @@ export function SessionSettingsDrawer({
                         <select
                             id="session-results-mode"
                             value={resultsMode}
+                            disabled={isCompleted}
                             onChange={(event) =>
                                 setResultsMode(
                                     event.target.value as ResultsMode,
@@ -247,7 +249,7 @@ export function SessionSettingsDrawer({
                         </p>
                     </div>
 
-                    <div>
+                    <div className={isCompleted ? "opacity-70" : undefined}>
                         <Label
                             htmlFor="default-result-visibility"
                             className="text-sm font-bold"
@@ -258,6 +260,7 @@ export function SessionSettingsDrawer({
                         <select
                             id="default-result-visibility"
                             value={defaultResultVisibility}
+                            disabled={isCompleted}
                             onChange={(event) =>
                                 setDefaultResultVisibility(
                                     event.target.value as ResultVisibilityTarget,
@@ -282,7 +285,7 @@ export function SessionSettingsDrawer({
                         </p>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                    <div className={["rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/40", isCompleted ? "opacity-70" : ""].join(" ")}>
                         <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
                             Participant Link
                         </p>
@@ -311,7 +314,7 @@ export function SessionSettingsDrawer({
                                     handleCopyLink
                                 }
                                 disabled={
-                                    !participantUrl
+                                    isCompleted || !participantUrl
                                 }
                             >
                                 <Copy className="h-4 w-4" />
@@ -322,7 +325,7 @@ export function SessionSettingsDrawer({
                                 </span>
                             </Button>
 
-                            {participantUrl ? (
+                            {!isCompleted && participantUrl ? (
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -379,6 +382,7 @@ export function SessionSettingsDrawer({
                         type="button"
                         className="flex-1"
                         disabled={
+                            isCompleted ||
                             isSaving ||
                             !name.trim()
                         }
@@ -386,9 +390,11 @@ export function SessionSettingsDrawer({
                     >
                         <Save className="mr-2 h-4 w-4" />
 
-                        {isSaving
-                            ? "Saving..."
-                            : "Save Changes"}
+                        {isCompleted
+                            ? "View Only"
+                            : isSaving
+                                ? "Saving..."
+                                : "Save Changes"}
                     </Button>
                 </div>
             </aside>

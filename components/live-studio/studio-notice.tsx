@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
     CheckCircle2,
     Info,
@@ -35,7 +36,7 @@ const noticeStyles: Record<
 > = {
     success: {
         wrapper:
-            "border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/30",
+            "border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/80",
 
         icon:
             "text-emerald-600 dark:text-emerald-400",
@@ -51,7 +52,7 @@ const noticeStyles: Record<
 
     error: {
         wrapper:
-            "border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/30",
+            "border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-950/80",
 
         icon:
             "text-red-600 dark:text-red-400",
@@ -67,7 +68,7 @@ const noticeStyles: Record<
 
     warning: {
         wrapper:
-            "border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/30",
+            "border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/80",
 
         icon:
             "text-amber-600 dark:text-amber-400",
@@ -83,7 +84,7 @@ const noticeStyles: Record<
 
     info: {
         wrapper:
-            "border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-950/30",
+            "border-blue-200 bg-blue-50 dark:border-blue-900/60 dark:bg-blue-950/80",
 
         icon:
             "text-blue-600 dark:text-blue-400",
@@ -107,15 +108,47 @@ export function StudioNotice({
     const styles =
         noticeStyles[type];
 
-    const Icon =
-        styles.Icon;
+    const Icon = styles.Icon;
+    const NOTICE_DURATION = 3000;
+    const [progress, setProgress] = useState(100);
+    const [isHovered, setIsHovered] = useState(false);
+    const remainingRef = useRef(NOTICE_DURATION);
+    const lastTickRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        remainingRef.current = NOTICE_DURATION;
+        lastTickRef.current = performance.now();
+        setProgress(100);
+    }, [message]);
+
+    useEffect(() => {
+        if (isHovered) {
+            lastTickRef.current = null;
+            return;
+        }
+
+        lastTickRef.current = performance.now();
+        const interval = window.setInterval(() => {
+            const now = performance.now();
+            const previous = lastTickRef.current ?? now;
+            const elapsed = now - previous;
+            lastTickRef.current = now;
+            remainingRef.current = Math.max(0, remainingRef.current - elapsed);
+            setProgress((remainingRef.current / NOTICE_DURATION) * 100);
+            if (remainingRef.current <= 0) onClose?.();
+        }, 50);
+
+        return () => window.clearInterval(interval);
+    }, [isHovered, onClose]);
 
     return (
         <div
             className={[
-                "flex items-start gap-3 rounded-xl border px-4 py-3",
+                "animate-in slide-in-from-right-4 fade-in flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-2xl",
                 styles.wrapper,
             ].join(" ")}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             role={
                 type === "error"
                     ? "alert"
@@ -163,7 +196,7 @@ export function StudioNotice({
                         styles.icon,
                     ].join(" ")}
                 >
-                    <X className="h-4 w-4" />
+                    <span className="relative flex h-6 w-6 items-center justify-center"><svg className="absolute inset-0 h-6 w-6 -rotate-90" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeOpacity="0.2" strokeWidth="2"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="56.5" strokeDashoffset={56.5 * (1 - progress / 100)} strokeLinecap="round"/></svg><X className="h-3.5 w-3.5" /></span>
 
                     <span className="sr-only">
                         Dismiss notification
