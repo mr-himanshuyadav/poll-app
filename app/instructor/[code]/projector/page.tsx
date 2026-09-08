@@ -1050,9 +1050,9 @@ export default function ProjectorPage({
                                 This live session has ended.
                             </p>
 
-                            <div className="mx-auto mt-8 inline-flex rounded-full border border-white/10 bg-white/5 px-6 py-3 text-lg font-semibold">
-                                {totalResponses} responses recorded
-                            </div>
+                            <p className="mt-8 text-base font-semibold text-white/40">
+                                Responses are now closed for this session.
+                            </p>
 
                         </div>
                     )}
