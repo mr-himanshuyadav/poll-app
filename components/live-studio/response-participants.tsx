@@ -1,7 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, Clock3, Search, Users } from "lucide-react";
+import {
+    ArrowDown,
+    ArrowUp,
+    ArrowUpDown,
+    CheckCircle2,
+    Clock3,
+    Search,
+    Users,
+} from "lucide-react";
 
 import type {
     SessionParticipant,
@@ -9,6 +17,8 @@ import type {
 } from "./live-studio-types";
 
 type ParticipantFilter = "all" | "responded" | "waiting";
+type SortKey = "name" | "roll_number" | "answer" | "submitted_at";
+type SortDirection = "asc" | "desc";
 
 interface ResponseParticipantsProps {
     participants: SessionParticipant[];
@@ -22,6 +32,10 @@ export function ResponseParticipants({
     const [filter, setFilter] =
         useState<ParticipantFilter>("all");
     const [query, setQuery] = useState("");
+    const [sortKey, setSortKey] =
+        useState<SortKey>("roll_number");
+    const [sortDirection, setSortDirection] =
+        useState<SortDirection>("asc");
 
     const responseByParticipant = useMemo(
         () =>
@@ -46,6 +60,26 @@ export function ResponseParticipants({
                     responseByParticipant.has(participant.id),
                 ).length,
         ),
+    };
+
+    const answerToString = (answer: unknown): string => {
+        if (answer === null || answer === undefined) {
+            return "";
+        }
+
+        if (typeof answer === "string" || typeof answer === "number" || typeof answer === "boolean") {
+            return String(answer);
+        }
+
+        if (Array.isArray(answer)) {
+            return answer.map(answerToString).join(", ");
+        }
+
+        try {
+            return JSON.stringify(answer);
+        } catch {
+            return String(answer);
+        }
     };
 
     const visibleParticipants = participants.filter(
@@ -75,6 +109,92 @@ export function ResponseParticipants({
             );
         },
     );
+
+    const sortedParticipants = [...visibleParticipants].sort(
+        (left, right) => {
+            const leftResponse = responseByParticipant.get(left.id);
+            const rightResponse = responseByParticipant.get(right.id);
+
+            const leftValue =
+                sortKey === "name"
+                    ? left.name ?? ""
+                    : sortKey === "roll_number"
+                      ? left.roll_number ?? Number.MAX_SAFE_INTEGER
+                      : sortKey === "answer"
+                        ? leftResponse
+                            ? answerToString(leftResponse.answer)
+                            : ""
+                        : leftResponse?.submitted_at ?? "";
+
+            const rightValue =
+                sortKey === "name"
+                    ? right.name ?? ""
+                    : sortKey === "roll_number"
+                      ? right.roll_number ?? Number.MAX_SAFE_INTEGER
+                      : sortKey === "answer"
+                        ? rightResponse
+                            ? answerToString(rightResponse.answer)
+                            : ""
+                        : rightResponse?.submitted_at ?? "";
+
+            const comparison =
+                typeof leftValue === "number" &&
+                typeof rightValue === "number"
+                    ? leftValue - rightValue
+                    : String(leftValue).localeCompare(
+                          String(rightValue),
+                          undefined,
+                          { numeric: true, sensitivity: "base" },
+                      );
+
+            return sortDirection === "asc"
+                ? comparison
+                : -comparison;
+        },
+    );
+
+    const changeSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortDirection((direction) =>
+                direction === "asc" ? "desc" : "asc",
+            );
+            return;
+        }
+
+        setSortKey(key);
+        setSortDirection("asc");
+    };
+
+    const SortHeader = ({
+        label,
+        column,
+        className = "",
+    }: {
+        label: string;
+        column: SortKey;
+        className?: string;
+    }) => {
+        const active = sortKey === column;
+        const Icon = !active
+            ? ArrowUpDown
+            : sortDirection === "asc"
+              ? ArrowUp
+              : ArrowDown;
+
+        return (
+            <button
+                type="button"
+                onClick={() => changeSort(column)}
+                className={
+                    "inline-flex items-center gap-1.5 text-left transition hover:text-slate-700 dark:hover:text-slate-200 " +
+                    className
+                }
+            >
+                {label}
+                <Icon className="h-3.5 w-3.5" />
+            </button>
+        );
+    };
 
     return (
         <div className="p-5 sm:p-6">
@@ -134,15 +254,16 @@ export function ResponseParticipants({
             </div>
 
             <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:bg-slate-900/50 sm:grid-cols-[minmax(0,1fr)_120px_120px]">
-                    <span>Participant</span>
-                    <span className="hidden sm:block">Status</span>
-                    <span>Response</span>
+                <div className="grid grid-cols-[minmax(130px,1.2fr)_minmax(90px,.7fr)_minmax(140px,1.5fr)_auto] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:bg-slate-900/50">
+                    <SortHeader label="Participant" column="name" />
+                    <SortHeader label="Roll No." column="roll_number" />
+                    <SortHeader label="Answer" column="answer" />
+                    <SortHeader label="Submitted" column="submitted_at" />
                 </div>
 
-                {visibleParticipants.length > 0 ? (
+                {sortedParticipants.length > 0 ? (
                     <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {visibleParticipants.map((participant) => {
+                        {sortedParticipants.map((participant) => {
                             const response =
                                 responseByParticipant.get(
                                     participant.id,
@@ -152,25 +273,25 @@ export function ResponseParticipants({
                             return (
                                 <div
                                     key={participant.id}
-                                    className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 px-4 py-3 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/50 sm:grid-cols-[minmax(0,1fr)_120px_120px]"
+                                    className="grid grid-cols-[minmax(130px,1.2fr)_minmax(90px,.7fr)_minmax(140px,1.5fr)_auto] items-center gap-4 px-4 py-3 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/50"
                                 >
                                     <div className="min-w-0">
                                         <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
                                             {participant.name ||
                                                 "Anonymous participant"}
                                         </p>
-                                        {participant.roll_number != null && (
-                                            <p className="mt-0.5 text-xs text-slate-400">
-                                                #{participant.roll_number}
-                                            </p>
-                                        )}
                                     </div>
 
-                                    <div className="hidden sm:block">
+                                    <span className="truncate text-sm text-slate-600 dark:text-slate-300">
+                                        {participant.roll_number != null
+                                            ? participant.roll_number
+                                            : "—"}
+                                    </span>
+
+                                    <div className="min-w-0">
                                         {responded ? (
-                                            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                                Responded
+                                            <span className="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100">
+                                                {answerToString(response?.answer)}
                                             </span>
                                         ) : (
                                             <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
@@ -180,15 +301,14 @@ export function ResponseParticipants({
                                         )}
                                     </div>
 
-                                    <span
-                                        className={[
-                                            "text-xs font-semibold",
-                                            responded
-                                                ? "text-emerald-600 dark:text-emerald-400"
-                                                : "text-amber-600 dark:text-amber-400",
-                                        ].join(" ")}
-                                    >
-                                        {responded ? "Submitted" : "Waiting"}
+                                    <span className="text-right text-xs font-medium text-slate-500 dark:text-slate-400">
+                                        {responded
+                                            ? new Date(response!.submitted_at).toLocaleTimeString([], {
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
+                                                  second: "2-digit",
+                                              })
+                                            : "—"}
                                     </span>
                                 </div>
                             );
