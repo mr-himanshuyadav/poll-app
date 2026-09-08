@@ -70,6 +70,17 @@ export function ResponseDistribution({
     ] = useState<ResponseVisualizationType>(
         visualizationType,
     );
+
+    /*
+     * Hooks must always execute in exactly the same order.
+     * Keep this memo before the early return so transitioning
+     * between a null and non-null question cannot change hook order.
+     */
+    const scaleConfig = useMemo(
+        () => resolveScaleConfig(question?.config),
+        [question?.config],
+    );
+
     if (!question) {
         return (
             <section
@@ -139,11 +150,6 @@ export function ResponseDistribution({
     const isScaleQuestion =
         question.type === "scale" ||
         question.type === "rating";
-
-    const scaleConfig = useMemo(
-        () => resolveScaleConfig(question.config),
-        [question.config],
-    );
 
     const optionLabels = isScaleQuestion
         ? scaleConfig.values.map((item) => String(item.value))
