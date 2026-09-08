@@ -53,6 +53,10 @@ interface LiveQuestionPanelProps {
 
     onShowResults?: () => void;
 
+    onShowResultsOnProjector?: () => void;
+
+    onShowResultsOnBoth?: () => void;
+
     onHideResults?: () => void;
 
     onConfirmReplaceLiveQuestion?: (
@@ -98,6 +102,8 @@ export function LiveQuestionPanel({
     onActivateQuestion,
     onCloseQuestion,
     onShowResults,
+    onShowResultsOnProjector,
+    onShowResultsOnBoth,
     onHideResults,
     onConfirmReplaceLiveQuestion,
 }: LiveQuestionPanelProps) {
@@ -557,17 +563,29 @@ export function LiveQuestionPanel({
                                             <span>Show to Students</span>
                                         </button>
 
-                                        <div className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-400 opacity-70">
-                                            <MonitorUp className="h-4 w-4" />
-                                            <span>Projector</span>
-                                            <span className="ml-auto text-[10px] font-bold uppercase">Next</span>
-                                        </div>
+                                        <button
+                                            type="button"
+                                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-900"
+                                            onClick={() => {
+                                                setResultsMenuOpen(false);
+                                                onShowResultsOnProjector?.();
+                                            }}
+                                        >
+                                            <MonitorUp className="h-4 w-4 text-indigo-500" />
+                                            <span>Show on Projector</span>
+                                        </button>
 
-                                        <div className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-slate-400 opacity-70">
-                                            <Eye className="h-4 w-4" />
-                                            <span>Both</span>
-                                            <span className="ml-auto text-[10px] font-bold uppercase">Next</span>
-                                        </div>
+                                        <button
+                                            type="button"
+                                            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-900"
+                                            onClick={() => {
+                                                setResultsMenuOpen(false);
+                                                onShowResultsOnBoth?.();
+                                            }}
+                                        >
+                                            <Eye className="h-4 w-4 text-indigo-500" />
+                                            <span>Show on Both</span>
+                                        </button>
                                     </div>
                                 ) : null}
                             </div>
