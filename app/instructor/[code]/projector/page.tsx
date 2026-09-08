@@ -618,21 +618,39 @@ export default function ProjectorPage({
     const renderResultsVisualization = () => {
         if (!question) return null;
 
-        const data = question.options.map(
-            (option) => {
-                const count = tally[option] ?? 0;
-                const percentage =
-                    totalResponses === 0
-                        ? 0
-                        : (count / totalResponses) * 100;
+        const counts: Record<string, number> = {};
 
-                return {
-                    option,
-                    count,
-                    percentage,
-                };
-            },
-        );
+        for (const response of responses) {
+            const answer =
+                typeof response.answer === "string" ||
+                typeof response.answer === "number"
+                    ? String(response.answer)
+                    : JSON.stringify(response.answer);
+
+            counts[answer] =
+                (counts[answer] ?? 0) + 1;
+        }
+
+        const options =
+            question.type === "scale" ||
+            question.type === "rating"
+                ? Object.keys(counts)
+                    .sort((a, b) => Number(a) - Number(b))
+                : question.options;
+
+        const data = options.map((option) => {
+            const count = counts[String(option)] ?? 0;
+            const percentage =
+                totalResponses === 0
+                    ? 0
+                    : (count / totalResponses) * 100;
+
+            return {
+                option: String(option),
+                count,
+                percentage,
+            };
+        });
 
         if (projectorVisualization === "donut") {
             let cursor = 0;
@@ -1095,8 +1113,12 @@ export default function ProjectorPage({
                                 </div>
 
                                 {/* RESULTS */}
-                                {question.type ===
-                                    "multiple_choice" && (
+                                {(
+                                    question.type === "multiple_choice" ||
+                                    question.type === "true_false" ||
+                                    question.type === "scale" ||
+                                    question.type === "rating"
+                                ) && (
                                     <div className="mt-14">
                                         {showResults ? (
                                             <div className="animate-in fade-in duration-300">
