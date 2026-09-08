@@ -1203,20 +1203,27 @@ export default function LiveStudioPage() {
             },
         );
 
-        if (
-            session.student_display_type === "results" &&
+        await updateSession({
+            ...(session.student_display_type === "results" &&
             session.student_question_id === viewedQuestion.id
-        ) {
-            await updateSession({
-                student_display_type: "waiting",
-                student_question_id: null,
-            });
-        }
+                ? {
+                      student_display_type: "waiting" as const,
+                      student_question_id: null,
+                  }
+                : {}),
+            ...(session.projector_display_type === "results" &&
+            session.projector_question_id === viewedQuestion.id
+                ? {
+                      projector_display_type: "waiting" as const,
+                      projector_question_id: null,
+                  }
+                : {}),
+        });
 
         showNotice(
             "success",
-            "Results are hidden from students.",
-            "Results Hidden",
+            "Results are now hidden from students and the projector.",
+            "Results Hidden Everywhere",
         );
     }}
     onShowResultsOnProjector={async () => {
