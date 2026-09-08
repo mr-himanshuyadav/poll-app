@@ -296,6 +296,8 @@ response.id
                     <ResponseWorkspace
                         responseCount={responseCount}
                         participantCount={totalParticipants}
+                        participantsLabel="View all participants & response history"
+                        onParticipantsNavigate={() => {}}
                         overview={
                             <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
                                 <ResponseProgressPanel
