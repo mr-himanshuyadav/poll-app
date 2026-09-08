@@ -169,11 +169,13 @@ export function LiveQuestionPanel({
         question.results_visible ===
         true;
 
-    const canActivate =
-        question.status !== "active";
-
-    const canClose =
+    const isLive =
         question.status === "active";
+
+    const canActivate =
+        !isLive;
+
+    const canClose = isLive;
 
     const scaleMin =
         getScaleNumber(
@@ -274,9 +276,7 @@ export function LiveQuestionPanel({
                         {canActivate ? (
                             <Button
                                 type="button"
-                                disabled={
-                                    isUpdating
-                                }
+                                disabled={isUpdating}
                                 onClick={() =>
                                     onActivateQuestion(
                                         question,
@@ -285,7 +285,7 @@ export function LiveQuestionPanel({
                             >
                                 <Play className="mr-2 h-4 w-4" />
 
-                                Make Live
+                                Display to Students
                             </Button>
                         ) : null}
 
@@ -293,12 +293,8 @@ export function LiveQuestionPanel({
                             <Button
                                 type="button"
                                 variant="destructive"
-                                disabled={
-                                    isUpdating
-                                }
-                                onClick={
-                                    onCloseQuestion
-                                }
+                                disabled={isUpdating}
+                                onClick={onCloseQuestion}
                             >
                                 <Square className="mr-2 h-4 w-4" />
 
