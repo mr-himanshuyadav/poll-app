@@ -784,28 +784,28 @@ export default function LiveStudioPage() {
     analytics?.questions?.find(
         (item) =>
             item.question_id ===
-            activeQuestion?.id,
+            viewedQuestion?.id,
     )
         ? {
               questionId:
-                  activeQuestion?.id ?? "",
+                  viewedQuestion?.id ?? "",
               totalResponses:
                   analytics.questions.find(
                       (item) =>
                           item.question_id ===
-                          activeQuestion?.id,
+                          viewedQuestion?.id,
                   )?.total_responses ?? 0,
               uniqueResponders:
                   analytics.questions.find(
                       (item) =>
                           item.question_id ===
-                          activeQuestion?.id,
+                          viewedQuestion?.id,
                   )?.response_count ?? 0,
               participationRate:
                   analytics.questions.find(
                       (item) =>
                           item.question_id ===
-                          activeQuestion?.id,
+                          viewedQuestion?.id,
                   )?.response_rate ?? 0,
               averageResponseTimeMs:
                   null,
@@ -819,7 +819,7 @@ export default function LiveStudioPage() {
     analytics.questions.find(
         (item) =>
             item.question_id ===
-            activeQuestion?.id,
+            viewedQuestion?.id,
     )?.distribution?.map(
         (item) => ({
             key: item.id,
