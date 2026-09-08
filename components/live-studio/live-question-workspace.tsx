@@ -39,9 +39,6 @@ interface LiveQuestionWorkspaceProps {
 
     onCloseQuestion: () => void;
 
-    onShowResults?: () => void;
-
-    onHideResults?: () => void;
 
     onConfirmReplaceLiveQuestion?: (
         question: SessionQuestion,
@@ -71,8 +68,6 @@ export function LiveQuestionWorkspace({
     onShowResults,
     onHideResults,
     onConfirmReplaceLiveQuestion,
-    onShowResults,
-    onHideResults,
     onPreviousQuestion,
     onNextQuestion,
 }: LiveQuestionWorkspaceProps) {
@@ -118,12 +113,6 @@ response.id
                         onHideResults={onHideResults}
                         onConfirmReplaceLiveQuestion={
                             onConfirmReplaceLiveQuestion
-                        }
-                        onShowResults={
-                            onShowResults
-                        }
-                        onHideResults={
-                            onHideResults
                         }
                     />
 
