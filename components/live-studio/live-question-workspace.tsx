@@ -7,7 +7,7 @@ import { ResponseWorkspace } from "./response-workspace";
 import { ResponseDistribution } from "./response-distribution";
 import { ResponseParticipants } from "./response-participants";
 import { ResponseActivity } from "./response-activity";
-import { Users, CheckCircle2, Clock3, Pencil } from "lucide-react";
+import { Users, CheckCircle2, Clock3, X } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -45,13 +45,14 @@ interface LiveQuestionWorkspaceProps {
     isSavingQuestion?: boolean;
     onCreateQuestion?: (question: Partial<SessionQuestion>) => Promise<void> | void;
     onUpdateQuestion?: (questionId: string, updates: Partial<SessionQuestion>) => Promise<void> | void;
+    onClearView?: () => void;
 }
 
 export function LiveQuestionWorkspace({
     sessionId, questions, projectorResultsQuestionId, defaultResultVisibility = "both", projectorDisplayType = "waiting", projectorVisualizationType = "horizontal-bar", onProjectorVisualizationChange,
     projectorQuestion, viewedQuestion, activeQuestion, responses, participants, questionAnalytics, isUpdating = false,
     onActivateQuestion, onViewQuestion, onCloseQuestion, onShowResults, onRequestShowResults, onShowResultsOnProjector, onShowResultsOnBoth,
-    onHideResults, onHideProjectorResults, onConfirmReplaceLiveQuestion, onPreviousQuestion, onNextQuestion, isSavingQuestion = false, onCreateQuestion, onUpdateQuestion,
+    onHideResults, onHideProjectorResults, onConfirmReplaceLiveQuestion, onPreviousQuestion, onNextQuestion, isSavingQuestion = false, onCreateQuestion, onUpdateQuestion, onClearView,
 }: LiveQuestionWorkspaceProps) {
     const [questionEditorMode, setQuestionEditorMode] = useState<"create" | "edit" | null>(null);
     const viewedQuestionResponses = viewedQuestion ? responses.filter((response) => response.question_id === viewedQuestion.id) : [];
@@ -71,11 +72,7 @@ export function LiveQuestionWorkspace({
                             <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Live Control</p>
                             <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{viewedQuestion ? "Question currently in view" : "Choose a question from the queue"}</p>
                         </div>
-                        {viewedQuestion ? (
-                            <Button type="button" variant="outline" size="sm" onClick={() => setQuestionEditorMode("edit")} disabled={isSavingQuestion} className="shrink-0">
-                                <Pencil className="mr-2 h-4 w-4" /> Edit question
-                            </Button>
-                        ) : null}
+                        {viewedQuestion && onClearView ? <Button type="button" variant="ghost" size="icon" onClick={onClearView} className="shrink-0" aria-label="Clear question workspace" title="Clear workspace"><X className="h-4 w-4" /></Button> : null}
                     </div>
 
                     <LiveQuestionPanel
@@ -85,6 +82,7 @@ export function LiveQuestionWorkspace({
                         onShowResults={onRequestShowResults ?? onShowResults} onShowResultsOnProjector={onShowResultsOnProjector}
                         onShowResultsOnBoth={onShowResultsOnBoth} onHideResults={onHideResults} onHideProjectorResults={onHideProjectorResults}
                         onConfirmReplaceLiveQuestion={onConfirmReplaceLiveQuestion}
+                        onEditQuestion={viewedQuestion ? () => setQuestionEditorMode("edit") : undefined}
                     />
 
                     <ResponseWorkspace
