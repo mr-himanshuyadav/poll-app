@@ -81,7 +81,7 @@ export function QuestionRow({
                     ].join(" ")}
                 >
                     {viewOnly ? (
-                        <Eye className="h-4 w-4" />
+                        position
                     ) : isLive ? (
                         <Radio className="h-4 w-4" />
                     ) : isClosed ? (
@@ -145,9 +145,7 @@ export function QuestionRow({
                     )}
                 </div>
 
-                {viewOnly ? (
-                    <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={(event) => { event.stopPropagation(); onSelect(); }}><Eye className="mr-1.5 h-3.5 w-3.5" />View</Button>
-                ) : isLive ? (
+                {!viewOnly && isLive ? (
                     <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
                         Managing
                     </span>
