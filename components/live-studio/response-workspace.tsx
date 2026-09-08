@@ -9,7 +9,7 @@ interface ResponseWorkspaceProps {
     participantsLabel?: string;
     onParticipantsNavigate?: (filter?: "all" | "responded" | "waiting") => void;
     participants?: React.ReactNode | ((filter: "all" | "responded" | "waiting") => React.ReactNode);
-    overview: React.ReactNode;
+    overview: React.ReactNode | ((navigate: (filter: "all" | "responded" | "waiting") => void) => React.ReactNode);
     distribution: React.ReactNode;
     activity?: React.ReactNode;
 }
@@ -52,7 +52,7 @@ export function ResponseWorkspace({
 
     const content =
         activeView === "overview"
-            ? overview
+            ? (typeof overview === "function" ? overview(navigateToParticipants) : overview)
             : activeView === "distribution"
               ? distribution
               : activeView === "participants"
