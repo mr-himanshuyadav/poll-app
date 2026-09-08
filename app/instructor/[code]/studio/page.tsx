@@ -9,8 +9,6 @@ import {
 
 import { useParams, useRouter } from "next/navigation";
 
-import { supabase } from "@/lib/supabase";
-
 import {
     AlertTriangle,
     ArrowLeft,
@@ -402,34 +400,30 @@ export default function LiveStudioPage() {
                     const now =
                         new Date().toISOString();
 
-                    // Defensive cleanup: a session must never have
-                    // more than one active question.
-                    const {
-                        error: closeOtherQuestionsError,
-                    } = await supabase
-                        .from("session_questions")
-                        .update({
-                            status: "closed",
-                            closed_at: now,
-                        })
-                        .eq(
-                            "session_id",
-                            session.id,
-                        )
-                        .eq(
-                            "status",
-                            "active",
-                        )
-                        .neq(
-                            "id",
-                            questionId,
+                    // Close any other active questions through
+                    // the hook so local state stays in sync without
+                    // forcing a full questions refetch.
+                    const otherActiveQuestions =
+                        questions.filter(
+                            (question) =>
+                                question.id !==
+                                    questionId &&
+                                question.status ===
+                                    "active",
                         );
 
-                    if (
-                        closeOtherQuestionsError
-                    ) {
-                        throw closeOtherQuestionsError;
-                    }
+                    await Promise.all(
+                        otherActiveQuestions.map(
+                            (question) =>
+                                updateQuestion(
+                                    question.id,
+                                    {
+                                        status: "closed",
+                                        closed_at: now,
+                                    },
+                                ),
+                        ),
+                    );
 
                     // Update the session pointer first so the
                     // student-facing app immediately has one
@@ -453,9 +447,8 @@ export default function LiveStudioPage() {
                         },
                     );
 
-                    // Refresh local question state so previously
-                    // active questions cannot remain visually live.
-                    await refetchQuestions();
+                    // Keep the newly live question in view.
+                    setViewedQuestionId(questionId);
 
                     showNotice(
                         "success",
@@ -481,8 +474,6 @@ export default function LiveStudioPage() {
                         active_question_id: null,
                     });
 
-                    await refetchQuestions();
-
                     showNotice(
                         "success",
                         "The active question has been closed.",
@@ -503,6 +494,7 @@ export default function LiveStudioPage() {
             session?.id,
             session?.active_question_id,
             session?.started_at,
+            questions,
             showNotice,
             updateQuestion,
             updateSession,
