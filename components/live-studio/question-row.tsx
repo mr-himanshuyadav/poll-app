@@ -115,43 +115,6 @@ export function QuestionRow({
                 </div>
             </button>
 
-            <div className="flex items-center justify-end gap-1 px-3 pb-3">
-                <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    disabled={isUpdating}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onSelect();
-                    }}
-                    aria-label="View question"
-                    title="View question"
-                    className="h-8 w-8"
-                >
-                    <Eye className="h-3.5 w-3.5" />
-                </Button>
-
-                {!isLive &&
-                !isClosed ? (
-                    <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        disabled={isUpdating}
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onActivate();
-                        }}
-                        aria-label="Make question live"
-                        title="Make question live"
-                        className="h-8 w-8"
-                    >
-                        <Radio className="h-3.5 w-3.5" />
-                    </Button>
-                ) : null}
-            </div>
-
             {isLive ? (
                 <div className="absolute right-3 top-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
                     <span className="relative flex h-2 w-2">
