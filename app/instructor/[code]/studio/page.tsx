@@ -549,8 +549,14 @@ export default function LiveStudioPage() {
                         );
                     }
 
+                    // Closing a question must remove it from both
+                    // participant and projector views. Otherwise the
+                    // student-facing display can keep rendering the last
+                    // student_question_id even though the question is closed.
                     await updateSession({
                         active_question_id: null,
+                        student_display_type: "waiting",
+                        student_question_id: null,
                         projector_display_type:
                             "waiting",
                         projector_question_id: null,
