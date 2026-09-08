@@ -1,10 +1,12 @@
 "use client";
 
 import {
+    Check,
     Copy,
     ExternalLink,
     Gauge,
     Home,
+    Link2,
     Pause,
     Play,
     Presentation,
@@ -12,6 +14,8 @@ import {
     Settings,
     Square,
 } from "lucide-react";
+
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -99,6 +103,19 @@ export function LiveStudioHeader({
         ? (questions.findIndex((question) => question.id === session.student_question_id) + 1 || null)
         : null;
 
+    const [copiedItem, setCopiedItem] = useState<"code" | "link" | null>(null);
+
+    useEffect(() => {
+        if (!copiedItem) return;
+        const timeout = window.setTimeout(() => setCopiedItem(null), 1600);
+        return () => window.clearTimeout(timeout);
+    }, [copiedItem]);
+
+    const handleCopy = (item: "code" | "link", action?: () => void) => {
+        action?.();
+        setCopiedItem(item);
+    };
+
     const isPaused = session.status === "paused";
     const isCompleted = session.status === "completed";
 
@@ -137,7 +154,7 @@ export function LiveStudioHeader({
                             <span className="text-slate-300 dark:text-slate-700">/</span><span className="font-bold text-slate-700 dark:text-slate-200">{participantCount}</span><span className="text-slate-500">joined</span>
                         </div>
                         <div className="h-8 w-px bg-slate-200 dark:bg-slate-800" />
-                        <div className="flex h-[58px] items-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="px-2"><span className="text-[10px] font-bold uppercase text-slate-400">Session Code</span><div className="font-mono text-lg font-extrabold tracking-widest text-slate-900 dark:text-slate-100">{session.join_code}</div></div>{onCopyJoinCode ? <Button type="button" variant="ghost" size="icon" onClick={onCopyJoinCode} aria-label="Copy join code"><Copy className="h-4 w-4" /></Button> : null}{onCopyStudentLink ? <Button type="button" variant="ghost" size="icon" onClick={onCopyStudentLink} aria-label="Copy session link"><ExternalLink className="h-4 w-4" /></Button> : null}</div>
+                        <div className="flex h-[58px] items-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900"><div className="px-2"><span className="text-[10px] font-bold uppercase text-slate-400">Session Code</span><div className="font-mono text-lg font-extrabold tracking-widest text-slate-900 dark:text-slate-100">{session.join_code}</div></div>{onCopyJoinCode ? <Button type="button" variant="ghost" size="icon" onClick={() => handleCopy("code", onCopyJoinCode)} aria-label="Copy join code" title={copiedItem === "code" ? "Copied" : "Copy join code"}><span className="relative flex h-4 w-4 items-center justify-center">{copiedItem === "code" ? <Check className="absolute h-4 w-4 animate-in zoom-in-50 duration-200" /> : <Copy className="absolute h-4 w-4 animate-in fade-in zoom-in-75 duration-200" />}</span></Button> : null}{onCopyStudentLink ? <Button type="button" variant="ghost" size="icon" onClick={() => handleCopy("link", onCopyStudentLink)} aria-label="Copy session link" title={copiedItem === "link" ? "Copied" : "Copy session link"}><span className="relative flex h-4 w-4 items-center justify-center">{copiedItem === "link" ? <Check className="absolute h-4 w-4 animate-in zoom-in-50 duration-200" /> : <Link2 className="absolute h-4 w-4 animate-in fade-in zoom-in-75 duration-200" />}</span></Button> : null}</div>
                     </div>
                     <div className="ml-auto flex items-center gap-3"><div
                             className={["flex min-w-0 items-center gap-3 rounded-2xl border bg-slate-50 px-3 py-2.5 text-left shadow-sm dark:bg-slate-900/70", studentLive ? "border-indigo-300 dark:border-indigo-800/70" : "border-slate-200 dark:border-slate-800"].join(" ")}
