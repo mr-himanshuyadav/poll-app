@@ -378,6 +378,7 @@ response.id
                                         projectorVisualizationType ??
                                         "horizontal-bar"
                                     }
+                                    embedded
                                     onVisualizationChange={
                                         onProjectorVisualizationChange
                                     }
