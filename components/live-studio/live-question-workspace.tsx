@@ -79,7 +79,7 @@ export function LiveQuestionWorkspace({
                     <LiveQuestionPanel
                         sessionId={sessionId} question={viewedQuestion} activeQuestion={activeQuestion} questions={questions}
                         defaultResultVisibility={defaultResultVisibility} projectorResultsVisible={projectorResultsQuestionId === viewedQuestion?.id}
-                        isUpdating={isUpdating} onActivateQuestion={onActivateQuestion} onCloseQuestion={onCloseQuestion}
+                        isUpdating={isUpdating} isCompleted={isCompleted} onActivateQuestion={onActivateQuestion} onCloseQuestion={onCloseQuestion}
                         onShowResults={onRequestShowResults ?? onShowResults} onShowResultsOnProjector={onShowResultsOnProjector}
                         onShowResultsOnBoth={onShowResultsOnBoth} onHideResults={onHideResults} onHideProjectorResults={onHideProjectorResults}
                         onConfirmReplaceLiveQuestion={onConfirmReplaceLiveQuestion}
