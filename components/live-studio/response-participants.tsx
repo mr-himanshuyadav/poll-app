@@ -14,6 +14,7 @@ interface ResponseParticipantsProps {
     allResponses?: SessionResponse[];
     questions?: SessionQuestion[];
     activeFilter?: ParticipantFilter;
+    activeAnswer?: string | null;
 }
 
 export function ResponseParticipants({
@@ -22,6 +23,7 @@ export function ResponseParticipants({
     allResponses = responses,
     questions = [],
     activeFilter,
+    activeAnswer,
 }: ResponseParticipantsProps) {
     const [filter, setFilter] = useState<ParticipantFilter>("all");
     const [query, setQuery] = useState("");
@@ -79,6 +81,7 @@ export function ResponseParticipants({
         const responded = responseByParticipant.has(participant.id);
         if (filter === "responded" && !responded) return false;
         if (filter === "waiting" && responded) return false;
+        if (activeAnswer && answerToString(responseByParticipant.get(participant.id)?.answer) !== activeAnswer) return false;
         return [participant.name ?? "", participant.roll_number != null ? String(participant.roll_number) : ""]
             .join(" ").toLowerCase().includes(query.trim().toLowerCase());
     });
@@ -163,7 +166,7 @@ export function ResponseParticipants({
     return (
         <div className="p-5 sm:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div><h4 className="font-bold text-slate-900 dark:text-slate-100">Participant responses</h4><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">See who has responded to the viewed question.</p></div>
+                <div><h4 className="font-bold text-slate-900 dark:text-slate-100">{activeAnswer ? `Participants who answered: ${activeAnswer}` : "Participant responses"}</h4><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">See who has responded to the viewed question.</p></div>
                 <div className="relative w-full lg:w-72"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search participants" className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900" /></div>
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
