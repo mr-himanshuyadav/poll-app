@@ -1333,13 +1333,21 @@ export default function LiveStudioPage() {
                                         );
 
                                         await updateSession({
-                                            projector_display_type: "results",
-                                            projector_question_id: question.id,
+                                            student_display_type: "question",
+                                            student_question_id: question.id,
+                                            ...(pendingResultsTarget === "both"
+                                                ? {
+                                                      projector_display_type: "results" as const,
+                                                      projector_question_id: question.id,
+                                                  }
+                                                : {}),
                                         });
 
                                         showNotice(
                                             "success",
-                                            "Live results are now shown on the projector. Students will see results after answering.",
+                                            pendingResultsTarget === "both"
+                                                ? "Live results are shown on the projector. Students will see results after answering."
+                                                : "Live results are enabled. Students will see results after answering.",
                                             "Live Results",
                                         );
                                     }}
