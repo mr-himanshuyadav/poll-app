@@ -48,6 +48,8 @@ interface LiveQuestionWorkspaceProps {
 
     onShowResults?: () => void;
 
+    onRequestShowResults?: () => void;
+
     onShowResultsOnProjector?: () => void;
 
     onShowResultsOnBoth?: () => void;
@@ -75,6 +77,7 @@ export function LiveQuestionWorkspace({
     onViewQuestion,
     onCloseQuestion,
     onShowResults,
+    onRequestShowResults,
     onShowResultsOnProjector,
     onShowResultsOnBoth,
     onHideResults,
@@ -125,7 +128,10 @@ response.id
                         onCloseQuestion={
                             onCloseQuestion
                         }
-                        onShowResults={onShowResults}
+                        onShowResults={
+                            onRequestShowResults ??
+                            onShowResults
+                        }
                         onShowResultsOnProjector={
                             onShowResultsOnProjector
                         }
