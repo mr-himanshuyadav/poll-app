@@ -598,52 +598,49 @@ export default function TemplateEditor({
                             </span>
 
                             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold dark:bg-slate-800">
-                              {question.results_mode ===
-                              "default"
-                                ? "Default Results"
-                                : question.results_mode ===
-                                    "live"
-                                  ? "Live Results"
-                                  : question.results_mode ===
-                                      "hidden"
-                                    ? "Hidden Results"
-                                    : "Results on Command"}
-                            </span>
-
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold dark:bg-slate-800">
                               {question.status}
                             </span>
                           </div>
 
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {question.options.map(
-                              (
-                                option,
-                                optionIndex,
-                              ) => (
-                                <div
-                                  key={`${question.id}-${optionIndex}`}
-                                  className="rounded-xl border bg-slate-50 px-4 py-3 text-sm dark:bg-slate-950"
-                                >
-                                  {question.type ===
-                                    "multiple_choice" && (
-                                    <span className="mr-2 font-bold text-muted-foreground">
-                                      {String.fromCharCode(
-                                        65 +
-                                          optionIndex,
-                                      )}
-                                      .
-                                    </span>
-                                  )}
-
-                                  {
-                                    String(
-                                      option,
-                                    )
-                                  }
+                          {question.type === "multiple_choice" ? (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {question.options.map((option, optionIndex) => (
+                                <div key={`${question.id}-${optionIndex}`} className="rounded-xl border bg-slate-50 px-4 py-3 text-sm dark:bg-slate-950">
+                                  <span className="mr-2 font-bold text-muted-foreground">
+                                    {String.fromCharCode(65 + optionIndex)}.
+                                  </span>
+                                  {String(option)}
                                 </div>
-                              ),
-                            )}
+                              ))}
+                            </div>
+                          ) : question.type === "scale" ? (
+                            <div className="rounded-xl border bg-slate-50 p-4 dark:bg-slate-950">
+                              {(() => {
+                                const min = typeof question.config?.min === "number" ? question.config.min : 1;
+                                const max = typeof question.config?.max === "number" ? question.config.max : 5;
+                                const labels = (question.config?.scaleLabels ?? {}) as Record<string, string>;
+                                const preset = typeof question.config?.scalePreset === "string" ? question.config.scalePreset : "numeric";
+                                const values = Array.from({ length: Math.max(0, max - min + 1) }, (_, valueIndex) => min + valueIndex);
+
+                                return (
+                                  <div className="space-y-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                                      <span>Scale {min}–{max}</span>
+                                      <span className="capitalize">{preset.replace(/_/g, " ")}</span>
+                                    </div>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                      {values.map((value) => (
+                                        <div key={value} className="flex items-center gap-3 rounded-lg border bg-white px-3 py-2 text-sm dark:bg-slate-900">
+                                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-xs font-black text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">{value}</span>
+                                          <span className="min-w-0 break-words">{labels[String(value)] || (value === min ? String(question.config?.minLabel || "") : value === max ? String(question.config?.maxLabel || "") : "") || "—"}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          ) : null}
                           </div>
                         </CardContent>
                       </Card>
