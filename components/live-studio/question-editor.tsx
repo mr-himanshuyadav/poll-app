@@ -1,7 +1,8 @@
 "use client";
 
-import {
 import { SCALE_PRESET_LABELS } from "@/lib/scale-config";
+
+import {
     useEffect,
     useMemo,
     useState,
