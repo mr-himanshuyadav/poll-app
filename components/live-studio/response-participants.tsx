@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, CheckCircle2, Clock3, Eye, Search, Users } from "lucide-react";
 import type { SessionParticipant, SessionQuestion, SessionResponse } from "./live-studio-types";
 
@@ -13,6 +13,7 @@ interface ResponseParticipantsProps {
     responses: SessionResponse[];
     allResponses?: SessionResponse[];
     questions?: SessionQuestion[];
+    activeFilter?: ParticipantFilter;
 }
 
 export function ResponseParticipants({
@@ -20,12 +21,20 @@ export function ResponseParticipants({
     responses,
     allResponses = responses,
     questions = [],
+    activeFilter,
 }: ResponseParticipantsProps) {
     const [filter, setFilter] = useState<ParticipantFilter>("all");
     const [query, setQuery] = useState("");
     const [sortKey, setSortKey] = useState<SortKey>("roll_number");
     const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
     const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (activeFilter) {
+            setFilter(activeFilter);
+            setSelectedParticipantId(null);
+        }
+    }, [activeFilter]);
 
     const responseByParticipant = useMemo(
         () => new Map(
