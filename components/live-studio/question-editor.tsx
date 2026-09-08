@@ -753,7 +753,7 @@ export function QuestionEditor({
                     );
 
                     const applyPreset = (
-                        preset: "numeric" | "agreement" | "satisfaction" | "custom",
+                        preset: ScalePreset,
                     ) => {
                         const labels = preset === "custom"
                             ? form.scaleLabels
