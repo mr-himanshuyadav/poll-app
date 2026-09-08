@@ -51,6 +51,7 @@ interface QuestionEditorProps {
     onDelete?: () => Promise<void> | void;
 
     onCancel?: () => void;
+    hideResultsVisibility?: boolean;
 }
 
 const QUESTION_TYPES: Array<{
@@ -250,6 +251,7 @@ export function QuestionEditor({
     onSave,
     onDelete,
     onCancel,
+    hideResultsVisibility = false,
 }: QuestionEditorProps) {
     const [form, setForm] =
         useState<QuestionFormState>(() =>
@@ -860,57 +862,60 @@ export function QuestionEditor({
                     );
                 })() : null}
 
+                {!hideResultsVisibility ? (
                 <div>
-                    <Label className="text-sm font-bold">
-                        Results Visibility
-                    </Label>
-
-                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                        {RESULTS_MODES.map(
-                            (
-                                modeOption,
-                            ) => {
-                                const isSelected =
-                                    form.resultsMode ===
-                                    modeOption.value;
-
-                                return (
-                                    <button
-                                        key={
-                                            modeOption.value
-                                        }
-                                        type="button"
-                                        onClick={() =>
-                                            handleResultsModeChange(
-                                                modeOption.value,
-                                            )
-                                        }
-                                        className={[
-                                            "rounded-xl border p-3 text-left transition",
-                                            isSelected
-                                                ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40"
-                                                : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
-                                        ].join(
-                                            " ",
-                                        )}
-                                    >
-                                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                            {
-                                                modeOption.title
+                        <Label className="text-sm font-bold">
+                            Results Visibility
+                        </Label>
+    
+                        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                            {RESULTS_MODES.map(
+                                (
+                                    modeOption,
+                                ) => {
+                                    const isSelected =
+                                        form.resultsMode ===
+                                        modeOption.value;
+    
+                                    return (
+                                        <button
+                                            key={
+                                                modeOption.value
                                             }
-                                        </p>
-
-                                        <p className="mt-1 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
-                                            {
-                                                modeOption.description
+                                            type="button"
+                                            onClick={() =>
+                                                handleResultsModeChange(
+                                                    modeOption.value,
+                                                )
                                             }
-                                        </p>
-                                    </button>
-                                );
-                            },
-                        )}
+                                            className={[
+                                                "rounded-xl border p-3 text-left transition",
+                                                isSelected
+                                                    ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40"
+                                                    : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
+                                            ].join(
+                                                " ",
+                                            )}
+                                        >
+                                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                                {
+                                                    modeOption.title
+                                                }
+                                            </p>
+    
+                                            <p className="mt-1 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                                                {
+                                                    modeOption.description
+                                                }
+                                            </p>
+                                        </button>
+                                    );
+                                },
+                            )}
+                        </div>
                     </div>
-                </div>
+    
+                ) : null}
             </div>
 
             {showDeleteConfirm ? (
