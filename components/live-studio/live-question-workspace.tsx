@@ -12,6 +12,7 @@ import { ResponseProgressPanel } from "./response-progress-panel";
 import { ResponseWorkspace } from "./response-workspace";
 import { ResponseDistribution } from "./response-distribution";
 import { ResponseParticipants } from "./response-participants";
+import { ResponseActivity } from "./response-activity";
 import { Users, CheckCircle2, Clock3, Plus, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -388,6 +389,12 @@ response.id
                         }
                         participants={
                             <ResponseParticipants
+                                participants={participants}
+                                responses={viewedQuestionResponses}
+                            />
+                        }
+                        activity={
+                            <ResponseActivity
                                 participants={participants}
                                 responses={viewedQuestionResponses}
                             />
