@@ -56,7 +56,7 @@ export function useLiveSession({
         useState<Error | null>(null);
 
     const fetchSession =
-        useCallback(async () => {
+        useCallback(async (silent = false) => {
             if (!sessionCode) {
                 setSession(null);
                 setIsLoading(false);
@@ -64,8 +64,10 @@ export function useLiveSession({
                 return;
             }
 
-            setIsLoading(true);
-            setError(null);
+            if (!silent) {
+                setIsLoading(true);
+                setError(null);
+            }
 
             try {
                 
@@ -100,7 +102,9 @@ const { data, error } = await supabase
                 setError(normalizedError);
                 setSession(null);
             } finally {
-                setIsLoading(false);
+                if (!silent) {
+                    setIsLoading(false);
+                }
             }
         }, [sessionCode]);
 
@@ -109,7 +113,7 @@ const { data, error } = await supabase
     }, [fetchSession]);
 
     useLiveRecovery({
-        onRecover: fetchSession,
+        onRecover: () => fetchSession(true),
     });
 
     useEffect(() => {
@@ -143,7 +147,7 @@ const { data, error } = await supabase
                     status === "CHANNEL_ERROR" ||
                     status === "TIMED_OUT"
                 ) {
-                    void fetchSession();
+                    void fetchSession(true);
                 }
             });
 
