@@ -123,7 +123,7 @@ export function QuestionEditor({ mode, sessionId, question, isSaving = false, se
                 </div>
             </div>
 
-            <div className="space-y-8 p-5 sm:p-6">
+            <div className={["space-y-8 p-5 sm:p-6", readOnly ? "pointer-events-none" : ""].join(" ")}>
                 <div><Label htmlFor="question-content" className="text-sm font-bold">Question</Label><textarea id="question-content" value={form.question} onChange={(e) => updateForm({ question: e.target.value })} rows={4} className="mt-2 flex w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-indigo-700 dark:focus:ring-indigo-950" placeholder="Write your question..." /></div>
 
                 <div><Label className="text-sm font-bold">Question Type</Label><div className="mt-3 grid gap-3 sm:grid-cols-2">{QUESTION_TYPES.map((item) => <button key={item.value} type="button" onClick={() => updateForm({ questionType: item.value })} className={["rounded-xl border p-4 text-left transition", form.questionType === item.value ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40" : "border-slate-200 hover:border-slate-300 dark:border-slate-800"].join(" ")}><div className="flex items-center gap-2">{item.value === "scale" ? <BarChart3 className="h-4 w-4 text-indigo-500" /> : null}<p className="text-sm font-bold">{item.title}</p></div><p className="mt-1 text-xs leading-5 text-slate-500">{item.description}</p></button>)}</div></div>
