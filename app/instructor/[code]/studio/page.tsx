@@ -444,6 +444,8 @@ export default function LiveStudioPage() {
                         status: "live",
                         active_question_id:
                             questionId,
+                        student_display_type: "question",
+                        student_question_id: questionId,
                         projector_display_type:
                             "question",
                         projector_question_id:
@@ -562,9 +564,9 @@ export default function LiveStudioPage() {
                     );
 
                     await updateSession({
-                        // Keep the closed question as the student-facing
-                        // content so its results can be displayed.
-                        active_question_id: question.id,
+                        active_question_id: null,
+                        student_display_type: "results",
+                        student_question_id: question.id,
                         ...(options.showOnProjector
                             ? {
                                   projector_display_type:
@@ -581,6 +583,11 @@ export default function LiveStudioPage() {
                             results_visible: true,
                         },
                     );
+
+                    await updateSession({
+                        student_display_type: "results",
+                        student_question_id: question.id,
+                    });
 
                     if (options?.showOnProjector) {
                         await updateSession({
@@ -1088,6 +1095,16 @@ export default function LiveStudioPage() {
                 results_visible: false,
             },
         );
+
+        if (
+            session.student_display_type === "results" &&
+            session.student_question_id === viewedQuestion.id
+        ) {
+            await updateSession({
+                student_display_type: "waiting",
+                student_question_id: null,
+            });
+        }
 
         showNotice(
             "success",
