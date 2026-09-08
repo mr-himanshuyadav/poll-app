@@ -17,18 +17,32 @@ import {
     getQuestionPrompt,
 } from "./live-studio-utils";
 
+export type ResponseVisualizationType =
+    | "horizontal-bar"
+    | "vertical-bar"
+    | "donut"
+    | "ranked"
+    | "percentage";
+
 interface ResponseDistributionProps {
     question: SessionQuestion | null;
 
     analytics: QuestionAnalytics | null;
 
     responses: SessionResponse[];
+
+    /**
+     * Visualization is intentionally controlled by the parent.
+     * Step 1B will expose the instructor selector.
+     */
+    visualizationType?: ResponseVisualizationType;
 }
 
 export function ResponseDistribution({
     question,
     analytics,
     responses,
+    visualizationType = "horizontal-bar",
 }: ResponseDistributionProps) {
     if (!question) {
         return (
@@ -134,6 +148,230 @@ export function ResponseDistribution({
     const hasDistribution =
         totalResponses > 0;
 
+    const chartColors = [
+        "bg-indigo-500",
+        "bg-violet-500",
+        "bg-sky-500",
+        "bg-emerald-500",
+        "bg-amber-500",
+        "bg-rose-500",
+        "bg-cyan-500",
+        "bg-fuchsia-500",
+    ];
+
+    const renderVisualization = () => {
+        if (visualizationType === "donut") {
+            const gradient = distribution
+                .reduce<string[]>(
+                    (segments, option, index) => {
+                        const start = distribution
+                            .slice(0, index)
+                            .reduce(
+                                (sum, item) =>
+                                    sum + item.percentage,
+                                0,
+                            );
+                        const end =
+                            start + option.percentage;
+                        const hue =
+                            [
+                                "#6366f1",
+                                "#8b5cf6",
+                                "#0ea5e9",
+                                "#10b981",
+                                "#f59e0b",
+                                "#f43f5e",
+                                "#06b6d4",
+                                "#d946ef",
+                            ][index % 8];
+
+                        segments.push(
+                            `${hue} ${start}% ${end}%`,
+                        );
+
+                        return segments;
+                    },
+                    [],
+                )
+                .join(", ");
+
+            return (
+                <div className="grid gap-6 lg:grid-cols-[minmax(0,220px)_1fr] lg:items-center">
+                    <div className="relative mx-auto h-52 w-52 rounded-full"
+                        style={{
+                            background:
+                                `conic-gradient(${gradient})`,
+                        }}
+                    >
+                        <div className="absolute inset-7 flex flex-col items-center justify-center rounded-full bg-white text-center dark:bg-slate-950">
+                            <span className="text-3xl font-black text-slate-950 dark:text-white">
+                                {totalResponses}
+                            </span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Responses
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        {distribution.map((option, index) => (
+                            <div
+                                key={option.key}
+                                className="flex items-center justify-between gap-3"
+                            >
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <span
+                                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${chartColors[index % chartColors.length]}`}
+                                    />
+                                    <span className="truncate text-sm font-medium text-slate-700 dark:text-slate-200">
+                                        {option.label}
+                                    </span>
+                                </div>
+                                <span className="shrink-0 text-sm font-bold text-slate-900 dark:text-slate-100">
+                                    {formatPercentage(option.percentage)}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        if (visualizationType === "vertical-bar") {
+            const maxPercentage = Math.max(
+                ...distribution.map(
+                    (item) => item.percentage,
+                ),
+                1,
+            );
+
+            return (
+                <div className="flex min-h-[260px] items-end gap-3 overflow-x-auto pb-2">
+                    {distribution.map((option, index) => (
+                        <div
+                            key={option.key}
+                            className="flex min-w-16 flex-1 flex-col items-center gap-2"
+                        >
+                            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                                {formatPercentage(option.percentage)}
+                            </span>
+                            <div className="flex h-44 w-full items-end rounded-lg bg-slate-100 p-1 dark:bg-slate-900">
+                                <div
+                                    className={`w-full rounded-md transition-all duration-500 ${chartColors[index % chartColors.length]}`}
+                                    style={{
+                                        height: `${Math.max(
+                                            4,
+                                            (option.percentage /
+                                                maxPercentage) *
+                                                100,
+                                        )}%`,
+                                    }}
+                                />
+                            </div>
+                            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                                {getQuestionOptionLabel(index)}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        if (visualizationType === "ranked") {
+            return (
+                <div className="space-y-3">
+                    {[...distribution]
+                        .sort(
+                            (a, b) =>
+                                b.count - a.count,
+                        )
+                        .map((option, index) => (
+                            <div
+                                key={option.key}
+                                className="flex items-center gap-3 rounded-xl border border-slate-100 p-3 transition-all dark:border-slate-800"
+                            >
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-sm font-black text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                                    #{index + 1}
+                                </span>
+                                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    {option.label}
+                                </span>
+                                <span className="text-sm font-bold text-slate-950 dark:text-white">
+                                    {option.count}
+                                </span>
+                                <span className="w-14 text-right text-xs font-semibold text-slate-400">
+                                    {formatPercentage(option.percentage)}
+                                </span>
+                            </div>
+                        ))}
+                </div>
+            );
+        }
+
+        if (visualizationType === "percentage") {
+            return (
+                <div className="grid gap-3 sm:grid-cols-2">
+                    {distribution.map((option, index) => (
+                        <div
+                            key={option.key}
+                            className="rounded-xl border border-slate-100 p-4 dark:border-slate-800"
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <span className="line-clamp-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    {option.label}
+                                </span>
+                                <span className={`h-3 w-3 shrink-0 rounded-full ${chartColors[index % chartColors.length]}`} />
+                            </div>
+                            <div className="mt-5 flex items-end justify-between">
+                                <span className="text-3xl font-black tracking-tight text-slate-950 dark:text-white">
+                                    {formatPercentage(option.percentage)}
+                                </span>
+                                <span className="text-sm font-semibold text-slate-400">
+                                    {option.count} votes
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-4">
+                {distribution.map((option, index) => (
+                    <div key={option.key}>
+                        <div className="mb-2 flex items-center justify-between gap-4">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
+                                    {getQuestionOptionLabel(index)}
+                                </span>
+                                <span className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
+                                    {option.label}
+                                </span>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-3">
+                                <span className="text-xs font-medium text-slate-400">
+                                    {option.count}
+                                </span>
+                                <span className="min-w-[42px] text-right text-sm font-bold text-slate-900 dark:text-slate-100">
+                                    {formatPercentage(option.percentage)}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                            <div
+                                className="h-full rounded-full bg-indigo-600 transition-all duration-500 dark:bg-indigo-400"
+                                style={{
+                                    width: `${Math.min(100, Math.max(0, option.percentage))}%`,
+                                }}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     return (
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
             <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:px-6">
@@ -177,66 +415,8 @@ export function ResponseDistribution({
                 </p>
 
                 {hasDistribution ? (
-                    <div className="space-y-4">
-                        {distribution.map(
-                            (
-                                option,
-                                index,
-                            ) => (
-                                <div
-                                    key={
-                                        option.key
-                                    }
-                                >
-                                    <div className="mb-2 flex items-center justify-between gap-4">
-                                        <div className="flex min-w-0 items-center gap-3">
-                                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                                                {getQuestionOptionLabel(
-                                                    index,
-                                                )}
-                                            </span>
-
-                                            <span className="truncate text-sm font-semibold text-slate-700 dark:text-slate-200">
-                                                {
-                                                    option.label
-                                                }
-                                            </span>
-                                        </div>
-
-                                        <div className="flex shrink-0 items-center gap-3">
-                                            <span className="text-xs font-medium text-slate-400">
-                                                {
-                                                    option.count
-                                                }
-                                            </span>
-
-                                            <span className="min-w-[42px] text-right text-sm font-bold text-slate-900 dark:text-slate-100">
-                                                {formatPercentage(
-                                                    option.percentage,
-                                                )}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-                                        <div
-                                            className="h-full rounded-full bg-indigo-600 transition-all duration-500 dark:bg-indigo-400"
-                                            style={{
-                                                width: `${Math.min(
-                                                    100,
-                                                    Math.max(
-                                                        0,
-                                                        option.percentage,
-                                                    ),
-                                                )}%`,
-                                            }}
-                                        />
-                                    </div>
-                                </div>
-                            ),
-                        )}
-                    </div>
-                ) : (
+                    renderVisualization()
+: (
                     <div className="flex min-h-[220px] flex-col items-center justify-center text-center">
                         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-900">
                             <BarChart3 className="h-5 w-5" />
