@@ -7,6 +7,7 @@ import {
     ArrowUpDown,
     CheckCircle2,
     Clock3,
+    Eye,
     Search,
     Users,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import {
 import type {
     SessionParticipant,
     SessionResponse,
+    SessionQuestion,
 } from "./live-studio-types";
 
 type ParticipantFilter = "all" | "responded" | "waiting";
@@ -23,11 +25,15 @@ type SortDirection = "asc" | "desc";
 interface ResponseParticipantsProps {
     participants: SessionParticipant[];
     responses: SessionResponse[];
+    allResponses?: SessionResponse[];
+    questions?: SessionQuestion[];
 }
 
 export function ResponseParticipants({
     participants,
     responses,
+    allResponses = responses,
+    questions = [],
 }: ResponseParticipantsProps) {
     const [filter, setFilter] =
         useState<ParticipantFilter>("all");
@@ -36,6 +42,8 @@ export function ResponseParticipants({
         useState<SortKey>("roll_number");
     const [sortDirection, setSortDirection] =
         useState<SortDirection>("asc");
+    const [selectedParticipantId, setSelectedParticipantId] =
+        useState<string | null>(null);
 
     const responseByParticipant = useMemo(
         () =>
@@ -49,6 +57,13 @@ export function ResponseParticipants({
             ),
         [responses],
     );
+
+    const selectedParticipant = participants.find((participant) => participant.id === selectedParticipantId) ?? null;
+    const selectedResponses = selectedParticipant
+        ? allResponses.filter((response) => response.participant_id === selectedParticipant.id)
+            .sort((left, right) => new Date(right.submitted_at).getTime() - new Date(left.submitted_at).getTime())
+        : [];
+    const questionById = new Map(questions.map((question) => [question.id, question]));
 
     const counts = {
         all: participants.length,
@@ -253,12 +268,35 @@ export function ResponseParticipants({
                 })}
             </div>
 
+            {selectedParticipant ? (
+                <div className="mt-5 overflow-hidden rounded-2xl border border-indigo-100 bg-indigo-50/40 dark:border-indigo-900/50 dark:bg-indigo-950/10">
+                    <div className="flex items-start justify-between gap-4 border-b border-indigo-100 px-4 py-3 dark:border-indigo-900/50">
+                        <div>
+                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{selectedParticipant.name || "Anonymous participant"}</p>
+                            <p className="mt-0.5 text-xs text-slate-500">Roll No. {selectedParticipant.roll_number ?? "—"} · {selectedResponses.length} response{selectedResponses.length === 1 ? "" : "s"}</p>
+                        </div>
+                        <button type="button" onClick={() => setSelectedParticipantId(null)} className="text-xs font-semibold text-indigo-600">Close</button>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto divide-y divide-indigo-100 dark:divide-indigo-900/40">
+                        {selectedResponses.length > 0 ? selectedResponses.map((response) => {
+                            const question = questionById.get(response.question_id);
+                            return <div key={response.id} className="px-4 py-3">
+                                <p className="text-xs font-semibold text-slate-500">Question {question ? questions.findIndex((item) => item.id === question.id) + 1 : ""}</p>
+                                <p className="mt-1 line-clamp-1 text-sm text-slate-700 dark:text-slate-200">{question?.text || "Question unavailable"}</p>
+                                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs"><span className="font-semibold text-indigo-700 dark:text-indigo-300">Answer: {answerToString(response.answer)}</span><span className="text-slate-500">{new Date(response.submitted_at).toLocaleString()}</span></div>
+                            </div>;
+                        }) : <div className="px-4 py-8 text-center text-sm text-slate-500">No responses from this participant yet.</div>}
+                    </div>
+                </div>
+            ) : null}
+
             <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
-                <div className="grid grid-cols-[minmax(130px,1.2fr)_minmax(90px,.7fr)_minmax(140px,1.5fr)_auto] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:bg-slate-900/50">
+                <div className="grid grid-cols-[minmax(130px,1.2fr)_minmax(90px,.7fr)_minmax(140px,1.5fr)_auto_auto] gap-4 border-b border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 dark:border-slate-800 dark:bg-slate-900/50">
                     <SortHeader label="Participant" column="name" />
                     <SortHeader label="Roll No." column="roll_number" />
                     <SortHeader label="Answer" column="answer" />
                     <SortHeader label="Submitted" column="submitted_at" />
+                    <span>Details</span>
                 </div>
 
                 {sortedParticipants.length > 0 ? (
@@ -310,6 +348,9 @@ export function ResponseParticipants({
                                               })
                                             : "—"}
                                     </span>
+                                    <button type="button" onClick={() => setSelectedParticipantId(participant.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/40" title="View all responses" aria-label="View all responses">
+                                        <Eye className="h-4 w-4" />
+                                    </button>
                                 </div>
                             );
                         })}
