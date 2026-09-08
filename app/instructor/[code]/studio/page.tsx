@@ -366,6 +366,64 @@ export default function LiveStudioPage() {
         router.back();
     }, [router]);
 
+    const handlePauseSession = useCallback(async () => {
+        if (!session || session.status === "completed") return;
+        try {
+            await updateSession({
+                status: "paused",
+                paused_at: new Date().toISOString(),
+            });
+            showNotice("success", "The session is paused. Participants cannot submit responses until it is resumed.", "Session Paused");
+        } catch (error) {
+            showNotice("error", error instanceof Error ? error.message : "Unable to pause the session.", "Update Failed");
+        }
+    }, [session, updateSession, showNotice]);
+
+    const handleResumeSession = useCallback(async () => {
+        if (!session || session.status === "completed") return;
+        try {
+            await updateSession({
+                status: "live",
+                paused_at: null,
+            });
+            showNotice("success", "The session is live again and can accept responses.", "Session Resumed");
+        } catch (error) {
+            showNotice("error", error instanceof Error ? error.message : "Unable to resume the session.", "Update Failed");
+        }
+    }, [session, updateSession, showNotice]);
+
+    const handleEndSession = useCallback(async () => {
+        if (!session || session.status === "completed") return;
+        const confirmed = window.confirm(
+            "End this session? Participants will no longer be able to submit responses. You can still reopen this Studio later to review all collected data.",
+        );
+        if (!confirmed) return;
+
+        const now = new Date().toISOString();
+        try {
+            if (session.active_question_id) {
+                await updateQuestion(session.active_question_id, {
+                    status: "closed",
+                    closed_at: now,
+                });
+            }
+
+            await updateSession({
+                status: "completed",
+                ended_at: now,
+                active_question_id: null,
+                student_display_type: "waiting",
+                student_question_id: null,
+                projector_display_type: "waiting",
+                projector_question_id: null,
+            });
+
+            showNotice("success", "The session has ended. It is now available in review mode only.", "Session Ended");
+        } catch (error) {
+            showNotice("error", error instanceof Error ? error.message : "Unable to end the session.", "End Failed");
+        }
+    }, [session, updateQuestion, updateSession, showNotice]);
+
     const handleTabChange =
         useCallback(
             (tab: StudioTab) => {
@@ -403,7 +461,10 @@ export default function LiveStudioPage() {
         async (
             questionId: string | null,
         ) => {
-            if (!session?.id) {
+            if (!session?.id || session.status === "completed") {
+                if (session?.status === "completed") {
+                    showNotice("error", "This session has ended and is now in review mode.", "Session Ended");
+                }
                 return;
             }
 
@@ -515,6 +576,7 @@ export default function LiveStudioPage() {
             session?.id,
             session?.active_question_id,
             session?.started_at,
+            session?.status,
             questions,
             showNotice,
             updateQuestion,
@@ -889,6 +951,10 @@ export default function LiveStudioPage() {
     onOpenSettings={() =>
         setSettingsOpen(true)
     }
+    isUpdating={isSettingsSaving}
+    onPauseSession={handlePauseSession}
+    onResumeSession={handleResumeSession}
+    onEndSession={handleEndSession}
 />
             <LiveStudioTabs
     activeTab={activeTab}
