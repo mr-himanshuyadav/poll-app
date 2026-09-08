@@ -273,15 +273,13 @@ export function QuestionsWorkspace({
                         isUpdating={
                             isUpdating
                         }
-                        onSelectQuestion={
-                            handleSelectQuestion
-                        }
-                        onActivateQuestion={
-                            onActivateQuestion
-                        }
-                        onReorderQuestions={
-                            onReorderQuestions
-                        }
+                        onSelectQuestion={handleSelectQuestion}
+                        onActivateQuestion={async (question) => {
+                            await onActivateQuestion(question);
+                        }}
+                        onReorderQuestions={onReorderQuestions ? async (questions) => {
+                            await onReorderQuestions(questions);
+                        } : undefined}
                     />
                 </aside>
 
