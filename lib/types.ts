@@ -82,7 +82,13 @@ export interface QuestionConfig {
   /** Optional label for every numeric scale value, indexed by value. */
   scaleLabels?: Record<string, string>;
   /** Presentation mode for a numeric scale. */
-  scalePreset?: "numeric" | "agreement" | "satisfaction" | "custom";
+  scalePreset?:
+    | "numeric"
+    | "agreement"
+    | "satisfaction"
+    | "frequency"
+    | "quality"
+    | "custom";
   [key: string]: unknown;
 }
 
