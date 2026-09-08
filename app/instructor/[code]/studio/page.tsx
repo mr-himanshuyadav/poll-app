@@ -686,12 +686,17 @@ export default function LiveStudioPage() {
 
     const handleRequestShowResults =
         useCallback(
-            (target: "students" | "both" = "students") => {
+            (target?: "students" | "both") => {
+                const resolvedTarget =
+                    target ??
+                    (session?.default_result_visibility === "both"
+                        ? "both"
+                        : "students");
                 if (!viewedQuestion) {
                     return;
                 }
 
-                setPendingResultsTarget(target);
+                setPendingResultsTarget(resolvedTarget);
 
                 if (activeQuestion) {
                     setPendingResultsQuestion(viewedQuestion);
@@ -702,12 +707,13 @@ export default function LiveStudioPage() {
                     viewedQuestion,
                     {
                         closeQuestion: true,
-                        showOnProjector: target === "both",
+                        showOnProjector: resolvedTarget === "both",
                     },
                 );
             },
             [
                 activeQuestion,
+                session?.default_result_visibility,
                 showResultsToStudents,
                 viewedQuestion,
             ],
