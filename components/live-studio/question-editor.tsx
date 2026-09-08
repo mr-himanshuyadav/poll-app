@@ -37,939 +37,102 @@ import type {
 
 interface QuestionEditorProps {
     mode: "create" | "edit";
-
     sessionId: string;
-
     question?: SessionQuestion | null;
-
     isSaving?: boolean;
-
-    onSave: (
-        question: Partial<SessionQuestion>,
-    ) => Promise<void> | void;
-
+    sessionResultsMode?: Exclude<ResultsMode, "default">;
+    onSave: (question: Partial<SessionQuestion>) => Promise<void> | void;
     onDelete?: () => Promise<void> | void;
-
     onCancel?: () => void;
-    hideResultsVisibility?: boolean;
 }
 
-const QUESTION_TYPES: Array<{
-    value: QuestionType;
-    title: string;
-    description: string;
-}> = [
-    {
-        value: "multiple_choice",
-        title: "Multiple Choice",
-        description:
-            "Participants choose one option.",
-    },
-    {
-        value: "scale",
-        title: "Scale",
-        description:
-            "Participants select a value from a range.",
-    },
+const QUESTION_TYPES: Array<{ value: QuestionType; title: string; description: string }> = [
+    { value: "multiple_choice", title: "Multiple Choice", description: "Participants choose one option." },
+    { value: "scale", title: "Scale", description: "Participants select a value from a range." },
 ];
 
-const RESULTS_MODES: Array<{
-    value: ResultsMode;
-    title: string;
-    description: string;
-}> = [
-    {
-        value: "live",
-        title: "Live",
-        description:
-            "Show results automatically.",
-    },
-    {
-        value: "on_command",
-        title: "Manual",
-        description:
-            "Reveal results when you are ready.",
-    },
-    {
-        value: "hidden",
-        title: "Hidden",
-        description:
-            "Keep results hidden from participants.",
-    },
+const RESULTS_MODES: Array<{ value: ResultsMode; title: string; description: string }> = [
+    { value: "default", title: "Default", description: "Follow the session's result mode." },
+    { value: "live", title: "Live", description: "Show results automatically for this question." },
+    { value: "on_command", title: "On command", description: "Reveal results when you are ready." },
+    { value: "hidden", title: "Hidden", description: "Keep results hidden for this question." },
 ];
 
-function createOption(
-    value = "",
-): QuestionFormOption {
-    return {
-        id: crypto.randomUUID(),
-        value,
-    };
+function createOption(value = ""): QuestionFormOption {
+    return { id: crypto.randomUUID(), value };
 }
-
-function getNumberConfig(
-    value: unknown,
-    fallback: number,
-): number {
-    if (
-        typeof value === "number" &&
-        Number.isFinite(value)
-    ) {
-        return value;
-    }
-
-    if (
-        typeof value === "string"
-    ) {
-        const parsed =
-            Number(value);
-
-        if (
-            Number.isFinite(parsed)
-        ) {
-            return parsed;
-        }
-    }
-
+function getNumberConfig(value: unknown, fallback: number): number {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") { const parsed = Number(value); if (Number.isFinite(parsed)) return parsed; }
     return fallback;
 }
-
-function getStringConfig(
-    value: unknown,
-): string {
-    return typeof value === "string"
-        ? value
-        : "";
-}
-
-function getInitialFormState(
-    question?: SessionQuestion | null,
-): QuestionFormState {
-    const questionType =
-        question?.type ??
-        "multiple_choice";
-
-    const options =
-        question?.options &&
-        question.options.length > 0
-            ? question.options.map(
-                  (option) =>
-                      createOption(option),
-              )
-            : [
-                  createOption(),
-                  createOption(),
-              ];
-
+function getStringConfig(value: unknown): string { return typeof value === "string" ? value : ""; }
+function getInitialFormState(question?: SessionQuestion | null): QuestionFormState {
     return {
-        question:
-            question?.text ?? "",
-
-        questionType,
-
-        options,
-
-        scaleMin:
-            getNumberConfig(
-                question?.config?.min,
-                1,
-            ),
-
-        scaleMax:
-            getNumberConfig(
-                question?.config?.max,
-                5,
-            ),
-
-        scaleMinLabel:
-            getStringConfig(
-                question?.config?.minLabel,
-            ),
-
-        scaleMaxLabel:
-            getStringConfig(
-                question?.config?.maxLabel,
-            ),
-
-        scaleLabels:
-            (question?.config?.scaleLabels as Record<string, string> | undefined) ?? {},
-
-        scalePreset:
-            (question?.config?.scalePreset as QuestionFormState["scalePreset"] | undefined) ?? "numeric",
-
-        resultsMode:
-            question?.results_mode ??
-            "on_command",
+        question: question?.text ?? "",
+        questionType: question?.type ?? "multiple_choice",
+        options: question?.options?.length ? question.options.map((option) => createOption(option)) : [createOption(), createOption()],
+        scaleMin: getNumberConfig(question?.config?.min, 1),
+        scaleMax: getNumberConfig(question?.config?.max, 5),
+        scaleMinLabel: getStringConfig(question?.config?.minLabel),
+        scaleMaxLabel: getStringConfig(question?.config?.maxLabel),
+        scaleLabels: (question?.config?.scaleLabels as Record<string, string> | undefined) ?? {},
+        scalePreset: (question?.config?.scalePreset as QuestionFormState["scalePreset"] | undefined) ?? "numeric",
+        resultsMode: question?.results_mode ?? "default",
     };
 }
 
 const SCALE_PRESETS = SCALE_PRESET_LABELS;
-
-const SCALE_PRESET_OPTIONS: Array<{
-    value: ScalePreset;
-    title: string;
-    description: string;
-}> = [
-    {
-        value: "numeric",
-        title: "Numeric range",
-        description: "Use values such as 1–5 or 1–10 without meanings.",
-    },
-    {
-        value: "agreement",
-        title: "Agreement",
-        description: "Strongly disagree → Strongly agree.",
-    },
-    {
-        value: "satisfaction",
-        title: "Satisfaction",
-        description: "Very dissatisfied → Very satisfied.",
-    },
-    {
-        value: "frequency",
-        title: "Frequency",
-        description: "Never → Always.",
-    },
-    {
-        value: "quality",
-        title: "Quality",
-        description: "Very poor → Excellent.",
-    },
-    {
-        value: "custom",
-        title: "Custom labels",
-        description: "Define the meaning of every value yourself.",
-    },
+const SCALE_PRESET_OPTIONS: Array<{ value: ScalePreset; title: string; description: string }> = [
+    { value: "numeric", title: "Numeric range", description: "Use values such as 1–5 or 1–10 without meanings." },
+    { value: "agreement", title: "Agreement", description: "Strongly disagree → Strongly agree." },
+    { value: "satisfaction", title: "Satisfaction", description: "Very dissatisfied → Very satisfied." },
+    { value: "frequency", title: "Frequency", description: "Never → Always." },
+    { value: "quality", title: "Quality", description: "Very poor → Excellent." },
+    { value: "custom", title: "Custom labels", description: "Define the meaning of every value yourself." },
 ];
 
-
-export function QuestionEditor({
-    mode,
-    sessionId,
-    question,
-    isSaving = false,
-    onSave,
-    onDelete,
-    onCancel,
-    hideResultsVisibility = false,
-}: QuestionEditorProps) {
-    const [form, setForm] =
-        useState<QuestionFormState>(() =>
-            getInitialFormState(question),
-        );
-
-    const [
-        showDeleteConfirm,
-        setShowDeleteConfirm,
-    ] = useState(false);
-
-    useEffect(() => {
-        setForm(
-            getInitialFormState(
-                question,
-            ),
-        );
-
-        setShowDeleteConfirm(false);
-    }, [question?.id]);
-
-    const isMultipleChoice =
-        form.questionType ===
-        "multiple_choice";
-
-    const isScale =
-        form.questionType ===
-        "scale";
-
-    const validOptions = useMemo(
-        () =>
-            form.options.filter(
-                (option) =>
-                    option.value.trim()
-                        .length > 0,
-            ),
-        [form.options],
-    );
-
-    const scalePreview = useMemo(
-        () =>
-            resolveScaleConfig({
-                min: form.scaleMin,
-                max: form.scaleMax,
-                minLabel: form.scaleMinLabel,
-                maxLabel: form.scaleMaxLabel,
-                scaleLabels: form.scaleLabels,
-                scalePreset: form.scalePreset,
-            } as QuestionConfig),
-        [
-            form.scaleLabels,
-            form.scaleMax,
-            form.scaleMaxLabel,
-            form.scaleMin,
-            form.scaleMinLabel,
-            form.scalePreset,
-        ],
-    );
-
-    const isValid = useMemo(() => {
-        if (
-            !form.question.trim()
-        ) {
-            return false;
-        }
-
-        if (isMultipleChoice) {
-            return (
-                validOptions.length >= 2
-            );
-        }
-
-        if (isScale) {
-            return (
-                Number.isFinite(
-                    form.scaleMin,
-                ) &&
-                Number.isFinite(
-                    form.scaleMax,
-                ) &&
-                form.scaleMin <
-                    form.scaleMax
-            );
-        }
-
-        return true;
-    }, [
-        form.question,
-        form.scaleMax,
-        form.scaleMin,
-        isMultipleChoice,
-        isScale,
-        validOptions.length,
-    ]);
-
-    const updateForm = (
-        updates: Partial<QuestionFormState>,
-    ) => {
-        setForm((current) => ({
-            ...current,
-            ...updates,
-        }));
-    };
-
-    const handleAddOption = () => {
-        updateForm({
-            options: [
-                ...form.options,
-                createOption(),
-            ],
-        });
-    };
-
-    const handleRemoveOption = (
-        optionId: string,
-    ) => {
-        if (
-            form.options.length <= 2
-        ) {
-            return;
-        }
-
-        updateForm({
-            options:
-                form.options.filter(
-                    (option) =>
-                        option.id !==
-                        optionId,
-                ),
-        });
-    };
-
-    const handleUpdateOption = (
-        optionId: string,
-        value: string,
-    ) => {
-        updateForm({
-            options:
-                form.options.map(
-                    (option) =>
-                        option.id ===
-                        optionId
-                            ? {
-                                  ...option,
-                                  value,
-                              }
-                            : option,
-                ),
-        });
-    };
-
-    const handleQuestionTypeChange = (
-        questionType: QuestionType,
-    ) => {
-        updateForm({
-            questionType,
-        });
-    };
-
-    const handleResultsModeChange = (
-        resultsMode: ResultsMode,
-    ) => {
-        updateForm({
-            resultsMode,
-        });
-    };
-
+export function QuestionEditor({ mode, sessionId, question, isSaving = false, sessionResultsMode = "on_command", onSave, onDelete, onCancel }: QuestionEditorProps) {
+    const [form, setForm] = useState<QuestionFormState>(() => getInitialFormState(question));
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    useEffect(() => { setForm(getInitialFormState(question)); setShowDeleteConfirm(false); }, [question?.id]);
+    const isMultipleChoice = form.questionType === "multiple_choice";
+    const isScale = form.questionType === "scale";
+    const validOptions = useMemo(() => form.options.filter((option) => option.value.trim().length > 0), [form.options]);
+    const scalePreview = useMemo(() => resolveScaleConfig({ min: form.scaleMin, max: form.scaleMax, minLabel: form.scaleMinLabel, maxLabel: form.scaleMaxLabel, scaleLabels: form.scaleLabels, scalePreset: form.scalePreset } as QuestionConfig), [form.scaleLabels, form.scaleMax, form.scaleMaxLabel, form.scaleMin, form.scaleMinLabel, form.scalePreset]);
+    const effectiveResultsMode = form.resultsMode === "default" ? sessionResultsMode : form.resultsMode;
+    const sessionHidesResults = sessionResultsMode === "hidden";
+    const isValid = useMemo(() => !!form.question.trim() && (!isMultipleChoice ? (!isScale || (Number.isFinite(form.scaleMin) && Number.isFinite(form.scaleMax) && form.scaleMin < form.scaleMax)) : validOptions.length >= 2), [form.question, form.scaleMax, form.scaleMin, isMultipleChoice, isScale, validOptions.length]);
+    const updateForm = (updates: Partial<QuestionFormState>) => setForm((current) => ({ ...current, ...updates }));
+    const applyPreset = (preset: ScalePreset) => updateForm({ scalePreset: preset, scaleMin: preset === "numeric" ? form.scaleMin : 1, scaleMax: preset === "numeric" ? form.scaleMax : 5, scaleLabels: preset === "custom" ? form.scaleLabels : { ...SCALE_PRESETS[preset] } });
     const handleSave = async () => {
-        if (!isValid) {
-            return;
-        }
-
-        const cleanOptions =
-            validOptions.map(
-                (option) =>
-                    option.value.trim(),
-            );
-
-        const existingConfig =
-            question?.config ?? {};
-
-        const payload: Partial<SessionQuestion> =
-            {
-                session_id:
-                    sessionId,
-
-                text:
-                    form.question.trim(),
-
-                type:
-                    form.questionType,
-
-                options:
-                    isMultipleChoice
-                        ? cleanOptions
-                        : [],
-
-                config:
-                    isScale
-                        ? {
-                              ...existingConfig,
-
-                              min:
-                                  Number(
-                                      form.scaleMin,
-                                  ),
-
-                              max:
-                                  Number(
-                                      form.scaleMax,
-                                  ),
-
-                              minLabel:
-                                  form.scaleMinLabel.trim(),
-
-                              maxLabel:
-                                  form.scaleMaxLabel.trim(),
-
-                              scaleLabels:
-                                  form.scaleLabels,
-
-                              scalePreset:
-                                  form.scalePreset,
-                          }
-                        : {
-                              ...existingConfig,
-                          },
-
-                results_mode:
-                    form.resultsMode,
-            };
-
-        await onSave(payload);
-    };
-
-    const handleDelete = async () => {
-        if (!onDelete) {
-            return;
-        }
-
-        await onDelete();
-
-        setShowDeleteConfirm(false);
+        if (!isValid) return;
+        const existingConfig = question?.config ?? {};
+        await onSave({ session_id: sessionId, text: form.question.trim(), type: form.questionType, options: isMultipleChoice ? validOptions.map((option) => option.value.trim()) : [], config: isScale ? { ...existingConfig, min: Number(form.scaleMin), max: Number(form.scaleMax), minLabel: form.scaleMinLabel.trim(), maxLabel: form.scaleMaxLabel.trim(), scaleLabels: form.scaleLabels, scalePreset: form.scalePreset } : { ...existingConfig }, results_mode: form.resultsMode });
     };
 
     return (
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
             <div className="flex flex-col gap-4 border-b border-slate-200 px-5 py-5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-                <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                        Question Editor
-                    </p>
-
-                    <h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-slate-50">
-                        {mode === "create"
-                            ? "Create Question"
-                            : "Edit Question"}
-                    </h2>
-                </div>
-
+                <div><p className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Question Editor</p><h2 className="mt-1 text-xl font-bold text-slate-950 dark:text-slate-50">{mode === "create" ? "Create Question" : "Edit Question"}</h2></div>
                 <div className="flex flex-wrap gap-2">
-                    {mode === "edit" &&
-                    onDelete ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={isSaving}
-                            onClick={() =>
-                                setShowDeleteConfirm(
-                                    true,
-                                )
-                            }
-                        >
-                            <Trash2 className="mr-2 h-4 w-4" />
-
-                            Delete
-                        </Button>
-                    ) : null}
-
-                    {mode === "create" &&
-                    onCancel ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={isSaving}
-                            onClick={onCancel}
-                        >
-                            <X className="mr-2 h-4 w-4" />
-
-                            Cancel
-                        </Button>
-                    ) : null}
-
-                    <Button
-                        type="button"
-                        size="sm"
-                        disabled={
-                            !isValid ||
-                            isSaving
-                        }
-                        onClick={handleSave}
-                    >
-                        <Save className="mr-2 h-4 w-4" />
-
-                        {isSaving
-                            ? "Saving..."
-                            : mode === "create"
-                              ? "Create Question"
-                              : "Save Changes"}
-                    </Button>
+                    {mode === "edit" && onDelete ? <Button type="button" variant="outline" size="sm" disabled={isSaving} onClick={() => setShowDeleteConfirm(true)}><Trash2 className="mr-2 h-4 w-4" />Delete</Button> : null}
+                    {mode === "create" && onCancel ? <Button type="button" variant="outline" size="sm" disabled={isSaving} onClick={onCancel}><X className="mr-2 h-4 w-4" />Cancel</Button> : null}
+                    <Button type="button" size="sm" disabled={!isValid || isSaving} onClick={handleSave}><Save className="mr-2 h-4 w-4" />{isSaving ? "Saving..." : mode === "create" ? "Create Question" : "Save Changes"}</Button>
                 </div>
             </div>
 
             <div className="space-y-8 p-5 sm:p-6">
-                <div>
-                    <Label
-                        htmlFor="question-content"
-                        className="text-sm font-bold"
-                    >
-                        Question
-                    </Label>
+                <div><Label htmlFor="question-content" className="text-sm font-bold">Question</Label><textarea id="question-content" value={form.question} onChange={(e) => updateForm({ question: e.target.value })} rows={4} className="mt-2 flex w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-indigo-700 dark:focus:ring-indigo-950" placeholder="Write your question..." /></div>
 
-                    <textarea
-                        id="question-content"
-                        value={form.question}
-                        onChange={(event) =>
-                            updateForm({
-                                question:
-                                    event.target
-                                        .value,
-                            })
-                        }
-                        placeholder="Write your question..."
-                        rows={4}
-                        className="mt-2 flex w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:focus:border-indigo-700 dark:focus:ring-indigo-950"
-                    />
-                </div>
+                <div><Label className="text-sm font-bold">Question Type</Label><div className="mt-3 grid gap-3 sm:grid-cols-2">{QUESTION_TYPES.map((item) => <button key={item.value} type="button" onClick={() => updateForm({ questionType: item.value })} className={["rounded-xl border p-4 text-left transition", form.questionType === item.value ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40" : "border-slate-200 hover:border-slate-300 dark:border-slate-800"].join(" ")}><div className="flex items-center gap-2">{item.value === "scale" ? <BarChart3 className="h-4 w-4 text-indigo-500" /> : null}<p className="text-sm font-bold">{item.title}</p></div><p className="mt-1 text-xs leading-5 text-slate-500">{item.description}</p></button>)}</div></div>
 
-                <div>
-                    <Label className="text-sm font-bold">
-                        Question Type
-                    </Label>
+                {isMultipleChoice ? <div><Label className="text-sm font-bold">Answer Options</Label><div className="mt-4 space-y-3">{form.options.map((option, index) => <div key={option.id} className="flex gap-2"><Input value={option.value} onChange={(e) => updateForm({ options: form.options.map((item) => item.id === option.id ? { ...item, value: e.target.value } : item) })} placeholder={`Option ${index + 1}`} />{form.options.length > 2 ? <Button type="button" variant="ghost" size="icon" onClick={() => updateForm({ options: form.options.filter((item) => item.id !== option.id) })}><Trash2 className="h-4 w-4" /></Button> : null}</div>)}</div><Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => updateForm({ options: [...form.options, createOption()] })}><Plus className="mr-1 h-4 w-4" />Add Option</Button></div> : null}
 
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        {QUESTION_TYPES.map(
-                            (
-                                typeOption,
-                            ) => {
-                                const isSelected =
-                                    form.questionType ===
-                                    typeOption.value;
+                {isScale ? <div className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/30"><div><Label className="text-sm font-bold">Scale Configuration</Label><p className="mt-1 text-xs text-slate-500">Configure numeric values separately from their participant-facing meaning.</p></div><div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{SCALE_PRESET_OPTIONS.map((preset) => <button key={preset.value} type="button" onClick={() => applyPreset(preset.value)} className={["rounded-xl border p-3 text-left transition", form.scalePreset === preset.value ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300" : "border-slate-200 bg-white text-slate-700 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300"].join(" ")}><span className="block text-xs font-bold">{preset.title}</span><span className="mt-1 block text-[11px] leading-4 opacity-70">{preset.description}</span></button>)}</div><div className="grid gap-4 sm:grid-cols-2"><div><Label>Minimum value</Label><Input type="number" value={form.scaleMin} onChange={(e) => updateForm({ scaleMin: Number(e.target.value), scalePreset: "custom" })} className="mt-1.5" /></div><div><Label>Maximum value</Label><Input type="number" value={form.scaleMax} onChange={(e) => updateForm({ scaleMax: Number(e.target.value), scalePreset: "custom" })} className="mt-1.5" /></div></div>{scalePreview.values.length <= 20 ? <div><div className="mb-3 flex items-center justify-between"><Label className="text-sm font-bold">Value labels</Label><span className="text-xs text-slate-500">Optional</span></div><div className="grid gap-2 sm:grid-cols-2">{scalePreview.values.map((item) => <div key={item.value} className="flex items-center gap-3"><span className="flex h-9 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">{item.value}</span><Input value={form.scaleLabels[String(item.value)] ?? ""} placeholder={item.label ?? "Optional label"} onChange={(e) => updateForm({ scalePreset: "custom", scaleLabels: { ...form.scaleLabels, [String(item.value)]: e.target.value } })} /></div>)}</div></div> : null}</div> : null}
 
-                                return (
-                                    <button
-                                        key={
-                                            typeOption.value
-                                        }
-                                        type="button"
-                                        onClick={() =>
-                                            handleQuestionTypeChange(
-                                                typeOption.value,
-                                            )
-                                        }
-                                        className={[
-                                            "rounded-xl border p-4 text-left transition",
-                                            isSelected
-                                                ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40"
-                                                : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
-                                        ].join(
-                                            " ",
-                                        )}
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            {typeOption.value ===
-                                            "scale" ? (
-                                                <BarChart3 className="h-4 w-4 text-indigo-500" />
-                                            ) : null}
-
-                                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                                                {
-                                                    typeOption.title
-                                                }
-                                            </p>
-                                        </div>
-
-                                        <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                                            {
-                                                typeOption.description
-                                            }
-                                        </p>
-                                    </button>
-                                );
-                            },
-                        )}
-                    </div>
-                </div>
-
-                {isMultipleChoice ? (
-                    <div>
-                        <div className="flex items-center justify-between gap-4">
-                            <div>
-                                <Label className="text-sm font-bold">
-                                    Answer Options
-                                </Label>
-
-                                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                    Add at least two
-                                    options.
-                                </p>
-                            </div>
-
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={
-                                    handleAddOption
-                                }
-                            >
-                                <Plus className="mr-1.5 h-4 w-4" />
-
-                                Add Option
-                            </Button>
-                        </div>
-
-                        <div className="mt-4 space-y-3">
-                            {form.options.map(
-                                (
-                                    option,
-                                    index,
-                                ) => (
-                                    <div
-                                        key={
-                                            option.id
-                                        }
-                                        className="flex items-center gap-3"
-                                    >
-                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-bold text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-                                            {String.fromCharCode(
-                                                65 +
-                                                    index,
-                                            )}
-                                        </div>
-
-                                        <Input
-                                            value={
-                                                option.value
-                                            }
-                                            onChange={(
-                                                event,
-                                            ) =>
-                                                handleUpdateOption(
-                                                    option.id,
-                                                    event
-                                                        .target
-                                                        .value,
-                                                )
-                                            }
-                                            placeholder={`Option ${
-                                                index +
-                                                1
-                                            }`}
-                                        />
-
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="icon"
-                                            disabled={
-                                                form
-                                                    .options
-                                                    .length <=
-                                                2
-                                            }
-                                            onClick={() =>
-                                                handleRemoveOption(
-                                                    option.id,
-                                                )
-                                            }
-                                        >
-                                            <Trash2 className="h-4 w-4 text-slate-400" />
-
-                                            <span className="sr-only">
-                                                Remove
-                                                option
-                                            </span>
-                                        </Button>
-                                    </div>
-                                ),
-                            )}
-                        </div>
-                    </div>
-                ) : null}
-
-                {isScale ? (() => {
-                    const values = Array.from(
-                        { length: Math.max(0, form.scaleMax - form.scaleMin + 1) },
-                        (_, index) => form.scaleMin + index,
-                    );
-
-                    const applyPreset = (
-                        preset: "numeric" | "agreement" | "satisfaction" | "custom",
-                    ) => {
-                        const labels = preset === "custom"
-                            ? form.scaleLabels
-                            : { ...SCALE_PRESETS[preset] };
-
-                        updateForm({
-                            scalePreset: preset,
-                            scaleMin: preset === "numeric" ? form.scaleMin : 1,
-                            scaleMax: preset === "numeric" ? form.scaleMax : 5,
-                            scaleLabels: labels,
-                        });
-                    };
-
-                    return (
-                    <div className="space-y-5 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-900/30">
-                        <div>
-                            <Label className="text-sm font-bold">Scale Configuration</Label>
-                            <p className="mt-1 text-xs text-slate-500">Values are stored as numbers. Labels are only the participant-facing meaning, so analytics can still filter and calculate by value.</p>
-                        </div>
-
-                        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                            {SCALE_PRESET_OPTIONS.map((preset) => (
-                                <button
-                                    key={preset.value}
-                                    type="button"
-                                    onClick={() => applyPreset(preset.value)}
-                                    className={[
-                                        "rounded-xl border p-3 text-left transition",
-                                        form.scalePreset === preset.value
-                                            ? "border-indigo-400 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
-                                            : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300",
-                                    ].join(" ")}
-                                >
-                                    <span className="block text-xs font-bold">
-                                        {preset.title}
-                                    </span>
-                                    <span className="mt-1 block text-[11px] leading-4 opacity-70">
-                                        {preset.description}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div><Label htmlFor="scale-min" className="text-xs text-slate-500">Minimum value</Label><Input id="scale-min" type="number" value={form.scaleMin} onChange={(event) => updateForm({ scaleMin: Number(event.target.value), scalePreset: "custom" })} className="mt-1.5" /></div>
-                            <div><Label htmlFor="scale-max" className="text-xs text-slate-500">Maximum value</Label><Input id="scale-max" type="number" value={form.scaleMax} onChange={(event) => updateForm({ scaleMax: Number(event.target.value), scalePreset: "custom" })} className="mt-1.5" /></div>
-                        </div>
-
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 dark:border-slate-700 dark:bg-slate-950">
-                            <div className="mb-3 flex items-center justify-between gap-3">
-                                <div>
-                                    <Label className="text-sm font-bold">Participant preview</Label>
-                                    <p className="mt-1 text-xs text-slate-500">
-                                        This is how the configured scale will be interpreted by participants.
-                                    </p>
-                                </div>
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:bg-slate-900">
-                                    {scalePreview.preset}
-                                </span>
-                            </div>
-
-                            {(scalePreview.minLabel || scalePreview.maxLabel) && (
-                                <div className="mb-3 flex justify-between gap-4 text-xs font-semibold text-slate-500">
-                                    <span>{scalePreview.minLabel}</span>
-                                    <span className="text-right">{scalePreview.maxLabel}</span>
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
-                                {scalePreview.values.slice(0, 10).map((item) => (
-                                    <div
-                                        key={item.value}
-                                        className="min-h-[54px] rounded-lg border border-slate-200 px-2 py-2 text-center dark:border-slate-800"
-                                    >
-                                        <span className="block text-sm font-black">{item.value}</span>
-                                        {item.label ? (
-                                            <span className="mt-1 block text-[10px] leading-tight text-slate-500">
-                                                {item.label}
-                                            </span>
-                                        ) : null}
-                                    </div>
-                                ))}
-                            </div>
-
-                            {scalePreview.values.length > 10 ? (
-                                <p className="mt-3 text-center text-xs text-slate-500">
-                                    Preview shows the first 10 of {scalePreview.values.length} values.
-                                </p>
-                            ) : null}
-                        </div>
-
-                        {values.length > 0 && values.length <= 20 ? (
-                            <div>
-                                <div className="mb-3 flex items-center justify-between"><Label className="text-sm font-bold">Value labels</Label><span className="text-xs text-slate-500">Optional — blank labels show the numeric value</span></div>
-                                <div className="grid gap-2 sm:grid-cols-2">
-                                    {values.map((value) => {
-                                        const key = String(value);
-                                        return <div key={key} className="flex items-center gap-3"><span className="flex h-9 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-xs font-black text-slate-600 dark:bg-slate-800 dark:text-slate-300">{value}</span><Input value={form.scaleLabels[key] ?? ""} placeholder={value === form.scaleMin ? "e.g. Strongly disagree" : value === form.scaleMax ? "e.g. Strongly agree" : "Optional label"} onChange={(event) => updateForm({ scalePreset: "custom", scaleLabels: { ...form.scaleLabels, [key]: event.target.value } })} /></div>;
-                                    })}
-                                </div>
-                            </div>
-                        ) : values.length > 20 ? <p className="text-xs text-amber-600">For ranges above 20 values, labels are intentionally hidden to keep the editor manageable.</p> : null}
-                    </div>
-                    );
-                })() : null}
-
-                {!hideResultsVisibility ? (
-                <div>
-                        <Label className="text-sm font-bold">
-                            Results Visibility
-                        </Label>
-    
-                        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                            {RESULTS_MODES.map(
-                                (
-                                    modeOption,
-                                ) => {
-                                    const isSelected =
-                                        form.resultsMode ===
-                                        modeOption.value;
-    
-                                    return (
-                                        <button
-                                            key={
-                                                modeOption.value
-                                            }
-                                            type="button"
-                                            onClick={() =>
-                                                handleResultsModeChange(
-                                                    modeOption.value,
-                                                )
-                                            }
-                                            className={[
-                                                "rounded-xl border p-3 text-left transition",
-                                                isSelected
-                                                    ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40"
-                                                    : "border-slate-200 hover:border-slate-300 dark:border-slate-800 dark:hover:border-slate-700",
-                                            ].join(
-                                                " ",
-                                            )}
-                                        >
-                                            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                                                {
-                                                    modeOption.title
-                                                }
-                                            </p>
-    
-                                            <p className="mt-1 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
-                                                {
-                                                    modeOption.description
-                                                }
-                                            </p>
-                                        </button>
-                                    );
-                                },
-                            )}
-                        </div>
-                    </div>
-    
-                ) : null}
+                <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"><div className="mb-3"><Label className="text-sm font-bold">Question Result Mode</Label><p className="mt-1 text-xs text-slate-500">The question can follow the session or override it.</p></div>{sessionHidesResults ? <div className="mb-3 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/20 dark:bg-amber-950/20 dark:text-amber-200"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><p>The session is currently set to hide results. That session setting overrides question settings. Change the session Results Mode to <strong>Live</strong> or <strong>On command</strong> to use question-specific settings.</p></div> : null}<div className="grid gap-2 sm:grid-cols-2">{RESULTS_MODES.map((option) => { const disabled = sessionHidesResults && option.value !== "default"; return <button key={option.value} type="button" disabled={disabled} onClick={() => updateForm({ resultsMode: option.value })} className={["rounded-xl border p-3 text-left transition", disabled ? "cursor-not-allowed opacity-40" : "", form.resultsMode === option.value ? "border-indigo-400 bg-indigo-50 dark:border-indigo-700 dark:bg-indigo-950/40" : "border-slate-200 dark:border-slate-800"].join(" ")}><span className="block text-sm font-bold">{option.title}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{option.description}</span></button>; })}</div><div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500 dark:bg-slate-900/60">Effective mode: <strong>{effectiveResultsMode === "on_command" ? "On command" : effectiveResultsMode === "live" ? "Live" : "Hidden"}</strong></div></div>
             </div>
-
-            {showDeleteConfirm ? (
-                <div className="border-t border-red-100 bg-red-50/60 p-5 dark:border-red-950/50 dark:bg-red-950/20 sm:p-6">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex gap-3">
-                            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
-
-                            <div>
-                                <p className="text-sm font-bold text-red-800 dark:text-red-300">
-                                    Delete this
-                                    question?
-                                </p>
-
-                                <p className="mt-1 text-xs leading-5 text-red-700/80 dark:text-red-400/80">
-                                    This action cannot
-                                    be undone.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                    setShowDeleteConfirm(
-                                        false,
-                                    )
-                                }
-                            >
-                                Cancel
-                            </Button>
-
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                disabled={
-                                    isSaving
-                                }
-                                onClick={
-                                    handleDelete
-                                }
-                            >
-                                <Trash2 className="mr-2 h-4 w-4" />
-
-                                Delete Question
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            ) : null}
         </section>
     );
 }
