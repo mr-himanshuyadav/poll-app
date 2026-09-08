@@ -50,6 +50,8 @@ interface LiveQuestionPanelProps {
 
     isUpdating?: boolean;
 
+    isCompleted?: boolean;
+
     onActivateQuestion: (
         question: SessionQuestion,
     ) => void;
@@ -112,6 +114,7 @@ export function LiveQuestionPanel({
     projectorResultsVisible = false,
     defaultResultVisibility = "both",
     isUpdating = false,
+    isCompleted = false,
     onActivateQuestion,
     onCloseQuestion,
     onShowResults,
@@ -159,7 +162,7 @@ export function LiveQuestionPanel({
                         respond.
                     </p>
 
-                    {nextQuestion ? (
+                    {!isCompleted && nextQuestion ? (
                         <Button
                             type="button"
                             className="mt-6"
@@ -379,8 +382,8 @@ export function LiveQuestionPanel({
 
                     <div className="flex flex-wrap items-center gap-2">
                         {onEditQuestion ? (<Button type="button" variant="outline" disabled={isUpdating} onClick={onEditQuestion}><Pencil className="h-4 w-4" /> Edit</Button>) : null}
-                        {canActivate ? (<Button type="button" disabled={isUpdating} onClick={handleDisplayToStudents}><Play className="h-4 w-4 fill-current" /> Go Live</Button>) : null}
-                        {canClose ? (<Button type="button" variant="destructive" disabled={isUpdating} onClick={onCloseQuestion}><Square className="mr-2 h-4 w-4 fill-current" /> Stop</Button>) : null}
+                        {!isCompleted && canActivate ? (<Button type="button" disabled={isUpdating} onClick={handleDisplayToStudents}><Play className="h-4 w-4 fill-current" /> Go Live</Button>) : null}
+                        {!isCompleted && canClose ? (<Button type="button" variant="destructive" disabled={isUpdating} onClick={onCloseQuestion}><Square className="mr-2 h-4 w-4 fill-current" /> Stop</Button>) : null}
                     </div>
                 </div>
             </div>
@@ -489,6 +492,7 @@ export function LiveQuestionPanel({
                     </div>
                 ) : null}
 
+                {!isCompleted ? (
                 <div className="mt-8 flex flex-col gap-3 border-t border-slate-100 pt-5 dark:border-slate-800 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                         <CircleDot className="h-4 w-4" />
@@ -657,6 +661,7 @@ export function LiveQuestionPanel({
                         ) : null}
                     </div>
                 </div>
+                ) : null}
             </div>
         </section>
     );
