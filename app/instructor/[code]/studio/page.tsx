@@ -1051,8 +1051,12 @@ export default function LiveStudioPage() {
         );
     }}
     isSavingQuestion={areQuestionsSaving}
-    onCreateQuestion={handleCreateQuestion}
-    onUpdateQuestion={handleUpdateQuestion}
+    onCreateQuestion={async (question) => {
+        await handleCreateQuestion(question);
+    }}
+    onUpdateQuestion={async (questionId, updates) => {
+        await handleUpdateQuestion(questionId, updates);
+    }}
     projectorQuestion={
         questions.find((question) => question.id === session.projector_question_id) ?? null
     }
