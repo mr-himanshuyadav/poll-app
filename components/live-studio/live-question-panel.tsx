@@ -63,6 +63,7 @@ interface LiveQuestionPanelProps {
     onShowResultsOnProjector?: () => void;
 
     onShowResultsOnBoth?: () => void;
+    onShowLiveResults?: () => void;
 
     onHideResults?: () => void;
 
@@ -116,6 +117,7 @@ export function LiveQuestionPanel({
     onShowResults,
     onShowResultsOnProjector,
     onShowResultsOnBoth,
+    onShowLiveResults,
     onHideResults,
     onHideProjectorResults,
     onConfirmReplaceLiveQuestion,
@@ -303,6 +305,11 @@ export function LiveQuestionPanel({
             question.config?.maxLabel,
         );
 
+    const scaleLabels =
+        question.config?.scaleLabels && typeof question.config.scaleLabels === "object"
+            ? question.config.scaleLabels as Record<string, string>
+            : {};
+
     return (
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 ease-out dark:border-slate-800 dark:bg-slate-950">
             {anotherQuestionIsLive ? (
@@ -454,9 +461,10 @@ export function LiveQuestionPanel({
                                 (value) => (
                                     <div
                                         key={value}
-                                        className="flex h-10 min-w-10 flex-1 items-center justify-center rounded-lg border border-slate-200 bg-white text-sm font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                                        className="flex min-h-10 min-w-10 flex-1 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white px-1 py-2 text-center dark:border-slate-700 dark:bg-slate-950"
                                     >
-                                        {value}
+                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{value}</span>
+                                        {scaleLabels[String(value)] ? <span className="mt-1 text-[10px] font-medium leading-tight text-slate-500 dark:text-slate-400">{scaleLabels[String(value)]}</span> : null}
                                     </div>
                                 ),
                             )}
@@ -598,6 +606,20 @@ export function LiveQuestionPanel({
                                             : "Show on Projector"}
                                     </span>
                                 </button>
+
+                                {isLive && onShowLiveResults ? (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-900"
+                                        onClick={() => {
+                                            setResultsMenuOpen(false);
+                                            onShowLiveResults();
+                                        }}
+                                    >
+                                        <Radio className="h-4 w-4 text-indigo-500" />
+                                        <span>Show Live Results</span>
+                                    </button>
+                                ) : null}
 
                                 <button
                                     type="button"
