@@ -5,7 +5,7 @@ import {
     Copy,
     ExternalLink,
     Gauge,
-    Monitor,
+    Home,
     Pause,
     Play,
     Presentation,
@@ -14,11 +14,13 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 import type {
     Session,
     SessionStatus,
     Template,
+    SessionQuestion,
 } from "./live-studio-types";
 
 import {
@@ -29,6 +31,7 @@ import {
 interface LiveStudioHeaderProps {
     session: Session;
     template?: Template | null;
+    questions?: SessionQuestion[];
     participantCount: number;
     activeParticipantCount: number;
     isUpdating?: boolean;
@@ -66,6 +69,7 @@ function SessionStatusIndicator({ status }: { status: SessionStatus }) {
 export function LiveStudioHeader({
     session,
     template,
+    questions = [],
     participantCount,
     activeParticipantCount,
     isUpdating = false,
@@ -84,7 +88,7 @@ export function LiveStudioHeader({
         session.projector_display_type === "results" ? "Results" :
         session.projector_display_type === "question" ? "Question" : "Waiting";
     const projectorQuestionNumber = session.projector_question_id
-        ? session.projector_question_id.slice(0, 6).toUpperCase()
+        ? (questions.findIndex((question) => question.id === session.projector_question_id) + 1 || null)
         : null;
 
     const isPaused = session.status === "paused";
@@ -95,33 +99,23 @@ export function LiveStudioHeader({
             <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex min-w-0 items-center gap-3">
-                        <button
-                            type="button"
-                            onClick={onBack}
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-indigo-700 dark:hover:text-indigo-400"
-                            aria-label="Open Control Center"
-                            title="Control Center"
-                        >
-                            <Monitor className="h-5 w-5" />
-                        </button>
+                        <button type="button" onClick={onBack} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400" aria-label="Home" title="Control Center"><Home className="h-5 w-5" /></button>
                         <div className="min-w-0">
                             <div className="flex items-center gap-2">
                                 <h1 className="truncate text-lg font-bold tracking-tight text-slate-950 dark:text-slate-50 sm:text-xl">
-                                    Control Center
+{sessionName}
                                 </h1>
                                 <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:inline-flex dark:bg-slate-900 dark:text-slate-400">
                                     Live Studio
                                 </span>
                             </div>
-                            <div className="mt-1 flex min-w-0 items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                                <span className="max-w-[280px] truncate font-semibold text-slate-700 dark:text-slate-200">{sessionName}</span>
-                                <span>/</span>
-                                <span className="font-mono font-bold tracking-wider">{session.join_code}</span>
-                            </div>
+                            
                         </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                        {onOpenSettings ? (<Button type="button" variant="outline" size="icon" onClick={onOpenSettings} disabled={isUpdating} aria-label="Session settings" title="Session settings"><Settings className="h-4 w-4" /></Button>) : null}
+                        <ThemeToggle />
                         {!isCompleted && isPaused && onResumeSession ? (
                             <Button type="button" variant="outline" disabled={isUpdating} onClick={onResumeSession}>
                                 <Play className="mr-2 h-4 w-4" /> Resume
@@ -130,11 +124,6 @@ export function LiveStudioHeader({
                         {!isCompleted && !isPaused && onPauseSession ? (
                             <Button type="button" variant="outline" disabled={isUpdating} onClick={onPauseSession}>
                                 <Pause className="mr-2 h-4 w-4" /> Pause
-                            </Button>
-                        ) : null}
-                        {onOpenSettings ? (
-                            <Button type="button" variant="outline" size="icon" onClick={onOpenSettings} disabled={isUpdating} aria-label="Session settings" title="Session settings">
-                                <Settings className="h-4 w-4" />
                             </Button>
                         ) : null}
                         {onEndSession ? (
@@ -183,21 +172,7 @@ export function LiveStudioHeader({
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                        <div className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300">
-                            Code <span className="ml-1 font-mono tracking-wider text-slate-900 dark:text-slate-100">{session.join_code}</span>
-                        </div>
-                        {onCopyJoinCode ? (
-                            <Button type="button" variant="outline" size="icon" onClick={onCopyJoinCode} aria-label="Copy join code" title="Copy join code">
-                                <Copy className="h-4 w-4" />
-                            </Button>
-                        ) : null}
-                        {onCopyStudentLink ? (
-                            <Button type="button" variant="outline" size="icon" onClick={onCopyStudentLink} aria-label="Copy participant link" title="Copy participant link">
-                                <ExternalLink className="h-4 w-4" />
-                            </Button>
-                        ) : null}
-                    </div>
+                    <div className="flex items-center gap-2"><div className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-600 dark:bg-slate-900 dark:text-slate-300">Code <span className="ml-1 font-mono tracking-wider text-slate-900 dark:text-slate-100">{session.join_code}</span></div>{onCopyJoinCode ? <Button type="button" variant="outline" size="icon" onClick={onCopyJoinCode} aria-label="Copy join code"><Copy className="h-4 w-4" /></Button> : null}{onCopyStudentLink ? <Button type="button" variant="outline" size="icon" onClick={onCopyStudentLink} aria-label="Copy session link"><ExternalLink className="h-4 w-4" /></Button> : null}<Button type="button" variant="outline" size="icon" onClick={onOpenProjector} aria-label="Open projector"><Presentation className="h-4 w-4" /></Button></div>
                 </div>
             </div>
         </header>
