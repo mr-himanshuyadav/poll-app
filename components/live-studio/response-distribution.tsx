@@ -241,6 +241,44 @@ export function ResponseDistribution({
     const isSemanticScale =
         isScaleQuestion && scaleConfig.preset !== "numeric";
 
+    const semanticGroups = (() => {
+        if (!isSemanticScale || distribution.length === 0) {
+            return [];
+        }
+
+        const midpoint = (scaleConfig.min + scaleConfig.max) / 2;
+        const hasNeutral = Number.isInteger(midpoint);
+
+        const groups = [
+            { key: "negative", label: "Lower end", count: 0 },
+            ...(hasNeutral ? [{ key: "neutral", label: "Neutral", count: 0 }] : []),
+            { key: "positive", label: "Higher end", count: 0 },
+        ];
+
+        distribution.forEach((item, index) => {
+            const value = scaleConfig.values[index]?.value;
+            if (typeof value !== "number") return;
+
+            const group =
+                value < midpoint
+                    ? groups.find((entry) => entry.key === "negative")
+                    : value > midpoint
+                        ? groups.find((entry) => entry.key === "positive")
+                        : groups.find((entry) => entry.key === "neutral") ??
+                          groups.find((entry) => entry.key === "positive");
+
+            if (group) group.count += item.count;
+        });
+
+        return groups.map((group) => ({
+            ...group,
+            percentage:
+                totalResponses > 0
+                    ? (group.count / totalResponses) * 100
+                    : 0,
+        }));
+    })();
+
     const renderLikertVisualization = () => {
         const maxCount = Math.max(1, ...distribution.map((item) => item.count));
 
@@ -253,6 +291,19 @@ export function ResponseDistribution({
                     </div>
                     {scaleAverage !== null ? <div className="rounded-lg bg-indigo-50 px-3 py-2 text-right dark:bg-indigo-950/40"><p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">Mean</p><p className="text-lg font-black">{scaleAverage.toFixed(2)}</p></div> : null}
                 </div>
+                {semanticGroups.length > 0 ? (
+                    <div className="grid gap-2 sm:grid-cols-3">
+                        {semanticGroups.map((group) => (
+                            <div key={group.key} className="rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-900/60">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{group.label}</p>
+                                <div className="mt-1 flex items-end justify-between gap-2">
+                                    <span className="text-xl font-black tabular-nums">{formatPercentage(group.percentage)}</span>
+                                    <span className="text-xs font-semibold text-slate-500">{group.count} responses</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : null}
                 <div className="space-y-2">
                     {distribution.map((item) => {
                         const width = (item.count / maxCount) * 100;
