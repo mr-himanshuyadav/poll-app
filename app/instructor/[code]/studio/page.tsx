@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 import {
     AnalyticsWorkspace,
@@ -943,7 +944,10 @@ export default function LiveStudioPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+        <div className="relative min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+            <div className="fixed right-4 top-4 z-50">
+                <ThemeToggle />
+            </div>
             <LiveStudioHeader
     session={session}
     participantCount={totalParticipants}
