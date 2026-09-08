@@ -137,11 +137,17 @@ response.id
                     <QuestionNavigation
                         questions={questions}
                         activeQuestion={
-                            activeQuestion
+                            viewedQuestion
+                        }
+                        liveQuestionId={
+                            activeQuestion?.id ?? null
                         }
                         isUpdating={isUpdating}
                         onSelectQuestion={
                             onViewQuestion
+                        }
+                        onActivateQuestion={
+                            onActivateQuestion
                         }
                         onPreviousQuestion={
                             onPreviousQuestion
