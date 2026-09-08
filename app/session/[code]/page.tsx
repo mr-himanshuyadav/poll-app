@@ -1780,15 +1780,6 @@ export default function JoinPage({
             </div>
           </div>
           <div className="space-y-4 p-5 sm:p-6">
-            {existingResponse && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 dark:border-emerald-500/20 dark:bg-emerald-950/20">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300">Your response</p>
-                  <p className="mt-1 font-bold">{answerToString(existingResponse.answer)}</p>
-                </div>
-                <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white">Recorded</span>
-              </div>
-            )}
             {renderVisualization()}
           </div>
         </section>
