@@ -736,8 +736,8 @@ export default function ProjectorPage({
                             "from-indigo-500 to-violet-400",
                         ];
                         return (
-                            <div key={item.option} className="grid grid-cols-[minmax(150px,1fr)_minmax(180px,3fr)_72px] items-center gap-5">
-                                <span className="text-right text-lg font-bold text-white/80">{item.option}</span>
+                            <div key={item.option} className="grid min-h-[3.25rem] grid-cols-[minmax(180px,1fr)_minmax(180px,3fr)_72px] items-center gap-5">
+                                <span className="line-clamp-2 text-right text-lg font-bold leading-tight text-slate-600 dark:text-white/80">{item.option}</span>
                                 <div className="h-11 overflow-hidden rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-1">
                                     <div className={`flex h-full items-center rounded-xl bg-gradient-to-r px-4 text-sm font-black shadow-lg transition-all duration-700 ${palette[index % palette.length]}`} style={{ width: `${Math.max(item.count ? 9 : 0, (item.count / maxCount) * 100)}%` }}>
                                         {item.count || ""}
@@ -760,9 +760,9 @@ export default function ProjectorPage({
             return (
                 <div className="flex h-[420px] items-end gap-5">
                     {data.map((item, index) => (
-                        <div key={item.option} className="flex flex-1 flex-col items-center gap-3">
-                            <span className="text-xl font-black">{Math.round(item.percentage)}%</span>
-                            <div className="flex h-80 w-full items-end rounded-2xl bg-slate-100/80 dark:bg-white/5 p-2">
+                        <div key={item.option} className="grid h-[420px] flex-1 grid-rows-[36px_1fr_52px] items-center gap-3">
+                            <span className="text-center text-xl font-black tabular-nums">{Math.round(item.percentage)}%</span>
+                            <div className="flex h-full w-full items-end rounded-2xl bg-slate-100/80 dark:bg-white/5 p-2">
                                 <div
                                     className="w-full rounded-xl transition-all duration-500"
                                     style={{
@@ -778,7 +778,7 @@ export default function ProjectorPage({
                                     }}
                                 />
                             </div>
-                            <span className="text-center text-sm font-bold text-slate-600 dark:text-white/70">{item.option}</span>
+                            <span className="line-clamp-2 flex h-[52px] items-start justify-center overflow-hidden text-center text-sm font-bold leading-tight text-slate-600 dark:text-white/70">{item.option}</span>
                         </div>
                     ))}
                 </div>
@@ -819,8 +819,8 @@ export default function ProjectorPage({
         return (
             <div className="space-y-6">
                 {data.map((item) => (
-                    <div key={item.option}>
-                        <div className="mb-2 flex justify-between text-xl font-bold">
+                    <div key={item.option} className="grid grid-cols-[minmax(180px,1fr)_minmax(220px,3fr)] items-center gap-5">
+                        <div className="line-clamp-2 text-xl font-bold leading-tight">
                             <span>{item.option}</span>
                             <span>{Math.round(item.percentage)}% ({item.count})</span>
                         </div>
