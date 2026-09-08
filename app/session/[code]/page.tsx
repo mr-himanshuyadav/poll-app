@@ -549,6 +549,7 @@ export default function JoinPage({
     await loadResults(
       activeSession.id,
       currentQuestion,
+      activeSession,
     );
   };
 
@@ -1624,124 +1625,154 @@ export default function JoinPage({
         return null;
       }
 
-      const leadingCount =
-        resultEntries.length >
-        0
-          ? Math.max(
-              ...resultEntries.map(
-                (entry) =>
-                  entry.count,
-              ),
-            )
-          : 0;
+      const visualization =
+        session.projector_visualization_type ??
+        "horizontal-bar";
+
+      const colors = [
+        "#6366f1", "#8b5cf6", "#0ea5e9",
+        "#10b981", "#f59e0b", "#f43f5e",
+      ];
+
+      const leadingCount = resultEntries.length
+        ? Math.max(...resultEntries.map((entry) => entry.count))
+        : 0;
+
+      const renderVisualization = () => {
+        if (!resultEntries.length) {
+          return (
+            <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+              No results yet. Responses will appear here as they arrive.
+            </div>
+          );
+        }
+
+        if (visualization === "donut") {
+          let cursor = 0;
+          const segments = resultEntries.map((entry, index) => {
+            const start = cursor;
+            cursor += entry.percentage;
+            return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+          }).join(", ");
+
+          return (
+            <div className="grid gap-6 sm:grid-cols-[180px_1fr] sm:items-center">
+              <div
+                className="relative mx-auto h-44 w-44 rounded-full shadow-lg"
+                style={{ background: `conic-gradient(${segments})` }}
+              >
+                <div className="absolute inset-7 flex flex-col items-center justify-center rounded-full bg-background">
+                  <span className="text-3xl font-black">{responseCount}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Responses</span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {resultEntries.map((entry, index) => (
+                  <div key={entry.option} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                      <span className="truncate font-medium">{entry.option}</span>
+                    </div>
+                    <span className="font-bold">{entry.percentage}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        if (visualization === "vertical-bar") {
+          const max = Math.max(...resultEntries.map((entry) => entry.percentage), 1);
+          return (
+            <div className="flex h-64 items-end gap-3 overflow-x-auto pb-2">
+              {resultEntries.map((entry) => (
+                <div key={entry.option} className="flex min-w-[64px] flex-1 flex-col items-center gap-2">
+                  <span className="text-xs font-bold">{entry.percentage}%</span>
+                  <div className="flex h-44 w-full items-end rounded-xl bg-muted p-1">
+                    <div className="w-full rounded-lg bg-primary transition-all duration-500" style={{ height: `${Math.max(3, (entry.percentage / max) * 100)}%` }} />
+                  </div>
+                  <span className="max-w-full truncate text-center text-xs font-medium">{entry.option}</span>
+                </div>
+              ))}
+            </div>
+          );
+        }
+
+        if (visualization === "ranked") {
+          return (
+            <div className="space-y-2">
+              {[...resultEntries].sort((a, b) => b.count - a.count).map((entry, index) => (
+                <div key={entry.option} className="flex items-center gap-3 rounded-xl border bg-card p-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-black text-primary">#{index + 1}</span>
+                  <span className="min-w-0 flex-1 truncate font-semibold">{entry.option}</span>
+                  <span className="text-sm font-bold">{entry.count}</span>
+                  <span className="w-12 text-right text-sm text-muted-foreground">{entry.percentage}%</span>
+                </div>
+              ))}
+            </div>
+          );
+        }
+
+        if (visualization === "percentage") {
+          return (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {resultEntries.map((entry) => (
+                <div key={entry.option} className="rounded-2xl border bg-card p-4 shadow-sm">
+                  <p className="truncate text-sm font-semibold text-muted-foreground">{entry.option}</p>
+                  <div className="mt-3 flex items-end justify-between gap-3">
+                    <span className="text-3xl font-black">{entry.percentage}%</span>
+                    <span className="text-sm text-muted-foreground">{entry.count} votes</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-3">
+            {resultEntries.map((entry) => {
+              const isOwnAnswer =
+                existingResponse &&
+                answerToString(existingResponse.answer) === entry.option;
+              return (
+                <div key={entry.option} className="rounded-xl border bg-card p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-semibold">
+                      {entry.option}
+                      {isOwnAnswer && <span className="ml-2 text-xs text-primary">Your answer</span>}
+                    </span>
+                    <span className="shrink-0 font-bold">{entry.count} · {entry.percentage}%</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                    <div className={entry.count === leadingCount && leadingCount > 0 ? "h-full rounded-full bg-primary transition-all duration-500" : "h-full rounded-full bg-primary/40 transition-all duration-500"} style={{ width: `${entry.percentage}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      };
 
       return (
-        <div className="space-y-4 rounded-2xl border p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold">
-                Results
-              </p>
-
-              <p className="text-xs text-muted-foreground">
-                {responseCount}{" "}
-                response
-                {responseCount ===
-                1
-                  ? ""
-                  : "s"}
-              </p>
-            </div>
-
-            {averageValue !==
-              null && (
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">
-                  Average
-                </p>
-
-                <p className="text-lg font-bold">
-                  {
-                    averageValue
-                  }
-                </p>
+        <section className="overflow-hidden rounded-3xl border bg-gradient-to-b from-primary/[0.05] to-background shadow-sm">
+          <div className="border-b bg-background/70 px-5 py-4 backdrop-blur sm:px-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Live results</p>
+                <h2 className="mt-1 text-lg font-bold">Response distribution</h2>
+                <p className="mt-1 text-xs text-muted-foreground">{responseCount} response{responseCount === 1 ? "" : "s"} collected</p>
               </div>
-            )}
-          </div>
-
-          {resultEntries.length ===
-          0 ? (
-            <p className="text-sm text-muted-foreground">
-              No results yet.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {resultEntries.map(
-                (entry) => {
-                  const isLeading =
-                    entry.count ===
-                      leadingCount &&
-                    leadingCount >
-                      0;
-
-                  const isOwnAnswer =
-                    existingResponse &&
-                    answerToString(
-                      existingResponse.answer,
-                    ) ===
-                      entry.option;
-
-                  return (
-                    <div
-                      key={
-                        entry.option
-                      }
-                      className="space-y-1"
-                    >
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="min-w-0 truncate font-medium">
-                          {
-                            entry.option
-                          }
-
-                          {isOwnAnswer && (
-                            <span className="ml-2 text-xs text-primary">
-                              Your answer
-                            </span>
-                          )}
-                        </span>
-
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {
-                            entry.count
-                          }{" "}
-                          ·{" "}
-                          {
-                            entry.percentage
-                          }%
-                        </span>
-                      </div>
-
-                      <div className="h-3 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={[
-                            "h-full rounded-full transition-all",
-                            isLeading
-                              ? "bg-primary"
-                              : "bg-primary/40",
-                          ].join(" ")}
-                          style={{
-                            width: `${entry.percentage}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                },
+              {averageValue !== null && (
+                <div className="rounded-2xl bg-primary/10 px-4 py-2 text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Average</p>
+                  <p className="text-xl font-black text-primary">{averageValue}</p>
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+          <div className="p-5 sm:p-6">{renderVisualization()}</div>
+        </section>
       );
     };
 
