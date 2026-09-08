@@ -453,7 +453,7 @@ response.id
                     }
                 }}
             >
-                <DialogContent className="h-[92vh] w-[calc(100vw-1.5rem)] max-w-[min(96vw,1400px)] overflow-y-auto p-0 sm:w-[calc(100vw-3rem)]">
+                <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto p-0">
                     <DialogHeader className="border-b px-6 py-4">
                         <DialogTitle>
                             {questionEditorMode === "create"
@@ -462,7 +462,7 @@ response.id
                         </DialogTitle>
                     </DialogHeader>
 
-                    <div className="min-h-0 w-full p-4 sm:p-6 lg:p-8">
+                    <div className="p-4 sm:p-6">
                         {questionEditorMode === "create" ? (
                             <QuestionEditor
                                 mode="create"
