@@ -2,7 +2,8 @@
 
 import {
     CheckCircle2,
-    Eye,
+    Circle,
+    Play,
     Radio,
 } from "lucide-react";
 
@@ -76,6 +77,111 @@ export function QuestionRow({
                     ].join(" ")}
                 >
                     {isLive ? (
+                        <Radio className="h-4 w-4" />
+                    ) : isClosed ? (
+                        <CheckCircle2 className="h-4 w-4" />
+                    ) : (
+                        position
+                    )}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-700 dark:text-slate-200">
+                        {getQuestionPrompt(
+                            question,
+                        )}
+                    </p>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                            {getQuestionTypeLabel(
+                                question,
+                            )}
+                        </span>
+
+                        <span
+                            className={[
+                                "inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                                getQuestionStatusClassName(
+                                    question.status,
+                                ),
+                            ].join(" ")}
+                        >
+                            {getQuestionStatusLabel(
+                                question.status,
+                            )}
+                        </span>
+                    </div>
+                </div>
+            </button>
+
+            <div className="flex items-center justify-end gap-1 px-3 pb-3">
+                <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    disabled={isUpdating}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onSelect();
+                    }}
+                    aria-label="View question"
+                    title="View question"
+                    className="h-8 w-8"
+                >
+                    <Eye className="h-3.5 w-3.5" />
+                </Button>
+
+                {!isLive &&
+                !isClosed ? (
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        disabled={isUpdating}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onActivate();
+                        }}
+                        aria-label="Make question live"
+                        title="Make question live"
+                        className="h-8 w-8"
+                    >
+                        <Radio className="h-3.5 w-3.5" />
+                    </Button>
+                ) : null}
+            </div>
+
+            {isLive ? (
+                <div className="absolute right-3 top-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                    <span className="relative flex h-2 w-2">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+
+                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                    </span>
+
+                    Live
+                </div>
+            ) : null}
+
+            {isClosed ? (
+                <div className="absolute right-3 top-3 text-slate-400">
+                    <CheckCircle2 className="h-4 w-4" />
+                </div>
+            ) : null}
+        </div>
+    );
+            {!isLive &&
+            !isClosed ? (
+                <div className="absolute bottom-2 right-2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+                    <Button type="button" size="sm" variant="outline" disabled={isUpdating} onClick={(event) => { event.stopPropagation(); onActivate(); }}>
+                        <Play className="mr-1.5 h-3.5 w-3.5" />
+                        Live
+                    </Button>
+                </div>
+            ) : null}
+
+            {isLive ? (
                         <Radio className="h-4 w-4" />
                     ) : isClosed ? (
                         <CheckCircle2 className="h-4 w-4" />
