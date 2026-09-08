@@ -69,8 +69,8 @@ export function LiveStudioTabs({
     return (
         <>
             {/* Desktop / Tablet Navigation */}
-            <div className="hidden border-b border-slate-200 bg-white px-2 dark:border-slate-800 dark:bg-slate-950 md:block">
-                <div className="mx-auto flex max-w-[1600px] items-center gap-1">
+            <div className="hidden border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-950 md:block">
+                <div className="flex w-full items-center gap-1">
                     {tabs.map((tab) => {
                         const Icon =
                             tab.icon;
