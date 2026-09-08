@@ -641,7 +641,6 @@ export default function TemplateEditor({
                               })()}
                             </div>
                           ) : null}
-                          </div>
                         </CardContent>
                       </Card>
                     ),
@@ -821,6 +820,7 @@ export default function TemplateEditor({
           {/* RIGHT — QUESTION EDITOR */}
 
           <aside className="lg:sticky lg:top-6 lg:self-start">
+            <div className="template-question-editor">
             <QuestionEditor
               key={editingQuestionId ?? "new"}
               mode={
@@ -864,6 +864,7 @@ export default function TemplateEditor({
                   : undefined
               }
             />
+            </div>
 
             <div className="mt-3 rounded-xl border bg-slate-50 p-4 text-xs leading-5 text-muted-foreground dark:bg-slate-950">
               Template questions use the same modern question editor as Live Studio. Result display is saved as <strong>Default</strong>, so every question follows the result setting of the session where it is launched.
