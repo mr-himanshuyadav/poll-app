@@ -1596,6 +1596,65 @@ export default function JoinPage({
           );
         }
 
+        if (visualization === "likert") {
+          return (
+            <div className="space-y-3">
+              {resultEntries.map((entry, index) => {
+                const isOwnAnswer =
+                  existingResponse &&
+                  answerToString(existingResponse.answer) === entry.option;
+                const colors = [
+                  "from-rose-500 to-rose-400",
+                  "from-orange-500 to-amber-400",
+                  "from-slate-400 to-slate-300",
+                  "from-cyan-500 to-sky-400",
+                  "from-emerald-500 to-emerald-400",
+                  "from-indigo-500 to-violet-400",
+                ];
+                return (
+                  <div
+                    key={entry.option}
+                    className={[
+                      "rounded-2xl border p-4 transition-all",
+                      isOwnAnswer
+                        ? "border-primary/50 bg-primary/[0.07] shadow-sm"
+                        : "bg-card",
+                    ].join(" ")}
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold">
+                          {entry.option}
+                          {isOwnAnswer && (
+                            <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary">
+                              Your answer
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-black">
+                        {entry.percentage}%
+                      </span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={
+                          "h-full rounded-full bg-gradient-to-r transition-all duration-500 " +
+                          colors[index % colors.length]
+                        }
+                        style={{ width: `${entry.percentage}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {entry.count} response{entry.count === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }
+
         if (visualization === "donut") {
           let cursor = 0;
           const segments = resultEntries.map((entry, index) => {
@@ -1720,7 +1779,18 @@ export default function JoinPage({
               )}
             </div>
           </div>
-          <div className="p-5 sm:p-6">{renderVisualization()}</div>
+          <div className="space-y-4 p-5 sm:p-6">
+            {existingResponse && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 dark:border-emerald-500/20 dark:bg-emerald-950/20">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300">Your response</p>
+                  <p className="mt-1 font-bold">{answerToString(existingResponse.answer)}</p>
+                </div>
+                <span className="rounded-full bg-emerald-500 px-3 py-1 text-xs font-black text-white">Recorded</span>
+              </div>
+            )}
+            {renderVisualization()}
+          </div>
         </section>
       );
     };
@@ -1943,8 +2013,8 @@ export default function JoinPage({
   return (
     <main className="relative min-h-screen overflow-hidden bg-slate-100 p-4 text-slate-950 dark:bg-slate-950 dark:text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_5%,rgba(99,102,241,0.14),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(14,165,233,0.12),transparent_30%)] dark:bg-[radial-gradient(circle_at_75%_10%,rgba(79,70,229,0.18),transparent_28%),radial-gradient(circle_at_20%_90%,rgba(14,165,233,0.12),transparent_32%)]" />
-      <div className="relative mx-auto flex min-h-[calc(100vh-2rem)] max-w-2xl items-center">
-        <Card className="w-full overflow-hidden border-slate-200/80 bg-white/85 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
+      <div className="relative mx-auto flex min-h-[calc(100vh-2rem)] max-w-6xl items-center">
+        <Card className="w-full overflow-hidden lg:min-h-[min(760px,calc(100vh-2rem))] border-slate-200/80 bg-white/85 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
           <CardHeader className="border-b border-slate-200/70 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-5 dark:border-white/10 dark:from-indigo-950/40 dark:via-slate-950/40 dark:to-violet-950/30 sm:p-7">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -1967,7 +2037,7 @@ export default function JoinPage({
             </p>
           </CardHeader>
 
-          <CardContent className="space-y-6 p-5 sm:p-7">
+          <CardContent className="space-y-6 p-5 sm:p-8 lg:p-10">
             {error && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {error}
@@ -2005,7 +2075,7 @@ export default function JoinPage({
                 <div>
                   <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-300"><span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]" />Live Question</div>
 
-                  <h2 className="text-3xl font-black leading-tight tracking-tight sm:text-4xl">{question.text}</h2>
+                  <h2 className="max-w-5xl text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">{question.text}</h2>
                 </div>
 
                 {existingResponse &&
