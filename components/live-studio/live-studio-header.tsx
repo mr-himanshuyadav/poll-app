@@ -107,6 +107,7 @@ export function LiveStudioHeader({
                                 <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 sm:inline-flex dark:bg-slate-900 dark:text-slate-400">
                                     Live Studio
                                 </span>
+                                <SessionStatusIndicator status={session.status} />
                             </div>
                             
                         </div>
@@ -130,7 +131,6 @@ export function LiveStudioHeader({
                                 <Square className="mr-2 h-4 w-4 fill-current" /> End
                             </Button>
                         ) : null}
-                        <SessionStatusIndicator status={session.status} />
                     </div>
                 </div>
 
