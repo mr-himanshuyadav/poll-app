@@ -27,6 +27,8 @@ import {
 
 import type {
     LiveSession,
+    ResultsMode,
+    ResultVisibilityTarget,
 } from "./live-studio-types";
 
 interface SessionSettingsDrawerProps {
@@ -56,15 +58,31 @@ export function SessionSettingsDrawer({
     const [copied, setCopied] =
         useState(false);
 
+    const [resultsMode, setResultsMode] =
+        useState<ResultsMode>("on_command");
+
+    const [defaultResultVisibility, setDefaultResultVisibility] =
+        useState<ResultVisibilityTarget>("both");
+
     useEffect(() => {
         if (!session) {
             setName("");
+            setResultsMode("on_command");
+            setDefaultResultVisibility("both");
 
             return;
         }
 
         setName(
             session.name ?? "",
+        );
+
+        setResultsMode(
+            session.results_mode ?? "on_command",
+        );
+
+        setDefaultResultVisibility(
+            session.default_result_visibility ?? "both",
         );
     }, [session]);
 
@@ -119,6 +137,9 @@ export function SessionSettingsDrawer({
 
             await onSave({
                 name: trimmedName,
+                results_mode: resultsMode,
+                default_result_visibility:
+                    defaultResultVisibility,
             });
         };
 
@@ -188,6 +209,76 @@ export function SessionSettingsDrawer({
                             identify the session
                             inside the instructor
                             workspace.
+                        </p>
+                    </div>
+
+                    <div>
+                        <Label
+                            htmlFor="session-results-mode"
+                            className="text-sm font-bold"
+                        >
+                            Default Results Mode
+                        </Label>
+
+                        <select
+                            id="session-results-mode"
+                            value={resultsMode}
+                            onChange={(event) =>
+                                setResultsMode(
+                                    event.target.value as ResultsMode,
+                                )
+                            }
+                            className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                            <option value="on_command">
+                                On command
+                            </option>
+                            <option value="live">
+                                Show live
+                            </option>
+                            <option value="hidden">
+                                Hidden
+                            </option>
+                        </select>
+
+                        <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            Sets the default results behavior for this live session.
+                            Individual question settings can override this default.
+                        </p>
+                    </div>
+
+                    <div>
+                        <Label
+                            htmlFor="default-result-visibility"
+                            className="text-sm font-bold"
+                        >
+                            Default Result Visibility
+                        </Label>
+
+                        <select
+                            id="default-result-visibility"
+                            value={defaultResultVisibility}
+                            onChange={(event) =>
+                                setDefaultResultVisibility(
+                                    event.target.value as ResultVisibilityTarget,
+                                )
+                            }
+                            className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                            <option value="both">
+                                Students & Projector
+                            </option>
+                            <option value="students">
+                                Students
+                            </option>
+                            <option value="projector">
+                                Projector
+                            </option>
+                        </select>
+
+                        <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            The main Show Results button uses this default.
+                            The dropdown can still override it for each question.
                         </p>
                     </div>
 

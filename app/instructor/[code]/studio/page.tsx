@@ -4,6 +4,7 @@ import {
     useCallback,
     useMemo,
     useState,
+    useEffect,
 } from "react";
 
 import { useParams, useRouter } from "next/navigation";
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 import {
     AnalyticsWorkspace,
@@ -138,6 +140,21 @@ export default function LiveStudioPage() {
             null,
         );
 
+    const [pendingLiveQuestion, setPendingLiveQuestion] =
+        useState<SessionQuestion | null>(null);
+
+    const [pendingProjectorQuestion, setPendingProjectorQuestion] =
+        useState<SessionQuestion | null>(null);
+
+    const [pendingResultsQuestion, setPendingResultsQuestion] =
+        useState<SessionQuestion | null>(null);
+
+    const [pendingResultsTarget, setPendingResultsTarget] =
+        useState<"students" | "both">("students");
+
+    const [viewedQuestionId, setViewedQuestionId] =
+        useState<string | null>(null);
+
     const {
         session,
         isLoading: isSessionLoading,
@@ -233,6 +250,40 @@ export default function LiveStudioPage() {
             session?.active_question_id,
         ]);
 
+    const viewedQuestion =
+        useMemo(() => {
+            if (!viewedQuestionId) {
+                return null;
+            }
+
+            return (
+                questions.find(
+                    (question) =>
+                        question.id ===
+                        viewedQuestionId,
+                ) ?? null
+            );
+        }, [
+            questions,
+            viewedQuestionId,
+        ]);
+
+    useEffect(() => {
+        if (
+            viewedQuestionId ||
+            !session?.active_question_id
+        ) {
+            return;
+        }
+
+        setViewedQuestionId(
+            session.active_question_id,
+        );
+    }, [
+        session?.active_question_id,
+        viewedQuestionId,
+    ]);
+
     const selectedQuestion =
         useMemo(() => {
             if (
@@ -316,6 +367,64 @@ export default function LiveStudioPage() {
         router.back();
     }, [router]);
 
+    const handlePauseSession = useCallback(async () => {
+        if (!session || session.status === "completed") return;
+        try {
+            await updateSession({
+                status: "paused",
+                paused_at: new Date().toISOString(),
+            });
+            showNotice("success", "The session is paused. Participants cannot submit responses until it is resumed.", "Session Paused");
+        } catch (error) {
+            showNotice("error", error instanceof Error ? error.message : "Unable to pause the session.", "Update Failed");
+        }
+    }, [session, updateSession, showNotice]);
+
+    const handleResumeSession = useCallback(async () => {
+        if (!session || session.status === "completed") return;
+        try {
+            await updateSession({
+                status: "live",
+                paused_at: null,
+            });
+            showNotice("success", "The session is live again and can accept responses.", "Session Resumed");
+        } catch (error) {
+            showNotice("error", error instanceof Error ? error.message : "Unable to resume the session.", "Update Failed");
+        }
+    }, [session, updateSession, showNotice]);
+
+    const handleEndSession = useCallback(async () => {
+        if (!session || session.status === "completed") return;
+        const confirmed = window.confirm(
+            "End this session? Participants will no longer be able to submit responses. You can still reopen this Studio later to review all collected data.",
+        );
+        if (!confirmed) return;
+
+        const now = new Date().toISOString();
+        try {
+            if (session.active_question_id) {
+                await updateQuestion(session.active_question_id, {
+                    status: "closed",
+                    closed_at: now,
+                });
+            }
+
+            await updateSession({
+                status: "completed",
+                ended_at: now,
+                active_question_id: null,
+                student_display_type: "waiting",
+                student_question_id: null,
+                projector_display_type: "waiting",
+                projector_question_id: null,
+            });
+
+            showNotice("success", "The session has ended. It is now available in review mode only.", "Session Ended");
+        } catch (error) {
+            showNotice("error", error instanceof Error ? error.message : "Unable to end the session.", "End Failed");
+        }
+    }, [session, updateQuestion, updateSession, showNotice]);
+
     const handleTabChange =
         useCallback(
             (tab: StudioTab) => {
@@ -353,29 +462,73 @@ export default function LiveStudioPage() {
         async (
             questionId: string | null,
         ) => {
-            if (!session?.id) {
+            if (!session?.id || session.status === "completed") {
+                if (session?.status === "completed") {
+                    showNotice("error", "This session has ended and is now in review mode.", "Session Ended");
+                }
                 return;
             }
 
             try {
                 if (questionId) {
+                    const now =
+                        new Date().toISOString();
+
+                    // Close any other active questions through
+                    // the hook so local state stays in sync without
+                    // forcing a full questions refetch.
+                    const otherActiveQuestions =
+                        questions.filter(
+                            (question) =>
+                                question.id !==
+                                    questionId &&
+                                question.status ===
+                                    "active",
+                        );
+
+                    await Promise.all(
+                        otherActiveQuestions.map(
+                            (question) =>
+                                updateQuestion(
+                                    question.id,
+                                    {
+                                        status: "closed",
+                                        closed_at: now,
+                                    },
+                                ),
+                        ),
+                    );
+
+                    // Update the session pointer first so the
+                    // student-facing app immediately has one
+                    // authoritative live question.
                     await updateSession({
                         status: "live",
                         active_question_id:
                             questionId,
+                        student_display_type: "question",
+                        student_question_id: questionId,
+                        projector_display_type:
+                            "question",
+                        projector_question_id:
+                            questionId,
                         started_at:
                             session.started_at ??
-                            new Date().toISOString(),
+                            now,
                     });
 
+                    // Then activate the selected question.
                     await updateQuestion(
                         questionId,
                         {
                             status: "active",
-                            activated_at:
-                                new Date().toISOString(),
+                            activated_at: now,
+                            closed_at: null,
                         },
                     );
+
+                    // Keep the newly live question in view.
+                    setViewedQuestionId(questionId);
 
                     showNotice(
                         "success",
@@ -397,8 +550,17 @@ export default function LiveStudioPage() {
                         );
                     }
 
+                    // Closing a question must remove it from both
+                    // participant and projector views. Otherwise the
+                    // student-facing display can keep rendering the last
+                    // student_question_id even though the question is closed.
                     await updateSession({
                         active_question_id: null,
+                        student_display_type: "waiting",
+                        student_question_id: null,
+                        projector_display_type:
+                            "waiting",
+                        projector_question_id: null,
                     });
 
                     showNotice(
@@ -421,11 +583,141 @@ export default function LiveStudioPage() {
             session?.id,
             session?.active_question_id,
             session?.started_at,
+            session?.status,
+            questions,
             showNotice,
             updateQuestion,
             updateSession,
         ],
     );
+
+    const showResultsToStudents =
+        useCallback(
+            async (
+                question: SessionQuestion,
+                options?: {
+                    closeQuestion?: boolean;
+                    showOnProjector?: boolean;
+                },
+            ) => {
+                const now =
+                    new Date().toISOString();
+
+                // A student-facing result replaces any
+                // previously visible student result.
+                await Promise.all(
+                    questions
+                        .filter(
+                            (item) =>
+                                item.id !== question.id &&
+                                item.results_visible === true,
+                        )
+                        .map((item) =>
+                            updateQuestion(
+                                item.id,
+                                {
+                                    results_visible: false,
+                                },
+                            ),
+                        ),
+                );
+
+                if (options?.closeQuestion) {
+                    await updateQuestion(
+                        question.id,
+                        {
+                            status: "closed",
+                            closed_at: now,
+                            results_visible: true,
+                        },
+                    );
+
+                    await updateSession({
+                        active_question_id: null,
+                        student_display_type: "results",
+                        student_question_id: question.id,
+                        ...(options.showOnProjector
+                            ? {
+                                  projector_display_type:
+                                      "results" as const,
+                                  projector_question_id:
+                                      question.id,
+                              }
+                            : {}),
+                    });
+                } else {
+                    await updateQuestion(
+                        question.id,
+                        {
+                            results_visible: true,
+                        },
+                    );
+
+                    await updateSession({
+                        student_display_type: "results",
+                        student_question_id: question.id,
+                    });
+
+                    if (options?.showOnProjector) {
+                        await updateSession({
+                            projector_display_type:
+                                "results",
+                            projector_question_id:
+                                question.id,
+                        });
+                    }
+                }
+
+                showNotice(
+                    "success",
+                    options?.closeQuestion
+                        ? "The question was closed and results are now visible."
+                        : "Results are now visible to students.",
+                    "Results Shown",
+                );
+            },
+            [
+                questions,
+                showNotice,
+                updateQuestion,
+                updateSession,
+            ],
+        );
+
+    const handleRequestShowResults =
+        useCallback(
+            (target?: "students" | "both") => {
+                const resolvedTarget =
+                    target ??
+                    (session?.default_result_visibility === "both"
+                        ? "both"
+                        : "students");
+                if (!viewedQuestion) {
+                    return;
+                }
+
+                setPendingResultsTarget(resolvedTarget);
+
+                if (activeQuestion) {
+                    setPendingResultsQuestion(viewedQuestion);
+                    return;
+                }
+
+                void showResultsToStudents(
+                    viewedQuestion,
+                    {
+                        closeQuestion: true,
+                        showOnProjector: resolvedTarget === "both",
+                    },
+                );
+            },
+            [
+                activeQuestion,
+                session?.default_result_visibility,
+                showResultsToStudents,
+                viewedQuestion,
+            ],
+        );
 
     const handleSaveSettings =
         useCallback(
@@ -658,7 +950,10 @@ export default function LiveStudioPage() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+        <div className="relative min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
+            <div className="fixed right-4 top-4 z-50">
+                <ThemeToggle />
+            </div>
             <LiveStudioHeader
     session={session}
     participantCount={totalParticipants}
@@ -672,6 +967,10 @@ export default function LiveStudioPage() {
     onOpenSettings={() =>
         setSettingsOpen(true)
     }
+    isUpdating={isSettingsSaving}
+    onPauseSession={handlePauseSession}
+    onResumeSession={handleResumeSession}
+    onEndSession={handleEndSession}
 />
             <LiveStudioTabs
     activeTab={activeTab}
@@ -739,6 +1038,45 @@ export default function LiveStudioPage() {
                     <LiveQuestionWorkspace
     sessionId={session.id}
     questions={questions}
+    defaultResultVisibility={
+        session.default_result_visibility ?? "both"
+    }
+    projectorResultsQuestionId={
+        session.projector_display_type ===
+        "results"
+            ? session.projector_question_id
+            : null
+    }
+    projectorDisplayType={session.projector_display_type}
+    projectorVisualizationType={
+        session.projector_visualization_type ??
+        "horizontal-bar"
+    }
+    onProjectorVisualizationChange={async (
+        visualization,
+    ) => {
+        await updateSession({
+            projector_visualization_type:
+                visualization,
+        });
+
+        showNotice(
+            "success",
+            "Projector visualization updated.",
+            "Visualization Updated",
+        );
+    }}
+    isSavingQuestion={areQuestionsSaving}
+    onCreateQuestion={async (question) => {
+        await handleCreateQuestion(question);
+    }}
+    onUpdateQuestion={async (questionId, updates) => {
+        await handleUpdateQuestion(questionId, updates);
+    }}
+    projectorQuestion={
+        questions.find((question) => question.id === session.projector_question_id) ?? null
+    }
+    viewedQuestion={viewedQuestion}
     activeQuestion={activeQuestion}
     responses={responses}
     participants={participants}
@@ -746,28 +1084,28 @@ export default function LiveStudioPage() {
     analytics?.questions?.find(
         (item) =>
             item.question_id ===
-            activeQuestion?.id,
+            viewedQuestion?.id,
     )
         ? {
               questionId:
-                  activeQuestion?.id ?? "",
+                  viewedQuestion?.id ?? "",
               totalResponses:
                   analytics.questions.find(
                       (item) =>
                           item.question_id ===
-                          activeQuestion?.id,
+                          viewedQuestion?.id,
                   )?.total_responses ?? 0,
               uniqueResponders:
                   analytics.questions.find(
                       (item) =>
                           item.question_id ===
-                          activeQuestion?.id,
+                          viewedQuestion?.id,
                   )?.response_count ?? 0,
               participationRate:
                   analytics.questions.find(
                       (item) =>
                           item.question_id ===
-                          activeQuestion?.id,
+                          viewedQuestion?.id,
                   )?.response_rate ?? 0,
               averageResponseTimeMs:
                   null,
@@ -781,7 +1119,7 @@ export default function LiveStudioPage() {
     analytics.questions.find(
         (item) =>
             item.question_id ===
-            activeQuestion?.id,
+            viewedQuestion?.id,
     )?.distribution?.map(
         (item) => ({
             key: item.id,
@@ -804,10 +1142,124 @@ export default function LiveStudioPage() {
             question.id,
         );
     }}
+    onViewQuestion={(question) => {
+        setViewedQuestionId(question.id);
+    }}
     onCloseQuestion={async () => {
         await handleSetActiveQuestion(
             null,
         );
+    }}
+    onShowResults={(target) => {
+        if (target === "projector") {
+            if (!viewedQuestion) return;
+
+            if (
+                session.projector_display_type !== "waiting" &&
+                session.projector_question_id !== viewedQuestion.id &&
+                !window.confirm(
+                    "The projector is displaying another item. Replace it with this question's results?",
+                )
+            ) {
+                return;
+            }
+
+            void updateSession({
+                projector_display_type: "results",
+                projector_question_id: viewedQuestion.id,
+            });
+            return;
+        }
+
+        void handleRequestShowResults(
+            target === "both" ? "both" : "students",
+        );
+    }}
+    onRequestShowResults={() => {
+        void handleRequestShowResults();
+    }}
+    onHideProjectorResults={async () => {
+        await updateSession({
+            projector_display_type:
+                "waiting",
+            projector_question_id: null,
+        });
+
+        showNotice(
+            "success",
+            "Results are no longer displayed on the projector.",
+            "Projector Updated",
+        );
+    }}
+    onHideResults={async () => {
+        if (!viewedQuestion) {
+            return;
+        }
+
+        await updateQuestion(
+            viewedQuestion.id,
+            {
+                results_visible: false,
+                results_mode:
+                    viewedQuestion.results_mode === "live"
+                        ? "hidden"
+                        : viewedQuestion.results_mode,
+            },
+        );
+
+        await updateSession({
+            ...(session.student_display_type === "results" &&
+            session.student_question_id === viewedQuestion.id
+                ? {
+                      student_display_type: "waiting" as const,
+                      student_question_id: null,
+                  }
+                : {}),
+            ...(session.projector_display_type === "results" &&
+            session.projector_question_id === viewedQuestion.id
+                ? {
+                      projector_display_type: "waiting" as const,
+                      projector_question_id: null,
+                  }
+                : {}),
+        });
+
+        showNotice(
+            "success",
+            "Results are now hidden from students and the projector.",
+            "Results Hidden Everywhere",
+        );
+    }}
+    onShowResultsOnProjector={async () => {
+        if (!viewedQuestion) return;
+
+        if (
+            session.projector_display_type !== "waiting" &&
+            session.projector_question_id !== viewedQuestion.id
+        ) {
+            const confirmed = window.confirm(
+                "The projector is displaying another item. Replace it with this question's results?",
+            );
+
+            if (!confirmed) return;
+        }
+
+        await updateSession({
+            projector_display_type: "results",
+            projector_question_id: viewedQuestion.id,
+        });
+
+        showNotice(
+            "success",
+            "Results are now displayed on the projector.",
+            "Projector Updated",
+        );
+    }}
+    onShowResultsOnBoth={() => {
+        void handleRequestShowResults("both");
+    }}
+    onConfirmReplaceLiveQuestion={(question) => {
+        setPendingLiveQuestion(question);
     }}
 />
                 ) : null}
@@ -888,6 +1340,169 @@ export default function LiveStudioPage() {
                     />
                 ) : null}
             </main>
+
+            {pendingLiveQuestion ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
+                    <div className="w-full max-w-md animate-in zoom-in-95 slide-in-from-bottom-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl duration-200 dark:border-slate-800 dark:bg-slate-950">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                                <AlertTriangle className="h-5 w-5" />
+                            </div>
+
+                            <div>
+                                <h2 className="text-base font-bold">
+                                    Replace live question?
+                                </h2>
+
+                                <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                                    This will close the current question and display the selected question to students.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() =>
+                                    setPendingLiveQuestion(null)
+                                }
+                            >
+                                Cancel
+                            </Button>
+
+                            <Button
+                                type="button"
+                                disabled={areQuestionsSaving}
+                                onClick={async () => {
+                                    const question =
+                                        pendingLiveQuestion;
+
+                                    setPendingLiveQuestion(null);
+
+                                    await handleSetActiveQuestion(
+                                        question.id,
+                                    );
+                                }}
+                            >
+                                <span className="mr-2 inline-flex h-2 w-2 rounded-full bg-current" />
+
+                                Replace & Display
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+
+            {pendingResultsQuestion ? (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-[2px] animate-in fade-in duration-200">
+                    <div className="w-full max-w-md animate-in zoom-in-95 slide-in-from-bottom-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl duration-200 dark:border-slate-800 dark:bg-slate-950">
+                        <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+                                <CheckCircle2 className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <h2 className="text-base font-bold">
+                                    {activeQuestion?.id === pendingResultsQuestion.id
+                                        ? "Show live results?"
+                                        : "Close current question?"}
+                                </h2>
+                                <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                                    {activeQuestion?.id === pendingResultsQuestion.id
+                                        ? "You can keep the question open and show live-updating results on the projector, or close it and show the final results."
+                                        : "Students are currently answering another question. To show these results, the current live question must be closed."}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex flex-wrap justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                onClick={() => {
+                                    if (
+                                        activeQuestion &&
+                                        activeQuestion.id !==
+                                            pendingResultsQuestion.id
+                                    ) {
+                                        setViewedQuestionId(activeQuestion.id);
+                                    }
+                                    setPendingResultsQuestion(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+
+                            {activeQuestion?.id === pendingResultsQuestion.id ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled={areQuestionsSaving}
+                                    onClick={async () => {
+                                        const question = pendingResultsQuestion;
+                                        setPendingResultsQuestion(null);
+
+                                        await updateQuestion(
+                                            question.id,
+                                            {
+                                                results_mode: "live",
+                                                results_visible: false,
+                                            },
+                                        );
+
+                                        await updateSession({
+                                            student_display_type: "question",
+                                            student_question_id: question.id,
+                                            ...(pendingResultsTarget === "both"
+                                                ? {
+                                                      projector_display_type: "results" as const,
+                                                      projector_question_id: question.id,
+                                                  }
+                                                : {}),
+                                        });
+
+                                        showNotice(
+                                            "success",
+                                            pendingResultsTarget === "both"
+                                                ? "Live results are shown on the projector. Students will see results after answering."
+                                                : "Live results are enabled. Students will see results after answering.",
+                                            "Live Results",
+                                        );
+                                    }}
+                                >
+                                    Show Live
+                                </Button>
+                            ) : null}
+
+                            <Button
+                                type="button"
+                                disabled={areQuestionsSaving}
+                                onClick={async () => {
+                                    const question = pendingResultsQuestion;
+                                    setPendingResultsQuestion(null);
+
+                                    if (
+                                        activeQuestion &&
+                                        activeQuestion.id !== question.id
+                                    ) {
+                                        await handleSetActiveQuestion(null);
+                                        setViewedQuestionId(question.id);
+                                    }
+
+                                    await showResultsToStudents(question, {
+                                        closeQuestion: true,
+                                        showOnProjector:
+                                            pendingResultsTarget === "both" ||
+                                            activeQuestion?.id === question.id,
+                                    });
+                                }}
+                            >
+                                Close Question & Show Results
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
 
             <SessionSettingsDrawer
                 open={settingsOpen}

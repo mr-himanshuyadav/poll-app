@@ -1,5 +1,12 @@
 "use client";
 
+import { ScaleResponseInput } from "@/components/live-studio/scale-response-input";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { ArrowRight, Radio, RotateCcw } from "lucide-react";
+import { resolveScaleConfig } from "@/lib/scale-config";
+import { getResponseDisplayLabel } from "@/lib/response-label";
+import { getParticipantDisplayName } from "@/lib/participant-labels";
+
 import {
   use,
   useEffect,
@@ -70,6 +77,12 @@ export default function JoinPage({
   const [selectedAnswer, setSelectedAnswer] =
     useState("");
 
+  const [participantProfile, setParticipantProfile] =
+    useState<Participant | null>(null);
+
+  const [sessionParticipants, setSessionParticipants] =
+    useState<Participant[]>([]);
+
   const [existingResponse, setExistingResponse] =
     useState<PollResponse | null>(
       null,
@@ -105,6 +118,9 @@ export default function JoinPage({
   const [error, setError] =
     useState<string | null>(null);
 
+  const [nextJoinCode, setNextJoinCode] =
+    useState("");
+
   const storageKey = useMemo(
     () => `live-session-${code}`,
     [code],
@@ -133,6 +149,31 @@ export default function JoinPage({
     }
   };
 
+
+  useEffect(() => {
+    if (!session?.id || !participant?.participantId) {
+      setParticipantProfile(null);
+      setSessionParticipants([]);
+      return;
+    }
+
+    const loadParticipantIdentity = async () => {
+      const { data } = await supabase
+        .from("participants")
+        .select("*")
+        .eq("quiz_id", session.id)
+        .order("joined_at", { ascending: true });
+
+      const rows = (data ?? []) as Participant[];
+      setSessionParticipants(rows);
+      setParticipantProfile(
+        rows.find((item) => item.id === participant.participantId) ?? null,
+      );
+    };
+
+    void loadParticipantIdentity();
+  }, [session?.id, participant?.participantId]);
+
   /*
    * ---------------------------------------------
    * LOAD RESULTS
@@ -142,8 +183,13 @@ export default function JoinPage({
   const loadResults = async (
     currentSessionId: string,
     currentQuestion: SessionQuestion,
+    currentSession?: Session,
   ) => {
-    if (!currentQuestion.results_visible) {
+    const canShowResults =
+      currentSession?.student_display_type === "results" ||
+      currentQuestion.results_mode === "live";
+
+    if (!canShowResults) {
       setResponseCount(0);
       setResultEntries([]);
       setAverageValue(null);
@@ -375,27 +421,26 @@ export default function JoinPage({
           1;
       }
 
-      const entries =
-        Object.entries(
-          counts,
-        )
-          .sort(
-            ([a], [b]) =>
-              Number(a) -
-              Number(b),
-          )
-          .map(
-            ([option, count]) => ({
-              option,
-              count,
-              percentage:
-                Math.round(
-                  (count /
-                    numericValues.length) *
-                    100,
-                ),
-            }),
-          );
+      const scaleConfig = resolveScaleConfig(
+        currentQuestion.config,
+      );
+
+      const entries = scaleConfig.values.map(
+        (scaleValue) => {
+          const key = String(scaleValue.value);
+          const count = counts[key] ?? 0;
+
+          return {
+            option: scaleValue.label
+              ? `${scaleValue.value} — ${scaleValue.label}`
+              : key,
+            count,
+            percentage: Math.round(
+              (count / numericValues.length) * 100,
+            ),
+          };
+        },
+      );
 
       setResultEntries(
         entries,
@@ -544,6 +589,7 @@ export default function JoinPage({
     await loadResults(
       activeSession.id,
       currentQuestion,
+      activeSession,
     );
   };
 
@@ -628,12 +674,18 @@ export default function JoinPage({
       }
     }
 
+    const initialDisplayQuestionId =
+      currentSession.student_display_type === "waiting"
+        ? null
+        : currentSession.student_question_id ??
+          currentSession.active_question_id;
+
     if (
-      currentSession.active_question_id &&
+      initialDisplayQuestionId &&
       storedParticipant
     ) {
       await loadQuestion(
-        currentSession.active_question_id,
+        initialDisplayQuestionId,
         currentSession,
         storedParticipant,
       );
@@ -659,9 +711,13 @@ export default function JoinPage({
    */
 
   useEffect(() => {
-    if (
-      !session?.active_question_id
-    ) {
+    const displayQuestionId =
+      session?.student_display_type === "waiting"
+        ? null
+        : session?.student_question_id ??
+          session?.active_question_id;
+
+    if (!displayQuestionId) {
       setQuestion(null);
       setExistingResponse(null);
       setSelectedAnswer("");
@@ -676,9 +732,11 @@ export default function JoinPage({
     }
 
     void loadQuestion(
-      session.active_question_id,
+      displayQuestionId,
     );
   }, [
+    session?.student_display_type,
+    session?.student_question_id,
     session?.active_question_id,
     participant?.participantId,
   ]);
@@ -745,7 +803,12 @@ export default function JoinPage({
 
             if (
               changedQuestion.id !==
-              session.active_question_id
+              (
+                session.student_display_type === "waiting"
+                  ? null
+                  : session.student_question_id ??
+                    session.active_question_id
+              )
             ) {
               return;
             }
@@ -801,6 +864,8 @@ export default function JoinPage({
   }, [
     session?.id,
     session?.active_question_id,
+    session?.student_display_type,
+    session?.student_question_id,
   ]);
 
   /*
@@ -1437,10 +1502,10 @@ export default function JoinPage({
                       )
                     }
                     className={[
-                      "w-full rounded-xl border p-4 text-left transition",
+                      "w-full rounded-2xl border p-4 text-left font-semibold shadow-sm transition-all duration-200",
                       isSelected
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-muted",
+                        ? "border-indigo-400 bg-gradient-to-r from-indigo-500/15 to-violet-500/10 ring-2 ring-indigo-500/20"
+                        : "border-slate-200 bg-white hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-indigo-400/50 dark:hover:bg-white/[0.08]",
                     ].join(" ")}
                   >
                     {option}
@@ -1462,67 +1527,12 @@ export default function JoinPage({
         question.type ===
           "rating"
       ) {
-        const min =
-          Number(
-            question.config.min ??
-              1,
-          );
-
-        const max =
-          Number(
-            question.config.max ??
-              5,
-          );
-
-        const values =
-          Array.from(
-            {
-              length: Math.max(
-                1,
-                max -
-                  min +
-                  1,
-              ),
-            },
-            (_, index) =>
-              min + index,
-          );
-
         return (
-          <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
-            {values.map(
-              (value) => {
-                const stringValue =
-                  String(value);
-
-                const isSelected =
-                  selectedAnswer ===
-                  stringValue;
-
-                return (
-                  <button
-                    key={
-                      stringValue
-                    }
-                    type="button"
-                    onClick={() =>
-                      setSelectedAnswer(
-                        stringValue,
-                      )
-                    }
-                    className={[
-                      "rounded-xl border p-3 font-semibold",
-                      isSelected
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-muted",
-                    ].join(" ")}
-                  >
-                    {value}
-                  </button>
-                );
-              },
-            )}
-          </div>
+          <ScaleResponseInput
+            config={question.config}
+            value={selectedAnswer}
+            onChange={setSelectedAnswer}
+          />
         );
       }
 
@@ -1555,10 +1565,10 @@ export default function JoinPage({
                       )
                     }
                     className={[
-                      "rounded-xl border p-4 font-semibold",
+                      "rounded-2xl border p-4 font-semibold transition-all",
                       isSelected
-                        ? "border-primary bg-primary/10"
-                        : "hover:bg-muted",
+                        ? "border-indigo-400 bg-indigo-500/15 ring-2 ring-indigo-500/20"
+                        : "border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/50 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-indigo-400/50",
                     ].join(" ")}
                   >
                     {option}
@@ -1589,129 +1599,226 @@ export default function JoinPage({
     () => {
       if (
         !question ||
-        !question.results_visible
+        !session ||
+        (session.student_display_type !== "results" &&
+          !(
+            question.results_mode === "live" &&
+            existingResponse &&
+            session.active_question_id === question.id
+          ))
       ) {
         return null;
       }
 
-      const leadingCount =
-        resultEntries.length >
-        0
-          ? Math.max(
-              ...resultEntries.map(
-                (entry) =>
-                  entry.count,
-              ),
-            )
-          : 0;
+      const visualization =
+        session.projector_visualization_type ??
+        "horizontal-bar";
 
-      return (
-        <div className="space-y-4 rounded-2xl border p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold">
-                Results
-              </p>
+      const colors = [
+        "#6366f1", "#8b5cf6", "#0ea5e9",
+        "#10b981", "#f59e0b", "#f43f5e",
+      ];
 
-              <p className="text-xs text-muted-foreground">
-                {responseCount}{" "}
-                response
-                {responseCount ===
-                1
-                  ? ""
-                  : "s"}
-              </p>
+      const leadingCount = resultEntries.length
+        ? Math.max(...resultEntries.map((entry) => entry.count))
+        : 0;
+
+      const renderVisualization = () => {
+        if (!resultEntries.length) {
+          return (
+            <div className="flex min-h-[220px] items-center justify-center rounded-2xl border border-dashed bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+              No results yet. Responses will appear here as they arrive.
             </div>
+          );
+        }
 
-            {averageValue !==
-              null && (
-              <div className="text-right">
-                <p className="text-xs text-muted-foreground">
-                  Average
-                </p>
-
-                <p className="text-lg font-bold">
-                  {
-                    averageValue
-                  }
-                </p>
-              </div>
-            )}
-          </div>
-
-          {resultEntries.length ===
-          0 ? (
-            <p className="text-sm text-muted-foreground">
-              No results yet.
-            </p>
-          ) : (
+        if (visualization === "likert") {
+          return (
             <div className="space-y-3">
-              {resultEntries.map(
-                (entry) => {
-                  const isLeading =
-                    entry.count ===
-                      leadingCount &&
-                    leadingCount >
-                      0;
-
-                  const isOwnAnswer =
-                    existingResponse &&
-                    answerToString(
-                      existingResponse.answer,
-                    ) ===
-                      entry.option;
-
-                  return (
-                    <div
-                      key={
-                        entry.option
-                      }
-                      className="space-y-1"
-                    >
-                      <div className="flex items-center justify-between gap-3 text-sm">
-                        <span className="min-w-0 truncate font-medium">
-                          {
-                            entry.option
-                          }
-
+              {resultEntries.map((entry, index) => {
+                const isOwnAnswer =
+                  existingResponse &&
+                  answerToString(existingResponse.answer) === entry.option;
+                const colors = [
+                  "from-rose-500 to-rose-400",
+                  "from-orange-500 to-amber-400",
+                  "from-slate-400 to-slate-300",
+                  "from-cyan-500 to-sky-400",
+                  "from-emerald-500 to-emerald-400",
+                  "from-indigo-500 to-violet-400",
+                ];
+                return (
+                  <div
+                    key={entry.option}
+                    className={[
+                      "rounded-2xl border p-4 transition-all",
+                      isOwnAnswer
+                        ? "border-primary/50 bg-primary/[0.07] shadow-sm"
+                        : "bg-card",
+                    ].join(" ")}
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate font-bold">
+                          {entry.option}
                           {isOwnAnswer && (
-                            <span className="ml-2 text-xs text-primary">
+                            <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-primary">
                               Your answer
                             </span>
                           )}
-                        </span>
-
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          {
-                            entry.count
-                          }{" "}
-                          ·{" "}
-                          {
-                            entry.percentage
-                          }%
-                        </span>
+                        </p>
                       </div>
-
-                      <div className="h-3 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={[
-                            "h-full rounded-full transition-all",
-                            isLeading
-                              ? "bg-primary"
-                              : "bg-primary/40",
-                          ].join(" ")}
-                          style={{
-                            width: `${entry.percentage}%`,
-                          }}
-                        />
-                      </div>
+                      <span className="shrink-0 text-sm font-black">
+                        {entry.percentage}%
+                      </span>
                     </div>
-                  );
-                },
+                    <div className="h-3 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className={
+                          "h-full rounded-full bg-gradient-to-r transition-all duration-500 " +
+                          colors[index % colors.length]
+                        }
+                        style={{ width: `${entry.percentage}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {entry.count} response{entry.count === 1 ? "" : "s"}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }
+
+        if (visualization === "donut") {
+          let cursor = 0;
+          const segments = resultEntries.map((entry, index) => {
+            const start = cursor;
+            cursor += entry.percentage;
+            return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+          }).join(", ");
+
+          return (
+            <div className="grid gap-6 sm:grid-cols-[180px_1fr] sm:items-center">
+              <div
+                className="relative mx-auto h-44 w-44 rounded-full shadow-lg"
+                style={{ background: `conic-gradient(${segments})` }}
+              >
+                <div className="absolute inset-7 flex flex-col items-center justify-center rounded-full bg-background">
+                  <span className="text-3xl font-black">{responseCount}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Responses</span>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {resultEntries.map((entry, index) => (
+                  <div key={entry.option} className="flex items-center justify-between gap-3 text-sm">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                      <span className="truncate font-medium">{entry.option}</span>
+                    </div>
+                    <span className="font-bold">{entry.percentage}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        if (visualization === "vertical-bar") {
+          const max = Math.max(...resultEntries.map((entry) => entry.percentage), 1);
+          return (
+            <div className="flex h-64 items-end gap-3 overflow-x-auto pb-2">
+              {resultEntries.map((entry) => (
+                <div key={entry.option} className="flex min-w-[64px] flex-1 flex-col items-center gap-2">
+                  <span className="text-xs font-bold">{entry.percentage}%</span>
+                  <div className="flex h-44 w-full items-end rounded-xl bg-muted p-1">
+                    <div className="w-full rounded-lg bg-primary transition-all duration-500" style={{ height: `${Math.max(3, (entry.percentage / max) * 100)}%` }} />
+                  </div>
+                  <span className="max-w-full truncate text-center text-xs font-medium">{entry.option}</span>
+                </div>
+              ))}
+            </div>
+          );
+        }
+
+        if (visualization === "ranked") {
+          return (
+            <div className="space-y-2">
+              {[...resultEntries].sort((a, b) => b.count - a.count).map((entry, index) => (
+                <div key={entry.option} className="flex items-center gap-3 rounded-xl border bg-card p-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-black text-primary">#{index + 1}</span>
+                  <span className="min-w-0 flex-1 truncate font-semibold">{entry.option}</span>
+                  <span className="text-sm font-bold">{entry.count}</span>
+                  <span className="w-12 text-right text-sm text-muted-foreground">{entry.percentage}%</span>
+                </div>
+              ))}
+            </div>
+          );
+        }
+
+        if (visualization === "percentage") {
+          return (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {resultEntries.map((entry) => (
+                <div key={entry.option} className="rounded-2xl border bg-card p-4 shadow-sm">
+                  <p className="truncate text-sm font-semibold text-muted-foreground">{entry.option}</p>
+                  <div className="mt-3 flex items-end justify-between gap-3">
+                    <span className="text-3xl font-black">{entry.percentage}%</span>
+                    <span className="text-sm text-muted-foreground">{entry.count} votes</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        }
+
+        return (
+          <div className="space-y-3">
+            {resultEntries.map((entry) => {
+              const isOwnAnswer =
+                existingResponse &&
+                answerToString(existingResponse.answer) === entry.option;
+              return (
+                <div key={entry.option} className="rounded-xl border bg-card p-3">
+                  <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-semibold">
+                      {entry.option}
+                      {isOwnAnswer && <span className="ml-2 text-xs text-primary">Your answer</span>}
+                    </span>
+                    <span className="shrink-0 font-bold">{entry.count} · {entry.percentage}%</span>
+                  </div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                    <div className={entry.count === leadingCount && leadingCount > 0 ? "h-full rounded-full bg-primary transition-all duration-500" : "h-full rounded-full bg-primary/40 transition-all duration-500"} style={{ width: `${entry.percentage}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      };
+
+      return (
+        <section className="overflow-hidden rounded-3xl border bg-gradient-to-b from-primary/[0.05] to-background shadow-sm">
+          <div className="border-b bg-background/70 px-5 py-4 backdrop-blur sm:px-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">Live results</p>
+                <h2 className="mt-1 text-lg font-bold">Response distribution</h2>
+                <p className="mt-1 text-xs text-muted-foreground">{responseCount} response{responseCount === 1 ? "" : "s"} collected</p>
+              </div>
+              {averageValue !== null && (
+                <div className="rounded-2xl bg-primary/10 px-4 py-2 text-right">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Average</p>
+                  <p className="text-xl font-black text-primary">{averageValue}</p>
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
+          <div className="space-y-4 p-5 sm:p-6">
+            {renderVisualization()}
+          </div>
+        </section>
       );
     };
 
@@ -1723,7 +1830,7 @@ export default function JoinPage({
 
   if (isLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <main className="flex min-h-screen items-center justify-center bg-slate-100 dark:bg-slate-950">
         <p className="font-semibold">
           Loading session...
         </p>
@@ -1739,7 +1846,7 @@ export default function JoinPage({
 
   if (!session) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
+      <main className="relative flex min-h-screen items-center justify-center bg-slate-100 p-4 dark:bg-slate-950">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>
@@ -1771,20 +1878,76 @@ export default function JoinPage({
       "archived"
   ) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
-        <Card className="w-full max-w-md text-center">
-          <CardHeader>
-            <CardTitle>
-              {session.name}
-            </CardTitle>
-          </CardHeader>
+      <main className="relative min-h-screen overflow-hidden bg-slate-50 px-4 py-8 dark:bg-slate-950 sm:px-6">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.18),transparent_42%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.14),transparent_36%)]" />
 
-          <CardContent>
-            <p className="text-muted-foreground">
-              This session has ended.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-2xl items-center justify-center">
+          <Card className="w-full overflow-hidden border-slate-200/80 bg-white/90 shadow-2xl backdrop-blur dark:border-white/10 dark:bg-slate-950/80">
+            <div className="h-2 bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500" />
+            <CardHeader className="pb-4 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 shadow-lg dark:bg-indigo-500/15 dark:text-indigo-300">
+                <Radio className="h-8 w-8" />
+              </div>
+              <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-indigo-500">
+                Live Session Complete
+              </p>
+              <CardTitle className="mt-2 text-3xl font-black sm:text-4xl">
+                {session.name}
+              </CardTitle>
+              <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted-foreground sm:text-base">
+                This session has ended and is no longer accepting responses.
+                Thank you for participating.
+              </p>
+            </CardHeader>
+
+            <CardContent className="space-y-5 pb-8">
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-5 text-center dark:border-indigo-500/20 dark:bg-indigo-500/10">
+                <p className="text-sm font-bold">Ready for another session?</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Enter the join code for your next live session.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <Input
+                  value={nextJoinCode}
+                  onChange={(event) => setNextJoinCode(event.target.value.toUpperCase())}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      const nextCode = nextJoinCode.trim().toUpperCase();
+                      if (nextCode) window.location.assign(`/session/${nextCode}`);
+                    }
+                  }}
+                  placeholder="Enter session code"
+                  className="h-12 text-center text-base font-bold uppercase tracking-[0.16em]"
+                />
+                <Button
+                  className="h-12 px-6 font-bold"
+                  disabled={!nextJoinCode.trim()}
+                  onClick={() => {
+                    const nextCode = nextJoinCode.trim().toUpperCase();
+                    if (nextCode) window.location.assign(`/session/${nextCode}`);
+                  }}
+                >
+                  Join session
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+
+              <Button
+                type="button"
+                variant="ghost"
+                className="mx-auto flex text-muted-foreground"
+                onClick={() => {
+                  setNextJoinCode("");
+                }}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Clear join code
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     );
   }
@@ -1802,7 +1965,7 @@ export default function JoinPage({
       !session.allow_late_join;
 
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4 dark:bg-slate-950">
+      <main className="relative flex min-h-screen items-center justify-center bg-slate-100 p-4 dark:bg-slate-950">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader>
             <CardTitle>
@@ -1918,6 +2081,8 @@ export default function JoinPage({
 
   const canAnswer =
     session.status === "live" &&
+    session.student_display_type === "question" &&
+    session.student_question_id === question?.id &&
     !session.is_offline &&
     question?.status ===
       "active";
@@ -1929,23 +2094,36 @@ export default function JoinPage({
    */
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 dark:bg-slate-950">
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-xl items-center">
-        <Card className="w-full shadow-lg">
-          <CardHeader>
+    <main className="relative min-h-screen overflow-hidden bg-slate-100 p-4 text-slate-950 dark:bg-slate-950 dark:text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_5%,rgba(99,102,241,0.14),transparent_32%),radial-gradient(circle_at_85%_90%,rgba(14,165,233,0.12),transparent_30%)] dark:bg-[radial-gradient(circle_at_75%_10%,rgba(79,70,229,0.18),transparent_28%),radial-gradient(circle_at_20%_90%,rgba(14,165,233,0.12),transparent_32%)]" />
+      <div className="relative mx-auto flex min-h-[calc(100vh-2rem)] max-w-6xl items-center">
+        <Card className="w-full overflow-hidden lg:min-h-[min(760px,calc(100vh-2rem))] border-slate-200/80 bg-white/85 shadow-2xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
+          <CardHeader className="border-b border-slate-200/70 bg-gradient-to-r from-indigo-50 via-white to-violet-50 p-5 dark:border-white/10 dark:from-indigo-950/40 dark:via-slate-950/40 dark:to-violet-950/30 sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="mb-3 flex items-center gap-2">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-300"><Radio className="h-4 w-4" /></span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-300">Participant View</span>
+                </div>
             <CardTitle>
               {session.name}
             </CardTitle>
+              </div>
+              <ThemeToggle />
+            </div>
 
-            <p className="text-xs text-muted-foreground">
-              {session.participant_mode ===
-              "anonymous"
-                ? "Anonymous participation"
-                : "Identified participation"}
+            <p className="mt-3 text-xs text-muted-foreground">
+              {session.participant_mode === "identified"
+                ? participantProfile
+                  ? `${participantProfile.name ?? "Participant"} · Roll No. ${participantProfile.roll_number ?? "—"}`
+                  : "Identified participation"
+                : participantProfile
+                  ? `${getParticipantDisplayName(participantProfile, sessionParticipants)} · Anonymous participation`
+                  : "Anonymous participation"}
             </p>
           </CardHeader>
 
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-6 p-5 sm:p-8 lg:p-10">
             {error && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {error}
@@ -1955,7 +2133,7 @@ export default function JoinPage({
             {session.status ===
                 "paused" ||
             session.is_offline ? (
-              <div className="rounded-2xl border bg-yellow-50 p-6 text-center dark:bg-yellow-950/30">
+              <div className="rounded-3xl border border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-8 text-center shadow-sm dark:border-amber-500/20 dark:from-amber-950/30 dark:to-orange-950/20">
                 <h2 className="text-xl font-bold">
                   Session Paused
                 </h2>
@@ -1966,7 +2144,7 @@ export default function JoinPage({
                 </p>
               </div>
             ) : !question ? (
-              <div className="rounded-2xl border border-dashed p-8 text-center">
+              <div className="rounded-3xl border border-dashed border-indigo-200 bg-indigo-50/40 p-10 text-center dark:border-indigo-400/20 dark:bg-indigo-500/[0.04]">
                 <h2 className="text-xl font-bold">
                   Waiting for the
                   instructor
@@ -1981,27 +2159,22 @@ export default function JoinPage({
             ) : (
               <div className="space-y-5">
                 <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Live Question
-                  </div>
+                  <div className="mb-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-indigo-600 dark:text-indigo-300"><span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]" />Live Question</div>
 
-                  <h2 className="text-2xl font-bold">
-                    {
-                      question.text
-                    }
-                  </h2>
+                  <h2 className="max-w-5xl text-3xl font-black leading-tight tracking-tight sm:text-4xl lg:text-5xl">{question.text}</h2>
                 </div>
 
                 {existingResponse &&
                 !isEditingResponse ? (
                   <div className="space-y-4">
-                    <div className="rounded-2xl border bg-muted/30 p-5">
+                    <div className="rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-cyan-50 p-5 shadow-sm dark:border-emerald-500/20 dark:from-emerald-950/20 dark:to-cyan-950/20">
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Your Answer
                       </p>
 
                       <p className="mt-2 text-lg font-semibold">
-                        {answerToString(
+                        {getResponseDisplayLabel(
+                          question,
                           existingResponse.answer,
                         )}
                       </p>

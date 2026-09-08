@@ -3,6 +3,7 @@
 import {
     CheckCircle2,
     Circle,
+    Eye,
     Play,
     Radio,
 } from "lucide-react";
@@ -115,13 +116,52 @@ export function QuestionRow({
                 </div>
             </button>
 
-            {!isLive &&
-            !isClosed ? (
-                <div className="absolute bottom-2 right-2 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+            <div className="flex items-center justify-between gap-3 px-3 pb-3">
+                <div>
+                    {isLive ? (
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
+                            <span className="relative flex h-2 w-2">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                            </span>
+                            Live now
+                        </span>
+                    ) : isClosed ? (
+                        <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-400">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Closed
+                        </span>
+                    ) : (
+                        <span className="text-[10px] font-medium text-slate-400">
+                            Ready to display
+                        </span>
+                    )}
+                </div>
+
+                {isLive ? (
+                    <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        Managing
+                    </span>
+                ) : isClosed ? (
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        disabled={isUpdating}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onSelect();
+                        }}
+                    >
+                        <Eye className="mr-1.5 h-3.5 w-3.5" />
+                        View
+                    </Button>
+                ) : (
                     <Button
                         type="button"
                         size="sm"
-                        variant="outline"
+                        className="h-7 px-2 text-xs"
                         disabled={isUpdating}
                         onClick={(event) => {
                             event.stopPropagation();
@@ -129,29 +169,12 @@ export function QuestionRow({
                         }}
                     >
                         <Play className="mr-1.5 h-3.5 w-3.5" />
-
-                        Live
+                        Display
                     </Button>
-                </div>
-            ) : null}
+                )}
+            </div>
 
-            {isLive ? (
-                <div className="absolute right-3 top-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                    <span className="relative flex h-2 w-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60" />
 
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-                    </span>
-
-                    Live
-                </div>
-            ) : null}
-
-            {isClosed ? (
-                <div className="absolute right-3 top-3 text-slate-400">
-                    <CheckCircle2 className="h-4 w-4" />
-                </div>
-            ) : null}
         </div>
     );
 }

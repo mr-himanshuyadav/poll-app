@@ -2,7 +2,9 @@
 
 import { use, useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
+import { ChevronLeft, ChevronRight, QrCode, Users } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { supabase } from "@/lib/supabase";
 import type { Session, SessionQuestion } from "@/lib/types";
 
@@ -54,6 +56,14 @@ export default function ProjectorPage({
 
     const [phase, setPhase] =
         useState<ProjectorPhase>("connecting");
+
+    const [displayType, setDisplayType] =
+        useState<"waiting" | "question" | "results">(
+            "waiting",
+        );
+
+    const [sidebarVisible, setSidebarVisible] =
+        useState(true);
 
     /*
      * ---------------------------------------------
@@ -177,6 +187,7 @@ export default function ProjectorPage({
             );
 
             setSession(currentSession);
+            setDisplayType(currentSession.projector_display_type ?? "waiting");
 
             if (
                 currentSession.status ===
@@ -196,11 +207,12 @@ export default function ProjectorPage({
                 currentSession.is_offline
             ) {
                 if (
-                    currentSession.active_question_id
+                    currentSession.projector_question_id
                 ) {
                     await loadQuestion(
                         currentSession.id,
-                        currentSession.active_question_id,
+                        currentSession.projector_question_id ??
+                            currentSession.active_question_id,
                     );
                 }
 
@@ -209,11 +221,12 @@ export default function ProjectorPage({
             }
 
             if (
-                currentSession.active_question_id
+                currentSession.projector_display_type !== "waiting" &&
+                currentSession.projector_question_id
             ) {
                 await loadQuestion(
                     currentSession.id,
-                    currentSession.active_question_id,
+                    currentSession.projector_question_id,
                 );
 
                 setPhase("live");
@@ -264,6 +277,9 @@ export default function ProjectorPage({
                         payload.new as Session;
 
                     setSession(updatedSession);
+                    setDisplayType(
+                        updatedSession.projector_display_type ?? "waiting",
+                    );
 
                     /*
                      * Session ended
@@ -298,11 +314,13 @@ export default function ProjectorPage({
                          */
 
                         if (
+                            updatedSession.projector_question_id ??
                             updatedSession.active_question_id
                         ) {
                             await loadQuestion(
                                 updatedSession.id,
-                                updatedSession.active_question_id,
+                                updatedSession.projector_question_id ??
+                                    updatedSession.active_question_id,
                             );
                         }
 
@@ -313,25 +331,36 @@ export default function ProjectorPage({
                      * Question cleared
                      */
 
+                    /*
+                     * Projector has no active content.
+                     */
+
                     if (
-                        !updatedSession.active_question_id
+                        updatedSession.projector_display_type ===
+                            "waiting" ||
+                        !updatedSession.projector_question_id
                     ) {
                         setQuestion(null);
                         setResponses([]);
+                        setDisplayType("waiting");
                         setPhase("waiting");
                         return;
                     }
 
                     /*
-                     * Active question changed or session
-                     * returned to live.
+                     * The authoritative projector display
+                     * changed. Load exactly the question
+                     * selected for the projector.
                      */
 
                     await loadQuestion(
                         updatedSession.id,
-                        updatedSession.active_question_id,
+                        updatedSession.projector_question_id,
                     );
 
+                    setDisplayType(
+                        updatedSession.projector_display_type,
+                    );
                     setPhase("live");
                 },
             )
@@ -371,20 +400,6 @@ export default function ProjectorPage({
 
                         return updatedQuestion;
                     });
-
-                    /*
-                     * If the active question itself
-                     * was closed, update projector state.
-                     */
-
-                    if (
-                        updatedQuestion.id ===
-                        question?.id &&
-                        updatedQuestion.status ===
-                        "closed"
-                    ) {
-                        setPhase("closed");
-                    }
 
                     /*
                      * Refresh responses when question
@@ -609,6 +624,251 @@ export default function ProjectorPage({
             totalResponses,
         ]);
 
+    const projectorVisualization =
+        session?.projector_visualization_type ??
+        "horizontal-bar";
+
+    const renderResultsVisualization = () => {
+        if (!question) return null;
+
+        const counts: Record<string, number> = {};
+
+        for (const response of responses) {
+            const answer =
+                typeof response.answer === "string" ||
+                typeof response.answer === "number"
+                    ? String(response.answer)
+                    : JSON.stringify(response.answer);
+
+            counts[answer] =
+                (counts[answer] ?? 0) + 1;
+        }
+
+        const scaleLabels =
+            (question.config.scaleLabels as Record<string, string> | undefined) ?? {};
+
+        const options =
+            question.type === "scale" ||
+            question.type === "rating"
+                ? Array.from(
+                    {
+                        length: Math.max(
+                            0,
+                            Number(question.config.max ?? 5) -
+                            Number(question.config.min ?? 1) + 1,
+                        ),
+                    },
+                    (_, index) =>
+                        Number(question.config.min ?? 1) + index,
+                  ).map((value) => String(value))
+                : question.options;
+
+        const data = options.map((option) => {
+            const count = counts[String(option)] ?? 0;
+            const label =
+                (question.type === "scale" || question.type === "rating") &&
+                scaleLabels[String(option)]?.trim()
+                    ? `${option} — ${scaleLabels[String(option)]}`
+                    : String(option);
+            const percentage =
+                totalResponses === 0
+                    ? 0
+                    : (count / totalResponses) * 100;
+
+            return {
+                option: label,
+                count,
+                percentage,
+            };
+        });
+
+        if (projectorVisualization === "donut") {
+            let cursor = 0;
+            const colors = [
+                "#818cf8", "#a78bfa", "#38bdf8",
+                "#34d399", "#fbbf24", "#fb7185",
+            ];
+            const segments = data.map(
+                (item, index) => {
+                    const start = cursor;
+                    cursor += item.percentage;
+                    return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+                },
+            ).join(", ");
+
+            return (
+                <div className="grid gap-10 lg:grid-cols-[320px_1fr] lg:items-center">
+                    <div className="relative mx-auto h-72 w-72 rounded-full"
+                        style={{ background: `conic-gradient(${segments})` }}
+                    >
+                        <div className="absolute inset-10 flex flex-col items-center justify-center rounded-full bg-slate-950">
+                            <span className="text-5xl font-black">{totalResponses}</span>
+                            <span className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-white/40">Responses</span>
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        {data.map((item, index) => (
+                            <div key={item.option} className="flex items-center justify-between gap-4 text-xl">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                                    <span className="truncate">{item.option}</span>
+                                </div>
+                                <span className="font-black">{Math.round(item.percentage)}%</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        if (projectorVisualization === "likert" &&
+            (question.type === "scale" || question.type === "rating")) {
+            const maxCount = Math.max(...data.map((item) => item.count), 1);
+
+            return (
+                <div className="space-y-5">
+                    {data.map((item, index) => {
+                        const palette = [
+                            "from-rose-500 to-orange-400",
+                            "from-amber-500 to-yellow-400",
+                            "from-cyan-500 to-sky-400",
+                            "from-emerald-500 to-teal-400",
+                            "from-indigo-500 to-violet-400",
+                        ];
+                        return (
+                            <div key={item.option} className="grid min-h-[3.25rem] grid-cols-[minmax(180px,1fr)_minmax(180px,3fr)_72px] items-center gap-5">
+                                <span className="line-clamp-2 text-right text-lg font-bold leading-tight text-slate-600 dark:text-white/80">{item.option}</span>
+                                <div className="h-11 overflow-hidden rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-1">
+                                    <div className={`flex h-full items-center rounded-xl bg-gradient-to-r px-4 text-sm font-black shadow-lg transition-all duration-700 ${palette[index % palette.length]}`} style={{ width: `${Math.max(item.count ? 9 : 0, (item.count / maxCount) * 100)}%` }}>
+                                        {item.count || ""}
+                                    </div>
+                                </div>
+                                <span className="text-right text-xl font-black tabular-nums">{Math.round(item.percentage)}%</span>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        }
+
+        if (projectorVisualization === "vertical-bar") {
+            const max = Math.max(
+                ...data.map((item) => item.percentage),
+                1,
+            );
+
+            return (
+                <div className="flex h-[420px] items-end gap-5">
+                    {data.map((item, index) => (
+                        <div key={item.option} className="grid h-[420px] flex-1 grid-rows-[36px_1fr_52px] items-center gap-3">
+                            <span className="text-center text-xl font-black tabular-nums">{Math.round(item.percentage)}%</span>
+                            <div className="flex h-full w-full items-end rounded-2xl bg-slate-100/80 dark:bg-white/5 p-2">
+                                <div
+                                    className="w-full rounded-xl transition-all duration-500"
+                                    style={{
+                                        height: `${Math.max(3, (item.percentage / max) * 100)}%`,
+                                        background: [
+                                            "linear-gradient(to top, #6366f1, #a78bfa)",
+                                            "linear-gradient(to top, #8b5cf6, #c4b5fd)",
+                                            "linear-gradient(to top, #0ea5e9, #67e8f9)",
+                                            "linear-gradient(to top, #10b981, #6ee7b7)",
+                                            "linear-gradient(to top, #f59e0b, #fcd34d)",
+                                            "linear-gradient(to top, #f43f5e, #fda4af)",
+                                        ][index % 6],
+                                    }}
+                                />
+                            </div>
+                            <span className="line-clamp-2 flex h-[52px] items-start justify-center overflow-hidden text-center text-sm font-bold leading-tight text-slate-600 dark:text-white/70">{item.option}</span>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        if (projectorVisualization === "ranked") {
+            return (
+                <div className="space-y-4">
+                    {[...data].sort((a, b) => b.count - a.count).map((item, index) => (
+                        <div key={item.option} className="flex items-center gap-5 rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-5">
+                            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-xl font-black">#{index + 1}</span>
+                            <span className="flex-1 text-2xl font-bold">{item.option}</span>
+                            <span className="text-2xl font-black">{item.count}</span>
+                            <span className="w-20 text-right text-xl font-bold text-slate-500 dark:text-white/50">{Math.round(item.percentage)}%</span>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        if (projectorVisualization === "percentage") {
+            return (
+                <div className="grid gap-5 md:grid-cols-2">
+                    {data.map((item) => (
+                        <div key={item.option} className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-6">
+                            <p className="text-xl font-bold text-slate-600 dark:text-white/70">{item.option}</p>
+                            <div className="mt-5 flex items-end justify-between">
+                                <span className="text-5xl font-black">{Math.round(item.percentage)}%</span>
+                                <span className="text-lg font-bold text-slate-400 dark:text-white/40">{item.count} votes</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        const colors = [
+            "#818cf8", "#a78bfa", "#38bdf8",
+            "#34d399", "#fbbf24", "#fb7185",
+            "#22d3ee", "#e879f9",
+        ];
+
+        return (
+            <div className="space-y-5">
+                {data.map((item, index) => (
+                    <div
+                        key={item.option}
+                        className="grid gap-2 rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.035] sm:grid-cols-[minmax(180px,0.95fr)_minmax(260px,2.5fr)_120px] sm:items-center sm:gap-6"
+                    >
+                        <div className="min-w-0">
+                            <p className="line-clamp-2 text-lg font-bold leading-tight text-slate-800 dark:text-white lg:text-xl">
+                                {item.option}
+                            </p>
+                        </div>
+
+                        <div className="relative h-11 overflow-hidden rounded-xl bg-slate-100 dark:bg-white/5">
+                            <div
+                                className="absolute inset-y-0 left-0 rounded-xl transition-all duration-700"
+                                style={{
+                                    width: `${Math.max(item.count > 0 ? 3 : 0, item.percentage)}%`,
+                                    background: `linear-gradient(90deg, ${colors[index % colors.length]}, ${colors[(index + 1) % colors.length]})`,
+                                }}
+                            />
+                            <div className="relative z-10 flex h-full items-center px-4">
+                                {item.count > 0 ? (
+                                    <span className="text-sm font-black text-white drop-shadow-sm">
+                                        {item.count} {item.count === 1 ? "response" : "responses"}
+                                    </span>
+                                ) : null}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 sm:block sm:text-right">
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 sm:hidden">
+                                Result
+                            </span>
+                            <p className="text-2xl font-black tabular-nums text-slate-900 dark:text-white">
+                                {Math.round(item.percentage)}%
+                            </p>
+                            <p className="text-sm font-semibold text-slate-500 dark:text-white/50">
+                                {item.count} {item.count === 1 ? "vote" : "votes"}
+                            </p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     /*
      * ---------------------------------------------
      * URL
@@ -628,9 +888,7 @@ export default function ProjectorPage({
      */
 
     const showResults =
-        Boolean(
-            question?.results_visible,
-        );
+        displayType === "results";
 
     /*
      * ---------------------------------------------
@@ -643,7 +901,7 @@ export default function ProjectorPage({
             <main className="flex min-h-screen items-center justify-center bg-slate-950 p-8 text-white">
                 <div className="text-center">
 
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-white/50">
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-white/50">
                         Live Session
                     </p>
 
@@ -651,7 +909,7 @@ export default function ProjectorPage({
                         Unable to connect
                     </h1>
 
-                    <p className="mt-3 max-w-lg text-white/60">
+                    <p className="mt-3 max-w-lg text-slate-500 dark:text-white/60">
                         {error}
                     </p>
 
@@ -675,7 +933,7 @@ export default function ProjectorPage({
 
                 <div className="text-center">
 
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5">
 
                         <div className="h-7 w-7 animate-spin rounded-full border-4 border-white/20 border-t-white" />
 
@@ -698,13 +956,16 @@ export default function ProjectorPage({
      */
 
     return (
-        <main className="flex h-screen overflow-hidden bg-slate-950 text-white">
+        <main className="relative flex h-screen overflow-hidden bg-slate-100 text-slate-950 dark:bg-slate-950 dark:text-white">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_15%,rgba(79,70,229,0.12),transparent_28%),radial-gradient(circle_at_30%_90%,rgba(14,165,233,0.10),transparent_32%)] dark:bg-[radial-gradient(circle_at_75%_15%,rgba(79,70,229,0.18),transparent_28%),radial-gradient(circle_at_30%_90%,rgba(14,165,233,0.12),transparent_32%)]" />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_75%_15%,rgba(79,70,229,0.18),transparent_28%),radial-gradient(circle_at_30%_90%,rgba(14,165,233,0.12),transparent_32%)]" />
 
             {/* ========================================
           LEFT INFORMATION PANEL
          ======================================== */}
 
-            <aside className="flex w-[27%] min-w-[280px] flex-col justify-between border-r border-white/10 bg-slate-900 p-8">
+            {sidebarVisible && (
+            <aside className="relative z-10 flex w-[27%] min-w-[280px] flex-col justify-between border-r border-slate-200/80 dark:border-white/10 bg-gradient-to-b from-white via-slate-50 to-indigo-50/70 p-8 shadow-2xl dark:from-slate-900 dark:via-slate-950 dark:to-indigo-950/50">
 
                 <div>
 
@@ -724,14 +985,14 @@ export default function ProjectorPage({
 
                     {/* JOIN */}
 
-                    <div className="mt-10">
+                    <div className="mt-10 rounded-3xl border border-indigo-400/15 bg-white/[0.035] p-5">
 
-                        <p className="text-sm font-semibold text-white/60">
+                        <p className="text-sm font-semibold text-slate-500 dark:text-white/60">
                             Join the session
                         </p>
 
                         {joinUrl && (
-                            <div className="mt-4 rounded-2xl bg-white p-4">
+                            <div className="mt-4 rounded-2xl bg-white p-4 shadow-[0_0_50px_rgba(99,102,241,0.18)]">
 
                                 <QRCodeSVG
                                     value={joinUrl}
@@ -744,7 +1005,7 @@ export default function ProjectorPage({
 
                         <div className="mt-5 text-center">
 
-                            <p className="text-xs uppercase tracking-[0.2em] text-white/40">
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-white/40">
                                 Join Code
                             </p>
 
@@ -762,11 +1023,11 @@ export default function ProjectorPage({
 
                 <div className="space-y-3">
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-5">
 
                         <div className="flex items-center justify-between">
 
-                            <span className="text-sm text-white/60">
+                            <span className="text-sm text-slate-500 dark:text-white/60">
                                 Session
                             </span>
 
@@ -778,11 +1039,11 @@ export default function ProjectorPage({
 
                     </div>
 
-                    <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div className="rounded-2xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 p-5">
 
                         <div className="flex items-center justify-between">
 
-                            <span className="text-sm text-white/60">
+                            <span className="text-sm text-slate-500 dark:text-white/60">
                                 Responses
                             </span>
 
@@ -797,16 +1058,17 @@ export default function ProjectorPage({
                 </div>
 
             </aside>
+            )}
 
             {/* ========================================
           MAIN PROJECTOR AREA
          ======================================== */}
 
-            <section className="flex min-w-0 flex-1 flex-col">
+            <section className="relative z-10 flex min-w-0 flex-1 flex-col">
 
                 {/* TOP STATUS BAR */}
 
-                <div className="flex items-center justify-between border-b border-white/10 px-8 py-5">
+                <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-white/10 bg-white/70 px-6 py-5 backdrop-blur-xl dark:bg-slate-950/50 lg:px-8">
 
                     <div className="flex items-center gap-3">
 
@@ -819,7 +1081,7 @@ export default function ProjectorPage({
                                 }`}
                         />
 
-                        <span className="text-sm font-semibold text-white/70">
+                        <span className="text-sm font-semibold text-slate-600 dark:text-white/70">
                             {phase === "live"
                                 ? "Live"
                                 : phase === "paused"
@@ -837,7 +1099,7 @@ export default function ProjectorPage({
 
                         <div className="flex items-center gap-2">
 
-                            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/60">
+                            <span className="rounded-full border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 px-3 py-1 text-xs font-semibold text-slate-500 dark:text-white/60">
                                 {question.results_mode ===
                                     "live"
                                     ? "Live Results"
@@ -853,11 +1115,23 @@ export default function ProjectorPage({
 
                     )}
 
+                    <ThemeToggle className="ml-auto" />
+
+                    <button
+                        type="button"
+                        onClick={() => setSidebarVisible((visible) => !visible)}
+                        className="ml-4 flex h-10 items-center gap-2 rounded-xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-white/5 px-3 text-sm font-bold text-slate-600 dark:text-white/70 transition hover:bg-white/10 hover:text-white"
+                        title={sidebarVisible ? "Hide join panel" : "Show join panel"}
+                    >
+                        {sidebarVisible ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        <span className="hidden sm:inline">{sidebarVisible ? "Hide Join" : "Show Join"}</span>
+                    </button>
+
                 </div>
 
                 {/* CONTENT */}
 
-                <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-10 lg:p-16">
+                <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-8 lg:p-16">
 
                     {/* WAITING */}
 
@@ -872,7 +1146,7 @@ export default function ProjectorPage({
                                 Waiting for the instructor
                             </h2>
 
-                            <p className="mx-auto mt-6 max-w-2xl text-xl leading-relaxed text-white/50">
+                            <p className="mx-auto mt-6 max-w-2xl text-xl leading-relaxed text-slate-500 dark:text-white/50">
                                 The next question will appear here
                                 automatically.
                             </p>
@@ -893,7 +1167,7 @@ export default function ProjectorPage({
                                 Session Paused
                             </h2>
 
-                            <p className="mx-auto mt-6 max-w-2xl text-xl text-white/50">
+                            <p className="mx-auto mt-6 max-w-2xl text-xl text-slate-500 dark:text-white/50">
                                 Please wait while the instructor
                                 resumes the session.
                             </p>
@@ -914,13 +1188,13 @@ export default function ProjectorPage({
                                 Thank you
                             </h2>
 
-                            <p className="mx-auto mt-6 max-w-2xl text-xl text-white/50">
+                            <p className="mx-auto mt-6 max-w-2xl text-xl text-slate-500 dark:text-white/50">
                                 This live session has ended.
                             </p>
 
-                            <div className="mx-auto mt-8 inline-flex rounded-full border border-white/10 bg-white/5 px-6 py-3 text-lg font-semibold">
-                                {totalResponses} responses recorded
-                            </div>
+                            <p className="mt-8 text-base font-semibold text-slate-400 dark:text-white/40">
+                                Responses are now closed for this session.
+                            </p>
 
                         </div>
                     )}
@@ -946,7 +1220,7 @@ export default function ProjectorPage({
                     {phase === "live" &&
                         question && (
 
-                            <div className="w-full max-w-6xl">
+                            <div className="w-full max-w-6xl rounded-[2rem] border border-slate-200/80 dark:border-white/10 bg-white/70 p-6 shadow-2xl backdrop-blur-sm dark:bg-slate-950/35 lg:p-10">
 
                                 {/* QUESTION */}
 
@@ -963,209 +1237,38 @@ export default function ProjectorPage({
                                 </div>
 
                                 {/* RESULTS */}
-
-                                {question.type ===
-                                    "multiple_choice" && (
-                                        <div className="mt-14 space-y-7">
-
-                                            {question.options.map(
-                                                (option, index) => {
-
-                                                    const count =
-                                                        tally[option] ?? 0;
-
-                                                    const percentage =
-                                                        totalResponses ===
-                                                            0
-                                                            ? 0
-                                                            : Math.round(
-                                                                (count /
-                                                                    totalResponses) *
-                                                                100,
-                                                            );
-
-                                                    return (
-
-                                                        <div
-                                                            key={`${question.id}-${index}`}
-                                                        >
-
-                                                            <div className="mb-3 flex items-center justify-between gap-6">
-
-                                                                <div className="min-w-0">
-
-                                                                    <span className="mr-4 text-2xl font-black text-white/30 lg:text-3xl">
-                                                                        {String.fromCharCode(
-                                                                            65 + index,
-                                                                        )}
-                                                                    </span>
-
-                                                                    <span className="text-2xl font-bold lg:text-3xl">
-                                                                        {option}
-                                                                    </span>
-
-                                                                </div>
-
-                                                                {showResults ? (
-
-                                                                    <div className="shrink-0 text-right">
-
-                                                                        <span className="text-2xl font-black lg:text-3xl">
-                                                                            {percentage}%
-                                                                        </span>
-
-                                                                        <span className="ml-3 text-lg text-white/40">
-                                                                            {count}
-                                                                        </span>
-
-                                                                    </div>
-
-                                                                ) : (
-
-                                                                    <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/50">
-                                                                        Responses collected
-                                                                    </span>
-
-                                                                )}
-
-                                                            </div>
-
-                                                            {showResults ? (
-
-                                                                <Progress
-                                                                    value={
-                                                                        percentage
-                                                                    }
-                                                                    className="h-7 bg-white/10"
-                                                                />
-
-                                                            ) : (
-
-                                                                <div className="h-4 rounded-full bg-white/5" />
-
-                                                            )}
-
-                                                        </div>
-
-                                                    );
-
-                                                },
-                                            )}
-
-                                        </div>
-                                    )}
-
-                                {/* SCALE */}
-
-                                {question.type ===
-                                    "scale" && (
-
-                                        <div className="mt-14">
-
-                                            {showResults ? (
-
-                                                <div className="space-y-6">
-
-                                                    {question.options.length >
-                                                        0 ? (
-
-                                                        question.options.map(
-                                                            (
-                                                                option,
-                                                                index,
-                                                            ) => {
-
-                                                                const count =
-                                                                    tally[
-                                                                    option
-                                                                    ] ?? 0;
-
-                                                                const percentage =
-                                                                    totalResponses ===
-                                                                        0
-                                                                        ? 0
-                                                                        : Math.round(
-                                                                            (count /
-                                                                                totalResponses) *
-                                                                            100,
-                                                                        );
-
-                                                                return (
-
-                                                                    <div
-                                                                        key={`${question.id}-${index}`}
-                                                                    >
-
-                                                                        <div className="mb-2 flex justify-between text-xl font-bold">
-
-                                                                            <span>
-                                                                                {option}
-                                                                            </span>
-
-                                                                            <span>
-                                                                                {percentage}% (
-                                                                                {count})
-                                                                            </span>
-
-                                                                        </div>
-
-                                                                        <Progress
-                                                                            value={
-                                                                                percentage
-                                                                            }
-                                                                            className="h-6"
-                                                                        />
-
-                                                                    </div>
-
-                                                                );
-
-                                                            },
-                                                        )
-
-                                                    ) : (
-
-                                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-
-                                                            <p className="text-2xl font-bold">
-                                                                {totalResponses}{" "}
-                                                                responses
-                                                            </p>
-
-                                                        </div>
-
-                                                    )}
-
-                                                </div>
-
-                                            ) : (
-
-                                                <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
-
-                                                    <p className="text-2xl font-bold">
-                                                        Responses are being collected
-                                                    </p>
-
-                                                    <p className="mt-3 text-lg text-white/40">
-                                                        Results will appear when
-                                                        they are revealed.
-                                                    </p>
-
-                                                </div>
-
-                                            )}
-
-                                        </div>
-
-                                    )}
+                                {(
+                                    question.type === "multiple_choice" ||
+                                    question.type === "true_false" ||
+                                    question.type === "scale" ||
+                                    question.type === "rating"
+                                ) && (
+                                    <div className="mt-12 rounded-3xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 p-5 shadow-inner dark:bg-white/[0.035] lg:p-8">
+                                        {showResults ? (
+                                            <div className="animate-in fade-in duration-300">
+                                                {renderResultsVisualization()}
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-3xl border border-slate-200/80 dark:border-white/10 bg-slate-100/80 dark:bg-slate-100/80 p-10 text-center dark:bg-white/5">
+                                                <p className="text-2xl font-bold">
+                                                    Responses are being collected
+                                                </p>
+                                                <p className="mt-3 text-lg text-slate-400 dark:text-white/40">
+                                                    Results will appear when
+                                                    they are revealed.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* RESPONSE FOOTER */}
 
-                                <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-6 sm:flex-row">
+                                <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t border-slate-200/80 dark:border-white/10 pt-6 sm:flex-row">
 
                                     <div>
 
-                                        <p className="text-sm font-semibold text-white/40">
+                                        <p className="text-sm font-semibold text-slate-400 dark:text-white/40">
                                             Total Responses
                                         </p>
 
@@ -1180,7 +1283,7 @@ export default function ProjectorPage({
 
                                             <div className="text-right">
 
-                                                <p className="text-sm font-semibold text-white/40">
+                                                <p className="text-sm font-semibold text-slate-400 dark:text-white/40">
                                                     Leading Answer
                                                 </p>
 

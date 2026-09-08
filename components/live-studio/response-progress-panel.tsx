@@ -22,12 +22,14 @@ interface ResponseProgressPanelProps {
     responseCount: number;
 
     activeQuestion: SessionQuestion | null;
+    embedded?: boolean;
 }
 
 export function ResponseProgressPanel({
     totalParticipants,
     responseCount,
     activeQuestion,
+    embedded = false,
 }: ResponseProgressPanelProps) {
     const percentage =
         calculateProgressPercentage(
@@ -45,7 +47,13 @@ export function ResponseProgressPanel({
         activeQuestion?.status === "active";
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <section
+            className={
+                embedded
+                    ? "p-0"
+                    : "rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950"
+            }
+        >
             <div className="flex items-start justify-between gap-4">
                 <div>
                     <p className="text-xs font-bold uppercase tracking-wider text-slate-400">

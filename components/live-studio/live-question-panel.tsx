@@ -10,7 +10,13 @@ import {
     Play,
     Radio,
     Square,
+    X,
+    ChevronDown,
+    Users,
+    MonitorUp,
 } from "lucide-react";
+
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -33,7 +39,13 @@ interface LiveQuestionPanelProps {
 
     question: SessionQuestion | null;
 
+    activeQuestion: SessionQuestion | null;
+
     questions: SessionQuestion[];
+
+    projectorResultsVisible?: boolean;
+
+    defaultResultVisibility?: "students" | "projector" | "both";
 
     isUpdating?: boolean;
 
@@ -43,9 +55,21 @@ interface LiveQuestionPanelProps {
 
     onCloseQuestion: () => void;
 
-    onShowResults?: () => void;
+    onShowResults?: (
+        target: "students" | "projector" | "both",
+    ) => void;
+
+    onShowResultsOnProjector?: () => void;
+
+    onShowResultsOnBoth?: () => void;
 
     onHideResults?: () => void;
+
+    onHideProjectorResults?: () => void;
+
+    onConfirmReplaceLiveQuestion?: (
+        question: SessionQuestion,
+    ) => void;
 }
 
 function getScaleNumber(
@@ -80,13 +104,23 @@ function getScaleLabel(
 
 export function LiveQuestionPanel({
     question,
+    activeQuestion,
     questions,
+    projectorResultsVisible = false,
+    defaultResultVisibility = "both",
     isUpdating = false,
     onActivateQuestion,
     onCloseQuestion,
     onShowResults,
+    onShowResultsOnProjector,
+    onShowResultsOnBoth,
     onHideResults,
+    onHideProjectorResults,
+    onConfirmReplaceLiveQuestion,
 }: LiveQuestionPanelProps) {
+    const [resultsMenuOpen, setResultsMenuOpen] =
+        useState(false);
+
     if (!question) {
         const nextQuestion =
             [...questions]
@@ -165,15 +199,59 @@ export function LiveQuestionPanel({
             question.status,
         );
 
-    const resultsVisible =
+    const studentsResultsVisible =
         question.results_visible ===
         true;
 
-    const canActivate =
-        question.status !== "active";
+    const resultsVisible =
+        studentsResultsVisible ||
+        projectorResultsVisible;
 
-    const canClose =
+    const visibilityLabel =
+        studentsResultsVisible &&
+        projectorResultsVisible
+            ? "Both"
+            : studentsResultsVisible
+            ? "Students"
+            : projectorResultsVisible
+            ? "Projector"
+            : "Hidden";
+
+    const isLive =
         question.status === "active";
+
+    const canActivate =
+        !isLive;
+
+    const canClose = isLive;
+
+    const anotherQuestionIsLive =
+        activeQuestion !== null &&
+        activeQuestion.id !== question.id;
+
+    const activeQuestionPosition =
+        anotherQuestionIsLive
+            ? getQuestionPosition(
+                  activeQuestion,
+                  questions,
+              )
+            : null;
+
+    const handleDisplayToStudents =
+        () => {
+            if (
+                anotherQuestionIsLive &&
+                onConfirmReplaceLiveQuestion
+            ) {
+                onConfirmReplaceLiveQuestion(
+                    question,
+                );
+
+                return;
+            }
+
+            onActivateQuestion(question);
+        };
 
     const scaleMin =
         getScaleNumber(
@@ -223,7 +301,26 @@ export function LiveQuestionPanel({
         );
 
     return (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 ease-out dark:border-slate-800 dark:bg-slate-950">
+            {anotherQuestionIsLive ? (
+                <div className="animate-in fade-in slide-in-from-top-2 border-b border-amber-200 bg-amber-50/80 px-5 py-2.5 duration-300 dark:border-amber-900/60 dark:bg-amber-950/30 sm:px-6">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-200">
+                            <span className="relative flex h-2.5 w-2.5 shrink-0">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-70" />
+                                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+                            </span>
+
+                            <span>
+                                Question {activeQuestionPosition ?? ""} is live for students
+                            </span>
+                        </div>
+
+                        <Radio className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    </div>
+                </div>
+            ) : null}
+
             <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:px-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
@@ -274,18 +371,14 @@ export function LiveQuestionPanel({
                         {canActivate ? (
                             <Button
                                 type="button"
-                                disabled={
-                                    isUpdating
-                                }
-                                onClick={() =>
-                                    onActivateQuestion(
-                                        question,
-                                    )
+                                disabled={isUpdating}
+                                onClick={
+                                    handleDisplayToStudents
                                 }
                             >
                                 <Play className="mr-2 h-4 w-4" />
 
-                                Make Live
+                                Display to Students
                             </Button>
                         ) : null}
 
@@ -293,12 +386,8 @@ export function LiveQuestionPanel({
                             <Button
                                 type="button"
                                 variant="destructive"
-                                disabled={
-                                    isUpdating
-                                }
-                                onClick={
-                                    onCloseQuestion
-                                }
+                                disabled={isUpdating}
+                                onClick={onCloseQuestion}
                             >
                                 <Square className="mr-2 h-4 w-4" />
 
@@ -417,61 +506,151 @@ export function LiveQuestionPanel({
                         <CircleDot className="h-4 w-4" />
 
                         <span>
-                            Results:{" "}
+                            Result Visibility:{" "}
 
                             <strong className="font-semibold text-slate-700 dark:text-slate-200">
-                                {resultsVisible
-                                    ? "Visible"
-                                    : "Hidden"}
+                                {visibilityLabel}
                             </strong>
                         </span>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                        {resultsVisible &&
-                        onHideResults ? (
+                    <div className="relative">
+                        <div className="flex overflow-hidden rounded-lg border border-slate-200 dark:border-slate-700">
                             <Button
                                 type="button"
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                disabled={
-                                    isUpdating
-                                }
-                                onClick={
-                                    onHideResults
-                                }
+                                disabled={isUpdating}
+                                className="rounded-none"
+                                onClick={() => {
+                                    if (studentsResultsVisible) {
+                                        onHideResults?.();
+                                        return;
+                                    }
+
+                                    if (projectorResultsVisible) {
+                                        onHideProjectorResults?.();
+                                        return;
+                                    }
+
+                                    onShowResults?.(
+                                        defaultResultVisibility,
+                                    );
+                                }}
                             >
-                                <EyeOff className="mr-2 h-4 w-4" />
+                                {resultsVisible ? (
+                                    <EyeOff className="mr-2 h-4 w-4" />
+                                ) : (
+                                    <Eye className="mr-2 h-4 w-4" />
+                                )}
 
-                                Hide Results
+                                {resultsVisible
+                                    ? "Hide Results"
+                                    : "Show Results"}
                             </Button>
-                        ) : null}
 
-                        {!resultsVisible &&
-                        onShowResults ? (
                             <Button
                                 type="button"
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                disabled={
-                                    isUpdating
-                                }
-                                onClick={
-                                    onShowResults
+                                disabled={isUpdating}
+                                aria-label="Choose result visibility"
+                                className="rounded-none border-l border-slate-200 px-2 dark:border-slate-700"
+                                onClick={() =>
+                                    setResultsMenuOpen((open) => !open)
                                 }
                             >
-                                <Eye className="mr-2 h-4 w-4" />
-
-                                Show Results
+                                <ChevronDown
+                                    className={[
+                                        "h-4 w-4 transition-transform duration-200",
+                                        resultsMenuOpen ? "rotate-180" : "",
+                                    ].join(" ")}
+                                />
                             </Button>
-                        ) : null}
+                        </div>
 
-                        {question.status ===
-                        "closed" ? (
-                            <div className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                                <CheckCircle2 className="h-4 w-4" />
+                        {resultsMenuOpen ? (
+                            <div className="absolute bottom-full right-0 z-20 mb-2 w-56 animate-in fade-in slide-in-from-bottom-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl duration-200 dark:border-slate-800 dark:bg-slate-950">
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-900"
+                                    onClick={() => {
+                                        setResultsMenuOpen(false);
+                                        if (studentsResultsVisible) {
+                                            onHideResults?.();
+                                        } else {
+                                            onShowResults?.("students");
+                                        }
+                                    }}
+                                >
+                                    {studentsResultsVisible ? (
+                                        <EyeOff className="h-4 w-4 text-indigo-500" />
+                                    ) : (
+                                        <Users className="h-4 w-4 text-indigo-500" />
+                                    )}
+                                    <span>
+                                        {studentsResultsVisible
+                                            ? "Hide from Students"
+                                            : "Show to Students"}
+                                    </span>
+                                </button>
 
-                                Question closed
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-900"
+                                    onClick={() => {
+                                        setResultsMenuOpen(false);
+                                        if (projectorResultsVisible) {
+                                            onHideProjectorResults?.();
+                                        } else {
+                                            onShowResultsOnProjector?.();
+                                        }
+                                    }}
+                                >
+                                    {projectorResultsVisible ? (
+                                        <EyeOff className="h-4 w-4 text-indigo-500" />
+                                    ) : (
+                                        <MonitorUp className="h-4 w-4 text-indigo-500" />
+                                    )}
+                                    <span>
+                                        {projectorResultsVisible
+                                            ? "Hide from Projector"
+                                            : "Show on Projector"}
+                                    </span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold transition hover:bg-slate-50 dark:hover:bg-slate-900"
+                                    onClick={() => {
+                                        setResultsMenuOpen(false);
+                                        if (
+                                            studentsResultsVisible ||
+                                            projectorResultsVisible
+                                        ) {
+                                            if (studentsResultsVisible) {
+                                                onHideResults?.();
+                                            }
+
+                                            if (projectorResultsVisible) {
+                                                onHideProjectorResults?.();
+                                            }
+                                        } else {
+                                            onShowResultsOnBoth?.();
+                                        }
+                                    }}
+                                >
+                                    {resultsVisible ? (
+                                        <EyeOff className="h-4 w-4 text-indigo-500" />
+                                    ) : (
+                                        <Eye className="h-4 w-4 text-indigo-500" />
+                                    )}
+                                    <span>
+                                        {resultsVisible
+                                            ? "Hide from Both"
+                                            : "Show on Both"}
+                                    </span>
+                                </button>
                             </div>
                         ) : null}
                     </div>

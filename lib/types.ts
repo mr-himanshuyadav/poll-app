@@ -21,6 +21,7 @@ export type QuestionType =
   | "rating";
 
 export type ResultsMode =
+  | "default"
   | "live"
   | "on_command"
   | "hidden";
@@ -28,6 +29,24 @@ export type ResultsMode =
 export type ParticipantMode =
   | "anonymous"
   | "identified";
+
+export type ProjectorDisplayType =
+  | "waiting"
+  | "question"
+  | "results";
+
+export type StudentDisplayType =
+  | "waiting"
+  | "question"
+  | "results";
+
+export type ResponseVisualizationType =
+  | "horizontal-bar"
+  | "vertical-bar"
+  | "donut"
+  | "ranked"
+  | "percentage"
+  | "likert";
 
 export type SessionEventType =
   | "session_created"
@@ -60,6 +79,16 @@ export interface QuestionConfig {
   min?: number;
   max?: number;
   step?: number;
+  minLabel?: string;
+  maxLabel?: string;
+  scaleLabels?: Record<string, string>;
+  scalePreset?:
+    | "numeric"
+    | "agreement"
+    | "satisfaction"
+    | "frequency"
+    | "quality"
+    | "custom";
   [key: string]: unknown;
 }
 
@@ -98,6 +127,11 @@ export interface SessionQuestion {
   closed_at: string | null;
 }
 
+export type ResultVisibilityTarget =
+  | "projector"
+  | "students"
+  | "both";
+
 export interface Session {
   id: string;
   template_id: string | null;
@@ -111,6 +145,12 @@ export interface Session {
   allow_answer_change: boolean;
   is_offline: boolean;
   active_question_id: string | null;
+  student_display_type: StudentDisplayType;
+  student_question_id: string | null;
+  projector_display_type: ProjectorDisplayType;
+  projector_question_id: string | null;
+  projector_visualization_type: ResponseVisualizationType;
+  default_result_visibility: ResultVisibilityTarget;
   created_at: string;
   started_at: string | null;
   paused_at: string | null;
