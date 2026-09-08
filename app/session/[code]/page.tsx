@@ -1,7 +1,8 @@
 "use client";
 
-import {
 import { ScaleResponseInput } from "@/components/live-studio/scale-response-input";
+
+import {
   use,
   useEffect,
   useMemo,
