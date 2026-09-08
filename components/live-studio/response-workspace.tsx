@@ -10,7 +10,7 @@ interface ResponseWorkspaceProps {
     onParticipantsNavigate?: (filter?: "all" | "responded" | "waiting") => void;
     participants?: React.ReactNode | ((filter: "all" | "responded" | "waiting", answer?: string | null) => React.ReactNode);
     overview: React.ReactNode | ((navigate: (filter: "all" | "responded" | "waiting") => void) => React.ReactNode);
-    distribution: React.ReactNode;
+    distribution: React.ReactNode | ((navigate: (filter?: "all" | "responded" | "waiting", answer?: string | null) => void) => React.ReactNode);
     activity?: React.ReactNode;
 }
 
@@ -57,7 +57,11 @@ export function ResponseWorkspace({
         activeView === "overview"
             ? (typeof overview === "function" ? overview(navigateToParticipants) : overview)
             : activeView === "distribution"
-              ? distribution
+              ? (typeof distribution === "function"
+                    ? distribution((filter = "responded", answer = null) =>
+                        navigateToParticipants(filter, answer),
+                    )
+                    : distribution)
               : activeView === "participants"
                 ? (typeof participants === "function"
                     ? participants(participantFilter, participantAnswer)
