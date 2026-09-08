@@ -34,6 +34,11 @@ export type ProjectorDisplayType =
   | "question"
   | "results";
 
+export type StudentDisplayType =
+  | "waiting"
+  | "question"
+  | "results";
+
 export type SessionEventType =
   | "session_created"
   | "session_started"
@@ -121,6 +126,8 @@ export interface Session {
   allow_answer_change: boolean;
   is_offline: boolean;
   active_question_id: string | null;
+  student_display_type: StudentDisplayType;
+  student_question_id: string | null;
   projector_display_type: ProjectorDisplayType;
   projector_question_id: string | null;
   default_result_visibility: ResultVisibilityTarget;
