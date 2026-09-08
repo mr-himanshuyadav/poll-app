@@ -7,6 +7,7 @@ import {
 } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { useLiveRecovery } from "@/hooks/use-live-recovery";
 
 import type {
     LiveSession,
@@ -106,6 +107,55 @@ const { data, error } = await supabase
     useEffect(() => {
         void fetchSession();
     }, [fetchSession]);
+
+    useLiveRecovery({
+        onRecover: fetchSession,
+    });
+
+    useEffect(() => {
+        if (!session?.id) {
+            return;
+        }
+
+        const channel = supabase
+            .channel(
+                `live-session-${session.id}`,
+            )
+            .on(
+                "postgres_changes",
+                {
+                    event: "UPDATE",
+                    schema: "public",
+                    table: "sessions",
+                    filter:
+                        `id=eq.${session.id}`,
+                },
+                (payload) => {
+                    setSession(
+                        normalizeSession(
+                            payload.new,
+                        ),
+                    );
+                },
+            )
+            .subscribe((status) => {
+                if (
+                    status === "CHANNEL_ERROR" ||
+                    status === "TIMED_OUT"
+                ) {
+                    void fetchSession();
+                }
+            });
+
+        return () => {
+            void supabase.removeChannel(
+                channel,
+            );
+        };
+    }, [
+        fetchSession,
+        session?.id,
+    ]);
 
     const updateSession =
         useCallback(
