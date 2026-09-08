@@ -124,17 +124,8 @@ function AlertDialogAction({
   )
 }
 
-function AlertDialogCancel({
-  className,
-  ...props
-}: AlertDialogPrimitive.Cancel.Props) {
-  return (
-    <AlertDialogPrimitive.Cancel
-      data-slot="alert-dialog-cancel"
-      className={className}
-      {...props}
-    />
-  )
+function AlertDialogCancel({ className, ...props }: AlertDialogPrimitive.Close.Props) {
+  return <AlertDialogPrimitive.Close data-slot="alert-dialog-cancel" className={className} {...props} />
 }
 
 export {
