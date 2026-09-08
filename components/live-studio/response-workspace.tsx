@@ -6,6 +6,8 @@ import { BarChart3, LayoutDashboard, Users, Activity } from "lucide-react";
 interface ResponseWorkspaceProps {
     responseCount?: number;
     participantCount?: number;
+    participantsLabel?: string;
+    onParticipantsNavigate?: () => void;
     overview: React.ReactNode;
     distribution: React.ReactNode;
     participants?: React.ReactNode;
@@ -32,6 +34,8 @@ export function ResponseWorkspace({
     activity,
     responseCount = 0,
     participantCount = 0,
+    participantsLabel = "View participant details",
+    onParticipantsNavigate,
 }: ResponseWorkspaceProps) {
     const [activeView, setActiveView] =
         useState<ResponseWorkspaceView>("overview");
@@ -101,6 +105,21 @@ export function ResponseWorkspace({
                     })}
                 </div>
             </div>
+
+            {activeView === "overview" && onParticipantsNavigate ? (
+                <div className="border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            onParticipantsNavigate();
+                            setActiveView("participants");
+                        }}
+                        className="text-sm font-semibold text-indigo-600 transition hover:text-indigo-700 dark:text-indigo-400"
+                    >
+                        {participantsLabel} →
+                    </button>
+                </div>
+            ) : null}
 
             <div className="min-h-[300px] animate-in fade-in-50 slide-in-from-bottom-1 duration-200">
                 {content}
