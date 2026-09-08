@@ -37,6 +37,7 @@ interface LiveQuestionWorkspaceProps {
     onRequestShowResults?: () => void;
     onShowResultsOnProjector?: () => void;
     onShowResultsOnBoth?: () => void;
+    onShowLiveResults?: () => void;
     onHideResults?: () => void;
     onHideProjectorResults?: () => void;
     onPreviousQuestion?: () => void;
@@ -50,7 +51,7 @@ interface LiveQuestionWorkspaceProps {
 export function LiveQuestionWorkspace({
     sessionId, questions, projectorResultsQuestionId, defaultResultVisibility = "both", projectorDisplayType = "waiting", projectorVisualizationType = "horizontal-bar", onProjectorVisualizationChange,
     projectorQuestion, viewedQuestion, activeQuestion, responses, participants, questionAnalytics, isUpdating = false,
-    onActivateQuestion, onViewQuestion, onCloseQuestion, onShowResults, onRequestShowResults, onShowResultsOnProjector, onShowResultsOnBoth,
+    onActivateQuestion, onViewQuestion, onCloseQuestion, onShowResults, onRequestShowResults, onShowResultsOnProjector, onShowResultsOnBoth, onShowLiveResults,
     onHideResults, onHideProjectorResults, onConfirmReplaceLiveQuestion, onPreviousQuestion, onNextQuestion, isSavingQuestion = false, onCreateQuestion, onUpdateQuestion, onClearView,
 }: LiveQuestionWorkspaceProps) {
     const [questionEditorMode, setQuestionEditorMode] = useState<"create" | "edit" | null>(null);
