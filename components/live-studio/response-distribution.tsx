@@ -10,6 +10,7 @@ import {
     CircleGauge,
     ListOrdered,
     Percent,
+    Rows3,
     Users,
 } from "lucide-react";
 
@@ -30,7 +31,8 @@ export type ResponseVisualizationType =
     | "vertical-bar"
     | "donut"
     | "ranked"
-    | "percentage";
+    | "percentage"
+    | "likert";
 
 interface ResponseDistributionProps {
     question: SessionQuestion | null;
@@ -236,7 +238,39 @@ export function ResponseDistribution({
         "bg-fuchsia-500",
     ];
 
+    const isSemanticScale =
+        isScaleQuestion && scaleConfig.preset !== "numeric";
+
+    const renderLikertVisualization = () => {
+        const maxCount = Math.max(1, ...distribution.map((item) => item.count));
+
+        return (
+            <div className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <p className="text-sm font-bold">Likert distribution</p>
+                        <p className="text-xs text-slate-500">Ordered response distribution across the semantic scale.</p>
+                    </div>
+                    {scaleAverage !== null ? <div className="rounded-lg bg-indigo-50 px-3 py-2 text-right dark:bg-indigo-950/40"><p className="text-[10px] font-bold uppercase tracking-wide text-indigo-400">Mean</p><p className="text-lg font-black">{scaleAverage.toFixed(2)}</p></div> : null}
+                </div>
+                <div className="space-y-2">
+                    {distribution.map((item) => {
+                        const width = (item.count / maxCount) * 100;
+                        return <div key={item.key} className="grid grid-cols-[minmax(110px,1fr)_minmax(80px,2.5fr)_52px] items-center gap-3">
+                            <div className="text-right text-xs font-semibold text-slate-600 dark:text-slate-300">{item.label}</div>
+                            <div className="h-8 overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-900"><div className="flex h-full items-center rounded-lg bg-indigo-500 px-2 text-xs font-bold text-white" style={{ width: `${Math.max(item.count ? 8 : 0, width)}%` }}>{item.count || ""}</div></div>
+                            <div className="text-right text-xs font-bold tabular-nums">{item.percentage.toFixed(1)}%</div>
+                        </div>;
+                    })}
+                </div>
+                <div className="flex justify-between border-t border-slate-100 pt-3 text-xs font-semibold text-slate-400 dark:border-slate-800"><span>{scaleConfig.minLabel || "Lower end"}</span><span>{scaleConfig.maxLabel || "Higher end"}</span></div>
+            </div>
+        );
+    };
+
     const renderVisualization = () => {
+        if (selectedVisualization === "likert" && isSemanticScale) return renderLikertVisualization();
+
         if (selectedVisualization === "donut") {
             const gradient = distribution
                 .reduce<string[]>(
@@ -490,6 +524,7 @@ export function ResponseDistribution({
                     <div className="flex flex-wrap items-center gap-2 self-start sm:justify-end">
                         <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900">
                             {[
+                                ...(isSemanticScale ? [{ type: "likert" as const, label: "Likert distribution", icon: Rows3 }] : []),
                                 {
                                     type: "horizontal-bar" as const,
                                     label: "Horizontal bars",
