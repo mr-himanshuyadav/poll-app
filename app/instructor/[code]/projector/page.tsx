@@ -239,8 +239,63 @@ export default function ProjectorPage({
 
         void loadSession();
 
+        let recovering = false;
+
+        const recoverLiveState = async () => {
+            if (
+                document.visibilityState !==
+                "visible" ||
+                !navigator.onLine ||
+                recovering
+            ) {
+                return;
+            }
+
+            recovering = true;
+
+            try {
+                supabase.realtime.connect();
+                await loadSession();
+            } finally {
+                recovering = false;
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            if (
+                document.visibilityState ===
+                "visible"
+            ) {
+                void recoverLiveState();
+            }
+        };
+
+        const handleOnline = () => {
+            void recoverLiveState();
+        };
+
+        window.addEventListener(
+            "online",
+            handleOnline,
+        );
+
+        document.addEventListener(
+            "visibilitychange",
+            handleVisibilityChange,
+        );
+
         return () => {
             cancelled = true;
+
+            window.removeEventListener(
+                "online",
+                handleOnline,
+            );
+
+            document.removeEventListener(
+                "visibilitychange",
+                handleVisibilityChange,
+            );
         };
     }, [sessionCode]);
 
