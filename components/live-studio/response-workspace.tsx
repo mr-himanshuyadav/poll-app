@@ -4,6 +4,8 @@ import { useState } from "react";
 import { BarChart3, LayoutDashboard, Users, Activity } from "lucide-react";
 
 interface ResponseWorkspaceProps {
+    responseCount?: number;
+    participantCount?: number;
     overview: React.ReactNode;
     distribution: React.ReactNode;
     participants?: React.ReactNode;
@@ -28,6 +30,8 @@ export function ResponseWorkspace({
     distribution,
     participants,
     activity,
+    responseCount = 0,
+    participantCount = 0,
 }: ResponseWorkspaceProps) {
     const [activeView, setActiveView] =
         useState<ResponseWorkspaceView>("overview");
@@ -82,13 +86,23 @@ export function ResponseWorkspace({
                             >
                                 <Icon className="h-4 w-4" />
                                 <span>{view.label}</span>
+                                {view.id === "participants" && participantCount > 0 ? (
+                                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-700">
+                                        {participantCount}
+                                    </span>
+                                ) : null}
+                                {view.id === "activity" && responseCount > 0 ? (
+                                    <span className="rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-700">
+                                        {responseCount}
+                                    </span>
+                                ) : null}
                             </button>
                         );
                     })}
                 </div>
             </div>
 
-            <div className="animate-in fade-in-50 duration-200">
+            <div className="min-h-[300px] animate-in fade-in-50 slide-in-from-bottom-1 duration-200">
                 {content}
             </div>
         </section>
