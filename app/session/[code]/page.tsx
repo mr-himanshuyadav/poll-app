@@ -1863,21 +1863,50 @@ export default function JoinPage({
 
   if (!session) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center bg-slate-100 p-4 dark:bg-slate-950">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>
-              Unable to Join
-            </CardTitle>
-          </CardHeader>
+      <main className="relative min-h-screen overflow-hidden bg-slate-50 px-4 py-8 dark:bg-slate-950 sm:px-6">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.18),transparent_42%),radial-gradient(circle_at_bottom_right,_rgba(14,165,233,0.14),transparent_36%)]" />
 
-          <CardContent>
-            <p className="text-sm text-red-600">
-              {error ??
-                "Session not found."}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="relative mx-auto flex min-h-[calc(100vh-4rem)] max-w-2xl items-center justify-center">
+          <Card className="w-full overflow-hidden border-slate-200/80 bg-white/90 shadow-2xl backdrop-blur dark:border-white/10 dark:bg-slate-950/80">
+            <div className="h-2 bg-gradient-to-r from-indigo-500 via-violet-500 to-sky-500" />
+            <CardHeader className="pb-4 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 shadow-lg dark:bg-indigo-500/15 dark:text-indigo-300">
+                <Radio className="h-8 w-8" />
+              </div>
+              <p className="mt-5 text-xs font-black uppercase tracking-[0.24em] text-indigo-500">
+                Session Unavailable
+              </p>
+              <CardTitle className="mt-2 text-3xl font-black sm:text-4xl">
+                Unable to find this session
+              </CardTitle>
+              <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted-foreground sm:text-base">
+                {error ?? "This session does not exist or is no longer available."}
+              </p>
+            </CardHeader>
+
+            <CardContent className="space-y-5 pb-8">
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-5 text-center dark:border-indigo-500/20 dark:bg-indigo-500/10">
+                <p className="text-sm font-bold">Want to join another session?</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Enter the join code for your live session.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                <Input value={nextJoinCode} onChange={(event) => setNextJoinCode(event.target.value.toUpperCase())} onKeyDown={(event) => { if (event.key === "Enter") { const nextCode = nextJoinCode.trim().toUpperCase(); if (nextCode) window.location.assign(`/session/${nextCode}`); } }} placeholder="Enter session code" className="h-12 text-center text-base font-bold uppercase tracking-[0.16em]" />
+                <Button className="h-12 px-6 font-bold" disabled={!nextJoinCode.trim()} onClick={() => { const nextCode = nextJoinCode.trim().toUpperCase(); if (nextCode) window.location.assign(`/session/${nextCode}`); }}>
+                  Join session
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+
+              <Button type="button" variant="ghost" className="mx-auto flex text-muted-foreground" onClick={() => setNextJoinCode("")}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Clear join code
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     );
   }

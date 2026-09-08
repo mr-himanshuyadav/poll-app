@@ -19,29 +19,14 @@ import {
 } from "@/components/ui/card";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import type {
   Question,
-  QuestionType,
   QuizTemplate,
+  SessionQuestion,
 } from "@/lib/types";
 
-type FormState = {
-  text: string;
-  type: "multiple_choice" | "scale";
-  options: string[];
-  scaleMax: 5 | 10;
-};
+import { QuestionEditor } from "@/components/live-studio/question-editor";
 
 type TemplateSession = {
   id: string;
@@ -74,13 +59,6 @@ type TemplateSession = {
   updated_at: string;
 };
 
-const emptyForm: FormState = {
-  text: "",
-  type: "multiple_choice",
-  options: ["", ""],
-  scaleMax: 5,
-};
-
 export default function TemplateEditor({
   params,
 }: {
@@ -109,10 +87,6 @@ export default function TemplateEditor({
   const [sessions, setSessions] =
     useState<TemplateSession[]>([]);
 
-  const [form, setForm] =
-    useState<FormState>(
-      emptyForm,
-    );
 
   const [isLoading, setIsLoading] =
     useState(true);
@@ -122,6 +96,12 @@ export default function TemplateEditor({
 
   const [error, setError] =
     useState<string | null>(null);
+
+  const [editingQuestionId, setEditingQuestionId] =
+    useState<string | null>(null);
+
+  const [isDeletingTemplate, setIsDeletingTemplate] =
+    useState(false);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -265,83 +245,20 @@ export default function TemplateEditor({
           "ready",
     );
 
-  const updateOption = (
-    index: number,
-    value: string,
+  const saveQuestion = async (
+    updates: Partial<SessionQuestion>,
   ) => {
-    setForm((current) => ({
-      ...current,
-      options:
-        current.options.map(
-          (
-            option,
-            optionIndex,
-          ) =>
-            optionIndex ===
-            index
-              ? value
-              : option,
-        ),
-    }));
-  };
-
-  const addOption = () => {
-    setForm((current) => ({
-      ...current,
-      options: [
-        ...current.options,
-        "",
-      ],
-    }));
-  };
-
-  const removeOption = (
-    index: number,
-  ) => {
-    setForm((current) => {
-      if (
-        current.options.length <=
-        2
-      ) {
-        return current;
-      }
-
-      return {
-        ...current,
-        options:
-          current.options.filter(
-            (
-              _,
-              optionIndex,
-            ) =>
-              optionIndex !==
-              index,
-          ),
-      };
-    });
-  };
-
-  const resetForm = () => {
-    setForm(emptyForm);
-  };
-
-  const saveQuestion = async () => {
-    const text =
-      form.text.trim();
+    const text = updates.text?.trim() ?? "";
 
     if (!text) {
-      setError(
-        "Enter a question.",
-      );
+      setError("Enter a question.");
       return;
     }
 
     if (
-      form.type ===
-        "multiple_choice" &&
-      form.options.filter(
-        (option) =>
-          option.trim(),
+      updates.type === "multiple_choice" &&
+      (updates.options ?? []).filter(
+        (option) => option.trim(),
       ).length < 2
     ) {
       setError(
@@ -358,81 +275,91 @@ export default function TemplateEditor({
         ? 1
         : Math.max(
             ...questions.map(
-              (question) =>
-                question.position,
+              (question) => question.position,
             ),
           ) + 1;
 
-    const options =
-      form.type ===
-      "multiple_choice"
-        ? form.options
-            .map((option) =>
-              option.trim(),
-            )
-            .filter(Boolean)
-        : Array.from(
-            {
-              length:
-                form.scaleMax,
-            },
-            (_, index) =>
-              String(
-                index + 1,
-              ),
-          );
-
-    const config =
-      form.type ===
-      "multiple_choice"
-        ? {
-            allowMultiple:
-              false,
-          }
-        : {
-            min: 1,
-            max: form.scaleMax,
-            step: 1,
-          };
+    const payload = {
+      template_id: templateId,
+      text,
+      type: updates.type ?? "multiple_choice",
+      options: updates.options ?? [],
+      config: updates.config ?? {},
+      position: nextPosition,
+      status: "draft",
+      // Template questions always inherit the session's result setting.
+      results_mode: "default",
+    };
 
     const {
       data,
       error: saveError,
     } = await supabase
       .from("questions")
-      .insert({
-        template_id:
-          templateId,
-        text,
-        type:
-          form.type as QuestionType,
-        options,
-        config,
-        position:
-          nextPosition,
-        status: "draft",
-        results_mode:
-          "on_command",
-      })
+      .insert(payload)
       .select("*")
       .single();
 
     if (saveError) {
-      setError(
-        saveError.message,
-      );
+      setError(saveError.message);
       setIsSaving(false);
       return;
     }
 
-    setQuestions(
-      (current) => [
-        ...current,
-        data as Question,
-      ],
+    setQuestions((current) => [
+      ...current,
+      data as Question,
+    ]);
+
+    setEditingQuestionId(null);
+    setIsSaving(false);
+  };
+
+  const updateQuestion = async (
+    questionId: string,
+    updates: Partial<SessionQuestion>,
+  ) => {
+    const text = updates.text?.trim() ?? "";
+
+    if (!text) {
+      setError("Enter a question.");
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    const payload = {
+      text,
+      type: updates.type,
+      options: updates.options ?? [],
+      config: updates.config ?? {},
+      // Keep template questions on the new default result behavior.
+      results_mode: "default",
+    };
+
+    const { data, error: updateError } = await supabase
+      .from("questions")
+      .update(payload)
+      .eq("id", questionId)
+      .eq("template_id", templateId)
+      .select("*")
+      .single();
+
+    if (updateError) {
+      setError(updateError.message);
+      setIsSaving(false);
+      return;
+    }
+
+    setQuestions((current) =>
+      current.map((question) =>
+        question.id === questionId
+          ? (data as Question)
+          : question,
+      ),
     );
 
-    resetForm();
     setIsSaving(false);
   };
 
@@ -477,6 +404,43 @@ export default function TemplateEditor({
             questionId,
         ),
     );
+  };
+
+  const deleteTemplate = async () => {
+    if (!template || isDeletingTemplate) return;
+
+    const confirmed = window.confirm(
+      `Delete "${template.title}" and all ${questions.length} template question${questions.length === 1 ? "" : "s"}? This cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    setIsDeletingTemplate(true);
+    setError(null);
+
+    const { error: questionsError } = await supabase
+      .from("questions")
+      .delete()
+      .eq("template_id", templateId);
+
+    if (questionsError) {
+      setError(questionsError.message);
+      setIsDeletingTemplate(false);
+      return;
+    }
+
+    const { error: templateDeleteError } = await supabase
+      .from("quiz_templates")
+      .delete()
+      .eq("id", templateId);
+
+    if (templateDeleteError) {
+      setError(templateDeleteError.message);
+      setIsDeletingTemplate(false);
+      return;
+    }
+
+    router.replace("/instructor");
   };
 
   if (isLoading) {
@@ -539,16 +503,24 @@ export default function TemplateEditor({
               </p>
             </div>
 
-            <Button
-              variant="outline"
-              onClick={() =>
-                router.push(
-                  "/instructor",
-                )
-              }
-            >
-              Back to Command Center
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => router.push("/instructor")}
+              >
+                Back to Command Center
+              </Button>
+
+              <Button
+                variant="destructive"
+                disabled={isDeletingTemplate}
+                onClick={() => void deleteTemplate()}
+              >
+                {isDeletingTemplate
+                  ? "Deleting..."
+                  : "Delete Template"}
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -623,17 +595,31 @@ export default function TemplateEditor({
                               </CardTitle>
                             </div>
 
-                            <Button
-                              variant="ghost"
-                              className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-700"
-                              onClick={() =>
-                                void deleteQuestion(
-                                  question.id,
-                                )
-                              }
-                            >
-                              Delete
-                            </Button>
+                            <div className="flex shrink-0 gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  setEditingQuestionId(
+                                    question.id,
+                                  )
+                                }
+                              >
+                                Edit
+                              </Button>
+
+                              <Button
+                                variant="ghost"
+                                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                                onClick={() =>
+                                  void deleteQuestion(
+                                    question.id,
+                                  )
+                                }
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           </div>
                         </CardHeader>
 
@@ -660,50 +646,49 @@ export default function TemplateEditor({
                             </span>
 
                             <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold dark:bg-slate-800">
-                              {question.results_mode ===
-                              "live"
-                                ? "Live Results"
-                                : question.results_mode ===
-                                    "hidden"
-                                  ? "Hidden Results"
-                                  : "Results on Command"}
-                            </span>
-
-                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold dark:bg-slate-800">
                               {question.status}
                             </span>
                           </div>
 
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {question.options.map(
-                              (
-                                option,
-                                optionIndex,
-                              ) => (
-                                <div
-                                  key={`${question.id}-${optionIndex}`}
-                                  className="rounded-xl border bg-slate-50 px-4 py-3 text-sm dark:bg-slate-950"
-                                >
-                                  {question.type ===
-                                    "multiple_choice" && (
-                                    <span className="mr-2 font-bold text-muted-foreground">
-                                      {String.fromCharCode(
-                                        65 +
-                                          optionIndex,
-                                      )}
-                                      .
-                                    </span>
-                                  )}
-
-                                  {
-                                    String(
-                                      option,
-                                    )
-                                  }
+                          {question.type === "multiple_choice" ? (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {question.options.map((option, optionIndex) => (
+                                <div key={`${question.id}-${optionIndex}`} className="rounded-xl border bg-slate-50 px-4 py-3 text-sm dark:bg-slate-950">
+                                  <span className="mr-2 font-bold text-muted-foreground">
+                                    {String.fromCharCode(65 + optionIndex)}.
+                                  </span>
+                                  {String(option)}
                                 </div>
-                              ),
-                            )}
-                          </div>
+                              ))}
+                            </div>
+                          ) : question.type === "scale" ? (
+                            <div className="rounded-xl border bg-slate-50 p-4 dark:bg-slate-950">
+                              {(() => {
+                                const min = typeof question.config?.min === "number" ? question.config.min : 1;
+                                const max = typeof question.config?.max === "number" ? question.config.max : 5;
+                                const labels = (question.config?.scaleLabels ?? {}) as Record<string, string>;
+                                const preset = typeof question.config?.scalePreset === "string" ? question.config.scalePreset : "numeric";
+                                const values = Array.from({ length: Math.max(0, max - min + 1) }, (_, valueIndex) => min + valueIndex);
+
+                                return (
+                                  <div className="space-y-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                                      <span>Scale {min}–{max}</span>
+                                      <span className="capitalize">{preset.replace(/_/g, " ")}</span>
+                                    </div>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                      {values.map((value) => (
+                                        <div key={value} className="flex items-center gap-3 rounded-lg border bg-white px-3 py-2 text-sm dark:bg-slate-900">
+                                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-xs font-black text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">{value}</span>
+                                          <span className="min-w-0 break-words">{labels[String(value)] || (value === min ? String(question.config?.minLabel || "") : value === max ? String(question.config?.maxLabel || "") : "") || "—"}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          ) : null}
                         </CardContent>
                       </Card>
                     ),
@@ -880,253 +865,63 @@ export default function TemplateEditor({
             </section>
           </div>
 
-          {/* RIGHT — COMPOSER */}
+          {/* RIGHT — QUESTION EDITOR */}
 
           <aside className="lg:sticky lg:top-6 lg:self-start">
-            <Card className="overflow-hidden shadow-sm">
-              <CardHeader className="border-b">
-                <p className="text-xs font-bold uppercase tracking-[0.15em] text-indigo-600">
-                  Question Builder
-                </p>
-
-                <CardTitle className="text-xl">
-                  Add a reusable question
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="space-y-5 p-5">
-
-                <div className="space-y-2">
-                  <Label htmlFor="question-text">
-                    Question
-                  </Label>
-
-                  <textarea
-                    id="question-text"
-                    className="min-h-32 w-full resize-none rounded-xl border bg-background px-3 py-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
-                    placeholder="Enter the question you want to ask your class..."
-                    value={
-                      form.text
+            <div className="template-question-editor">
+            <QuestionEditor
+              key={editingQuestionId ?? "new"}
+              mode={
+                editingQuestionId
+                  ? "edit"
+                  : "create"
+              }
+              sessionId={templateId}
+              question={
+                editingQuestionId
+                  ? (questions.find(
+              (question) =>
+                question.id ===
+                editingQuestionId,
+            ) as unknown as SessionQuestion | null)
+                  : null
+              }
+              isSaving={isSaving}
+              sessionResultsMode="on_command"
+              onSave={async (updates) => {
+                if (editingQuestionId) {
+                  await updateQuestion(
+                    editingQuestionId,
+                    updates,
+                  );
+                } else {
+                  await saveQuestion(updates);
+                }
+              }}
+              onCancel={() =>
+                setEditingQuestionId(null)
+              }
+              onDelete={
+                editingQuestionId
+                  ? async () => {
+                      await deleteQuestion(
+                        editingQuestionId,
+                      );
+                      setEditingQuestionId(null);
                     }
-                    onChange={(
-                      event,
-                    ) =>
-                      setForm(
-                        (
-                          current,
-                        ) => ({
-                          ...current,
-                          text:
-                            event
-                              .target
-                              .value,
-                        }),
-                      )
-                    }
-                  />
-                </div>
+                  : undefined
+              }
+            />
+            </div>
 
-                <div className="space-y-2">
-                  <Label>
-                    Question Type
-                  </Label>
-
-                  <Select
-                    value={
-                      form.type
-                    }
-                    onValueChange={(
-                      value,
-                    ) =>
-                      setForm(
-                        (
-                          current,
-                        ) => ({
-                          ...current,
-                          type:
-                            value as FormState["type"],
-                          options:
-                            value ===
-                            "multiple_choice"
-                              ? current
-                                  .options
-                                  .length >=
-                                2
-                                ? current.options
-                                : [
-                                    "",
-                                    "",
-                                  ]
-                              : current.options,
-                        }),
-                      )
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-
-                    <SelectContent>
-                      <SelectItem value="multiple_choice">
-                        Multiple Choice
-                      </SelectItem>
-
-                      <SelectItem value="scale">
-                        Scale
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {form.type ===
-                "multiple_choice" ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label>
-                        Answer Options
-                      </Label>
-
-                      <button
-                        type="button"
-                        className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
-                        onClick={
-                          addOption
-                        }
-                      >
-                        + Add option
-                      </button>
-                    </div>
-
-                    {form.options.map(
-                      (
-                        option,
-                        index,
-                      ) => (
-                        <div
-                          key={
-                            index
-                          }
-                          className="flex items-center gap-2"
-                        >
-                          <span className="w-6 text-sm font-semibold text-muted-foreground">
-                            {String.fromCharCode(
-                              65 +
-                                index,
-                            )}
-                          </span>
-
-                          <Input
-                            placeholder={`Option ${
-                              index +
-                              1
-                            }`}
-                            value={
-                              option
-                            }
-                            onChange={(
-                              event,
-                            ) =>
-                              updateOption(
-                                index,
-                                event
-                                  .target
-                                  .value,
-                              )
-                            }
-                          />
-
-                          <button
-                            type="button"
-                            className="px-2 text-lg text-muted-foreground hover:text-red-600"
-                            disabled={
-                              form.options.length <=
-                              2
-                            }
-                            onClick={() =>
-                              removeOption(
-                                index,
-                              )
-                            }
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label>
-                      Scale Range
-                    </Label>
-
-                    <Select
-                      value={String(
-                        form.scaleMax,
-                      )}
-                      onValueChange={(
-                        value,
-                      ) =>
-                        setForm(
-                          (
-                            current,
-                          ) => ({
-                            ...current,
-                            scaleMax:
-                              Number(
-                                value,
-                              ) as
-                                | 5
-                                | 10,
-                          }),
-                        )
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        <SelectItem value="5">
-                          1 to 5
-                        </SelectItem>
-
-                        <SelectItem value="10">
-                          1 to 10
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                <div className="rounded-xl border bg-slate-50 p-4 dark:bg-slate-950">
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Default Results
-                  </p>
-
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    New questions start with Results on
-                    Command. You can change result behavior
-                    later from the live Studio.
-                  </p>
-                </div>
-
-                <Button
-                  className="w-full"
-                  disabled={
-                    isSaving ||
-                    !form.text.trim()
-                  }
-                  onClick={() =>
-                    void saveQuestion()
-                  }
-                >
-                  {isSaving
-                    ? "Creating..."
-                    : "Create Question"}
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="mt-3 rounded-xl border bg-slate-50 p-4 text-xs leading-5 text-muted-foreground dark:bg-slate-950">
+              Template questions use the same modern question editor as Live Studio. Result display is saved as <strong>Default</strong>, so every question follows the result setting of the session where it is launched.
+            </div>
+            <style jsx>{`
+              .template-question-editor :global(section > div:nth-child(2) > div:last-child) {
+                display: none;
+              }
+            `}</style>
           </aside>
         </div>
       </div>

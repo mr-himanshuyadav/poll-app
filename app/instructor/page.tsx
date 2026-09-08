@@ -33,6 +33,14 @@ import {
 
 import { Switch } from "@/components/ui/switch";
 import { QRCodeSVG } from "qrcode.react";
+import {
+  Activity,
+  ChevronRight,
+  LayoutGrid,
+  LogOut,
+  Sparkles,
+  Zap,
+} from "lucide-react";
 
 import type {
   ParticipantMode,
@@ -92,6 +100,15 @@ export default function InstructorDashboard() {
 
   const [showSessionDialog, setShowSessionDialog] =
     useState(false);
+
+  const [showInstantSessionDialog, setShowInstantSessionDialog] =
+    useState(false);
+
+  const [instantSessionName, setInstantSessionName] =
+    useState("Instant Session");
+
+  const [dashboardTab, setDashboardTab] =
+    useState<"library" | "sessions">("library");
 
   const [
     isCreatingInstantSession,
@@ -574,10 +591,21 @@ export default function InstructorDashboard() {
     setIsCreatingSession(false);
   };
 
+  const openInstantSessionDialog = () => {
+    setInstantSessionName("Instant Session");
+    setParticipantMode("anonymous");
+    setResultsMode("on_command");
+    setAllowLateJoin(true);
+    setAllowAnswerChange(false);
+    setError(null);
+    setShowInstantSessionDialog(true);
+  };
+
   const createInstantSession =
     async () => {
       if (
-        isCreatingInstantSession
+        isCreatingInstantSession ||
+        !instantSessionName.trim()
       ) {
         return;
       }
@@ -622,18 +650,14 @@ export default function InstructorDashboard() {
               template_id: null,
               instructor_id:
                 user.id,
-              name: "Instant Session",
+              name: instantSessionName.trim(),
               join_code:
                 joinCode,
               status: "ready",
-              participant_mode:
-                "anonymous",
-              results_mode:
-                "on_command",
-              allow_late_join:
-                true,
-              allow_answer_change:
-                false,
+              participant_mode: participantMode,
+              results_mode: resultsMode,
+              allow_late_join: allowLateJoin,
+              allow_answer_change: allowAnswerChange,
               is_offline: false,
               active_question_id:
                 null,
@@ -686,7 +710,7 @@ export default function InstructorDashboard() {
             template_id: null,
             instructor_id:
               user.id,
-            name: "Instant Session",
+            name: instantSessionName.trim(),
             join_code:
               createdSession!.join_code,
             status: "ready",
@@ -799,52 +823,36 @@ export default function InstructorDashboard() {
   return (
     <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        {/* HEADER */}
-
-        <header className="mb-8 rounded-3xl border bg-white p-6 shadow-sm dark:bg-slate-900">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="mb-3 inline-flex rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300">
-                Instructor Command Center
+        {/* HERO */}
+        <header className="relative mb-8 overflow-hidden rounded-[2rem] border border-slate-200/70 bg-white p-6 shadow-xl shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900 dark:shadow-none sm:p-8">
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-sky-500/10 blur-3xl" />
+          <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+            <div className="max-w-2xl">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-700 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-300">
+                <Sparkles className="h-3.5 w-3.5" />
+                LIVE POLLING STUDIO
               </div>
-
-              <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-                Run your classroom from one place
-              </h1>
-
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                Build reusable question modules, launch
-                live sessions, or start an instant session
-                whenever you need to ask something on the fly.
-              </p>
+              <h1 className="text-3xl font-black tracking-tight sm:text-5xl">Your classroom,<br/><span className="text-indigo-600 dark:text-indigo-400">in motion.</span></h1>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950"><p className="text-2xl font-black">{templates.length}</p><p className="text-xs text-muted-foreground">Modules</p></div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950"><p className="text-2xl font-black">{sessions.length}</p><p className="text-xs text-muted-foreground">Sessions</p></div>
+                <div className="rounded-2xl bg-slate-50 px-4 py-3 dark:bg-slate-950"><p className="flex items-center gap-1 text-2xl font-black"><span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />{sessions.filter((session) => session.status === "live").length}</p><p className="text-xs text-muted-foreground">Live now</p></div>
+              </div>
             </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                size="lg"
-                onClick={
-                  createInstantSession
-                }
-                disabled={
-                  isCreatingInstantSession
-                }
-              >
-                {isCreatingInstantSession
-                  ? "Starting..."
-                  : "Start Instant Session"}
+            <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+              <Button size="lg" className="h-14 rounded-2xl px-6 shadow-lg shadow-indigo-500/20 transition-transform hover:-translate-y-0.5" onClick={openInstantSessionDialog} disabled={isCreatingInstantSession}>
+                <Zap className="mr-2 h-5 w-5" /> Start instantly
               </Button>
-
-              <Button
-                size="lg"
-                variant="outline"
-                onClick={signOut}
-              >
-                Sign Out
-              </Button>
+              <Button size="lg" variant="outline" className="h-14 rounded-2xl" onClick={signOut}><LogOut className="mr-2 h-4 w-4" /> Sign out</Button>
             </div>
           </div>
         </header>
 
+        <div className="mb-8 flex items-center gap-2 rounded-2xl border bg-white/80 p-2 shadow-sm backdrop-blur dark:bg-slate-900/80">
+          <button type="button" onClick={() => setDashboardTab("library")} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all ${dashboardTab === "library" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25" : "text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800"}`}><LayoutGrid className="h-4 w-4" /> Library <span className="rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{templates.length}</span></button>
+          <button type="button" onClick={() => setDashboardTab("sessions")} className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold transition-all ${dashboardTab === "sessions" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25" : "text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800"}`}><Activity className="h-4 w-4" /> Sessions <span className="rounded-full bg-black/10 px-2 py-0.5 text-[10px]">{sessions.length}</span></button>
+        </div>
         {error &&
           !showSessionDialog && (
             <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -854,7 +862,7 @@ export default function InstructorDashboard() {
 
         {/* LIBRARY */}
 
-        <section className="mb-10">
+        {dashboardTab === "library" && <section className="mb-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="flex items-center gap-3">
@@ -961,11 +969,11 @@ export default function InstructorDashboard() {
               )}
             </div>
           )}
-        </section>
+        </section>}
 
         {/* RECENT SESSIONS */}
 
-        <section className="mb-10">
+        {dashboardTab === "sessions" && <section className="mb-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="text-2xl font-bold">
@@ -1102,11 +1110,11 @@ export default function InstructorDashboard() {
               </div>
             </div>
           )}
-        </section>
+        </section>}
 
         {/* CREATE MODULE */}
 
-        <section>
+        {dashboardTab === "library" && <section className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           <Card className="overflow-hidden">
             <div className="grid lg:grid-cols-[1fr_380px]">
               <div className="p-6 sm:p-8">
@@ -1174,7 +1182,7 @@ export default function InstructorDashboard() {
               </div>
             </div>
           </Card>
-        </section>
+        </section>}
       </div>
 
       {/* LIVE SESSION DIALOG */}
@@ -1469,6 +1477,34 @@ export default function InstructorDashboard() {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={showInstantSessionDialog}
+        onOpenChange={(open) => {
+          if (!isCreatingInstantSession) setShowInstantSessionDialog(open);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Zap className="h-5 w-5 text-indigo-500" /> Start Instant Session</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 dark:border-indigo-900/50 dark:bg-indigo-950/20">
+              <p className="font-semibold">Ready when you are</p>
+              <p className="mt-1 text-sm text-muted-foreground">Choose the same participation rules you use for template sessions. Questions can be added in Live Studio.</p>
+            </div>
+            <div className="space-y-2"><Label htmlFor="instant-session-name">Session name</Label><Input id="instant-session-name" value={instantSessionName} onChange={(event) => setInstantSessionName(event.target.value)} disabled={isCreatingInstantSession} placeholder="e.g. Quick Check-in" /></div>
+            <div className="space-y-2"><Label>Student identity</Label><Select value={participantMode} onValueChange={(value) => setParticipantMode(value as ParticipantMode)} disabled={isCreatingInstantSession}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="anonymous">Anonymous</SelectItem><SelectItem value="identified">Name + Roll Number</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label>Student results</Label><Select value={resultsMode} onValueChange={(value) => setResultsMode(value as ResultsMode)} disabled={isCreatingInstantSession}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="live">Show Live Results</SelectItem><SelectItem value="on_command">Reveal on Command</SelectItem><SelectItem value="hidden">Never Show Results</SelectItem></SelectContent></Select></div>
+            <div className="flex items-center justify-between rounded-xl border p-4"><div className="pr-4"><p className="font-medium">Allow late joining</p><p className="text-xs text-muted-foreground">Students can join after the session starts.</p></div><Switch checked={allowLateJoin} disabled={isCreatingInstantSession} onCheckedChange={setAllowLateJoin} /></div>
+            <div className="flex items-center justify-between rounded-xl border p-4"><div className="pr-4"><p className="font-medium">Allow answer changes</p><p className="text-xs text-muted-foreground">Students can update an answer after submitting.</p></div><Switch checked={allowAnswerChange} disabled={isCreatingInstantSession} onCheckedChange={setAllowAnswerChange} /></div>
+            {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={isCreatingInstantSession} onClick={() => setShowInstantSessionDialog(false)}>Cancel</Button>
+            <Button disabled={isCreatingInstantSession || !instantSessionName.trim()} onClick={() => void createInstantSession()}>{isCreatingInstantSession ? "Starting..." : "Start Session"}<ChevronRight className="ml-2 h-4 w-4" /></Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </main>
