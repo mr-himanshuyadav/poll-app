@@ -840,6 +840,7 @@ export default function TemplateEditor({
               }
               isSaving={isSaving}
               sessionResultsMode="on_command"
+              hideResultsVisibility
               onSave={async (updates) => {
                 if (editingQuestionId) {
                   await updateQuestion(
