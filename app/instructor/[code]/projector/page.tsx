@@ -1095,83 +1095,26 @@ export default function ProjectorPage({
                                 </div>
 
                                 {/* RESULTS */}
-
                                 {question.type ===
                                     "multiple_choice" && (
-                                        <div className="mt-14 space-y-7">
-
-                                            {question.options.map(
-                                                (option, index) => {
-
-                                                    const count =
-                                                        tally[option] ?? 0;
-
-                                                    const percentage =
-                                                        totalResponses ===
-                                                            0
-                                                            ? 0
-                                                            : Math.round(
-                                                                (count /
-                                                                    totalResponses) *
-                                                                100,
-                                                            );
-
-                                                    return (
-
-                                                        <div
-                                                            key={`${question.id}-${index}`}
-                                                        >
-
-                                                            <div className="mb-3 flex items-center justify-between gap-6">
-
-                                                                <div className="min-w-0">
-
-                                                                    <span className="mr-4 text-2xl font-black text-white/30 lg:text-3xl">
-                                                                        {String.fromCharCode(
-                                                                            65 + index,
-                                                                        )}
-                                                                    </span>
-
-                                                                    <span className="text-2xl font-bold lg:text-3xl">
-                                                                        {option}
-                                                                    </span>
-
-                                                                </div>
-
-                                                                {showResults ? (
-
-                                                <div className="animate-in fade-in duration-300">
-                                                    {question.options.length > 0
-                                                        ? renderResultsVisualization()
-                                                        : (
-                                                            <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-                                                                <p className="text-2xl font-bold">
-                                                                    {totalResponses} responses
-                                                                </p>
-                                                            </div>
-                                                        )}
-                                                </div>
-
-                                            ) : (
-
-                                                <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
-
-                                                    <p className="text-2xl font-bold">
-                                                        Responses are being collected
-                                                    </p>
-
-                                                    <p className="mt-3 text-lg text-white/40">
-                                                        Results will appear when
-                                                        they are revealed.
-                                                    </p>
-
-                                                </div>
-
-                                            )}
-
-                                        </div>
-
-                                    )}
+                                    <div className="mt-14">
+                                        {showResults ? (
+                                            <div className="animate-in fade-in duration-300">
+                                                {renderResultsVisualization()}
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-3xl border border-white/10 bg-white/5 p-10 text-center">
+                                                <p className="text-2xl font-bold">
+                                                    Responses are being collected
+                                                </p>
+                                                <p className="mt-3 text-lg text-white/40">
+                                                    Results will appear when
+                                                    they are revealed.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
 
                                 {/* RESPONSE FOOTER */}
 
