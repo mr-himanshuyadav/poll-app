@@ -146,7 +146,13 @@ export interface QuestionFormState {
   scaleMinLabel: string;
   scaleMaxLabel: string;
   scaleLabels: Record<string, string>;
-  scalePreset: "numeric" | "agreement" | "satisfaction" | "custom";
+  scalePreset:
+    | "numeric"
+    | "agreement"
+    | "satisfaction"
+    | "frequency"
+    | "quality"
+    | "custom";
   
   resultsMode: ResultsMode;
 }
