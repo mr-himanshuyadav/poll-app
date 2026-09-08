@@ -27,6 +27,7 @@ import {
 
 import type {
     LiveSession,
+    ResultsMode,
 } from "./live-studio-types";
 
 interface SessionSettingsDrawerProps {
@@ -56,15 +57,23 @@ export function SessionSettingsDrawer({
     const [copied, setCopied] =
         useState(false);
 
+    const [resultsMode, setResultsMode] =
+        useState<ResultsMode>("on_command");
+
     useEffect(() => {
         if (!session) {
             setName("");
+            setResultsMode("on_command");
 
             return;
         }
 
         setName(
             session.name ?? "",
+        );
+
+        setResultsMode(
+            session.results_mode ?? "on_command",
         );
     }, [session]);
 
@@ -119,6 +128,7 @@ export function SessionSettingsDrawer({
 
             await onSave({
                 name: trimmedName,
+                results_mode: resultsMode,
             });
         };
 
@@ -188,6 +198,41 @@ export function SessionSettingsDrawer({
                             identify the session
                             inside the instructor
                             workspace.
+                        </p>
+                    </div>
+
+                    <div>
+                        <Label
+                            htmlFor="session-results-mode"
+                            className="text-sm font-bold"
+                        >
+                            Default Results Mode
+                        </Label>
+
+                        <select
+                            id="session-results-mode"
+                            value={resultsMode}
+                            onChange={(event) =>
+                                setResultsMode(
+                                    event.target.value as ResultsMode,
+                                )
+                            }
+                            className="mt-2 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                            <option value="on_command">
+                                On command
+                            </option>
+                            <option value="live">
+                                Show live
+                            </option>
+                            <option value="hidden">
+                                Hidden
+                            </option>
+                        </select>
+
+                        <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                            Sets the default results behavior for this live session.
+                            Individual question settings can override this default.
                         </p>
                     </div>
 
