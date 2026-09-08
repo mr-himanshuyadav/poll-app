@@ -816,15 +816,53 @@ export default function ProjectorPage({
             );
         }
 
+        const colors = [
+            "#818cf8", "#a78bfa", "#38bdf8",
+            "#34d399", "#fbbf24", "#fb7185",
+            "#22d3ee", "#e879f9",
+        ];
+
         return (
-            <div className="space-y-6">
-                {data.map((item) => (
-                    <div key={item.option} className="grid grid-cols-[minmax(180px,1fr)_minmax(220px,3fr)] items-center gap-5">
-                        <div className="line-clamp-2 text-xl font-bold leading-tight">
-                            <span>{item.option}</span>
-                            <span>{Math.round(item.percentage)}% ({item.count})</span>
+            <div className="space-y-5">
+                {data.map((item, index) => (
+                    <div
+                        key={item.option}
+                        className="grid gap-2 rounded-2xl border border-slate-200/80 bg-white/70 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.035] sm:grid-cols-[minmax(180px,0.95fr)_minmax(260px,2.5fr)_120px] sm:items-center sm:gap-6"
+                    >
+                        <div className="min-w-0">
+                            <p className="line-clamp-2 text-lg font-bold leading-tight text-slate-800 dark:text-white lg:text-xl">
+                                {item.option}
+                            </p>
                         </div>
-                        <Progress value={item.percentage} className="h-6" />
+
+                        <div className="relative h-11 overflow-hidden rounded-xl bg-slate-100 dark:bg-white/5">
+                            <div
+                                className="absolute inset-y-0 left-0 rounded-xl transition-all duration-700"
+                                style={{
+                                    width: `${Math.max(item.count > 0 ? 3 : 0, item.percentage)}%`,
+                                    background: `linear-gradient(90deg, ${colors[index % colors.length]}, ${colors[(index + 1) % colors.length]})`,
+                                }}
+                            />
+                            <div className="relative z-10 flex h-full items-center px-4">
+                                {item.count > 0 ? (
+                                    <span className="text-sm font-black text-white drop-shadow-sm">
+                                        {item.count} {item.count === 1 ? "response" : "responses"}
+                                    </span>
+                                ) : null}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 sm:block sm:text-right">
+                            <span className="text-xs font-bold uppercase tracking-wider text-slate-400 sm:hidden">
+                                Result
+                            </span>
+                            <p className="text-2xl font-black tabular-nums text-slate-900 dark:text-white">
+                                {Math.round(item.percentage)}%
+                            </p>
+                            <p className="text-sm font-semibold text-slate-500 dark:text-white/50">
+                                {item.count} {item.count === 1 ? "vote" : "votes"}
+                            </p>
+                        </div>
                     </div>
                 ))}
             </div>
