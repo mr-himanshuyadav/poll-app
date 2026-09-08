@@ -464,7 +464,7 @@ export function LiveQuestionPanel({
                                         className="flex min-h-10 min-w-10 flex-1 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white px-1 py-2 text-center dark:border-slate-700 dark:bg-slate-950"
                                     >
                                         <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{value}</span>
-                                        {scaleLabels[String(value)] ? <span className="mt-1 text-[10px] font-medium leading-tight text-slate-500 dark:text-slate-400">{scaleLabels[String(value)]}</span> : null}
+                                        {scaleLabels[String(value)] ? <span className="mt-1 text-[14px] font-medium leading-tight text-slate-500 dark:text-slate-400">{scaleLabels[String(value)]}</span> : null}
                                     </div>
                                 ),
                             )}
