@@ -24,6 +24,22 @@ interface LiveQuestionWorkspaceProps {
 
     projectorDisplayType?: "waiting" | "question" | "results";
 
+    projectorVisualizationType?:
+        | "horizontal-bar"
+        | "vertical-bar"
+        | "donut"
+        | "ranked"
+        | "percentage";
+
+    onProjectorVisualizationChange?: (
+        visualization:
+            | "horizontal-bar"
+            | "vertical-bar"
+            | "donut"
+            | "ranked"
+            | "percentage",
+    ) => void;
+
     projectorQuestion: SessionQuestion | null;
 
     viewedQuestion: SessionQuestion | null;
@@ -210,6 +226,13 @@ response.id
                                     question={viewedQuestion}
                                     analytics={questionAnalytics}
                                     responses={viewedQuestionResponses}
+                                    visualizationType={
+                                        projectorVisualizationType ??
+                                        "horizontal-bar"
+                                    }
+                                    onVisualizationChange={
+                                        onProjectorVisualizationChange
+                                    }
                                 />
                             </div>
 
