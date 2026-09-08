@@ -611,6 +611,138 @@ export default function ProjectorPage({
             totalResponses,
         ]);
 
+    const projectorVisualization =
+        session?.projector_visualization_type ??
+        "horizontal-bar";
+
+    const renderResultsVisualization = () => {
+        if (!question) return null;
+
+        const data = question.options.map(
+            (option) => {
+                const count = tally[option] ?? 0;
+                const percentage =
+                    totalResponses === 0
+                        ? 0
+                        : (count / totalResponses) * 100;
+
+                return {
+                    option,
+                    count,
+                    percentage,
+                };
+            },
+        );
+
+        if (projectorVisualization === "donut") {
+            let cursor = 0;
+            const colors = [
+                "#818cf8", "#a78bfa", "#38bdf8",
+                "#34d399", "#fbbf24", "#fb7185",
+            ];
+            const segments = data.map(
+                (item, index) => {
+                    const start = cursor;
+                    cursor += item.percentage;
+                    return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+                },
+            ).join(", ");
+
+            return (
+                <div className="grid gap-10 lg:grid-cols-[320px_1fr] lg:items-center">
+                    <div className="relative mx-auto h-72 w-72 rounded-full"
+                        style={{ background: `conic-gradient(${segments})` }}
+                    >
+                        <div className="absolute inset-10 flex flex-col items-center justify-center rounded-full bg-slate-950">
+                            <span className="text-5xl font-black">{totalResponses}</span>
+                            <span className="mt-2 text-xs font-bold uppercase tracking-widest text-white/40">Responses</span>
+                        </div>
+                    </div>
+                    <div className="space-y-4">
+                        {data.map((item, index) => (
+                            <div key={item.option} className="flex items-center justify-between gap-4 text-xl">
+                                <div className="flex min-w-0 items-center gap-3">
+                                    <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }} />
+                                    <span className="truncate">{item.option}</span>
+                                </div>
+                                <span className="font-black">{Math.round(item.percentage)}%</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
+
+        if (projectorVisualization === "vertical-bar") {
+            const max = Math.max(
+                ...data.map((item) => item.percentage),
+                1,
+            );
+
+            return (
+                <div className="flex h-[420px] items-end gap-5">
+                    {data.map((item, index) => (
+                        <div key={item.option} className="flex flex-1 flex-col items-center gap-3">
+                            <span className="text-xl font-black">{Math.round(item.percentage)}%</span>
+                            <div className="flex h-80 w-full items-end rounded-2xl bg-white/5 p-2">
+                                <div
+                                    className="w-full rounded-xl bg-indigo-400 transition-all duration-500"
+                                    style={{ height: `${Math.max(3, (item.percentage / max) * 100)}%` }}
+                                />
+                            </div>
+                            <span className="text-center text-sm font-bold text-white/70">{item.option}</span>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        if (projectorVisualization === "ranked") {
+            return (
+                <div className="space-y-4">
+                    {[...data].sort((a, b) => b.count - a.count).map((item, index) => (
+                        <div key={item.option} className="flex items-center gap-5 rounded-2xl border border-white/10 bg-white/5 p-5">
+                            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 text-xl font-black">#{index + 1}</span>
+                            <span className="flex-1 text-2xl font-bold">{item.option}</span>
+                            <span className="text-2xl font-black">{item.count}</span>
+                            <span className="w-20 text-right text-xl font-bold text-white/50">{Math.round(item.percentage)}%</span>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        if (projectorVisualization === "percentage") {
+            return (
+                <div className="grid gap-5 md:grid-cols-2">
+                    {data.map((item) => (
+                        <div key={item.option} className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                            <p className="text-xl font-bold text-white/70">{item.option}</p>
+                            <div className="mt-5 flex items-end justify-between">
+                                <span className="text-5xl font-black">{Math.round(item.percentage)}%</span>
+                                <span className="text-lg font-bold text-white/40">{item.count} votes</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        return (
+            <div className="space-y-6">
+                {data.map((item) => (
+                    <div key={item.option}>
+                        <div className="mb-2 flex justify-between text-xl font-bold">
+                            <span>{item.option}</span>
+                            <span>{Math.round(item.percentage)}% ({item.count})</span>
+                        </div>
+                        <Progress value={item.percentage} className="h-6" />
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
     /*
      * ---------------------------------------------
      * URL
@@ -1008,134 +1140,16 @@ export default function ProjectorPage({
 
                                                                 {showResults ? (
 
-                                                                    <div className="shrink-0 text-right">
-
-                                                                        <span className="text-2xl font-black lg:text-3xl">
-                                                                            {percentage}%
-                                                                        </span>
-
-                                                                        <span className="ml-3 text-lg text-white/40">
-                                                                            {count}
-                                                                        </span>
-
-                                                                    </div>
-
-                                                                ) : (
-
-                                                                    <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/50">
-                                                                        Responses collected
-                                                                    </span>
-
-                                                                )}
-
+                                                <div className="animate-in fade-in duration-300">
+                                                    {question.options.length > 0
+                                                        ? renderResultsVisualization()
+                                                        : (
+                                                            <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
+                                                                <p className="text-2xl font-bold">
+                                                                    {totalResponses} responses
+                                                                </p>
                                                             </div>
-
-                                                            {showResults ? (
-
-                                                                <Progress
-                                                                    value={
-                                                                        percentage
-                                                                    }
-                                                                    className="h-7 bg-white/10"
-                                                                />
-
-                                                            ) : (
-
-                                                                <div className="h-4 rounded-full bg-white/5" />
-
-                                                            )}
-
-                                                        </div>
-
-                                                    );
-
-                                                },
-                                            )}
-
-                                        </div>
-                                    )}
-
-                                {/* SCALE */}
-
-                                {question.type ===
-                                    "scale" && (
-
-                                        <div className="mt-14">
-
-                                            {showResults ? (
-
-                                                <div className="space-y-6">
-
-                                                    {question.options.length >
-                                                        0 ? (
-
-                                                        question.options.map(
-                                                            (
-                                                                option,
-                                                                index,
-                                                            ) => {
-
-                                                                const count =
-                                                                    tally[
-                                                                    option
-                                                                    ] ?? 0;
-
-                                                                const percentage =
-                                                                    totalResponses ===
-                                                                        0
-                                                                        ? 0
-                                                                        : Math.round(
-                                                                            (count /
-                                                                                totalResponses) *
-                                                                            100,
-                                                                        );
-
-                                                                return (
-
-                                                                    <div
-                                                                        key={`${question.id}-${index}`}
-                                                                    >
-
-                                                                        <div className="mb-2 flex justify-between text-xl font-bold">
-
-                                                                            <span>
-                                                                                {option}
-                                                                            </span>
-
-                                                                            <span>
-                                                                                {percentage}% (
-                                                                                {count})
-                                                                            </span>
-
-                                                                        </div>
-
-                                                                        <Progress
-                                                                            value={
-                                                                                percentage
-                                                                            }
-                                                                            className="h-6"
-                                                                        />
-
-                                                                    </div>
-
-                                                                );
-
-                                                            },
-                                                        )
-
-                                                    ) : (
-
-                                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
-
-                                                            <p className="text-2xl font-bold">
-                                                                {totalResponses}{" "}
-                                                                responses
-                                                            </p>
-
-                                                        </div>
-
-                                                    )}
-
+                                                        )}
                                                 </div>
 
                                             ) : (
