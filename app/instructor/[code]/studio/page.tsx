@@ -1071,15 +1071,22 @@ export default function LiveStudioPage() {
         );
     }}
     onShowResultsOnProjector={async () => {
-        if (!viewedQuestion) {
-            return;
+        if (!viewedQuestion) return;
+
+        if (
+            session.projector_display_type !== "waiting" &&
+            session.projector_question_id !== viewedQuestion.id
+        ) {
+            const confirmed = window.confirm(
+                "The projector is displaying another item. Replace it with this question's results?",
+            );
+
+            if (!confirmed) return;
         }
 
         await updateSession({
-            projector_display_type:
-                "results",
-            projector_question_id:
-                viewedQuestion.id,
+            projector_display_type: "results",
+            projector_question_id: viewedQuestion.id,
         });
 
         showNotice(
