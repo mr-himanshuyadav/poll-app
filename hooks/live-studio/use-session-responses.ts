@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { supabase } from "@/lib/supabase";
+import { useLiveRecovery } from "@/hooks/use-live-recovery";
 
 interface SessionResponse {
     id: string;
@@ -229,7 +230,14 @@ export function useSessionResponses({
                         );
                     },
                 )
-                .subscribe();
+                .subscribe((status) => {
+                    if (
+                        status === "CHANNEL_ERROR" ||
+                        status === "TIMED_OUT"
+                    ) {
+                        void fetchResponses();
+                    }
+                });
 
         return () => {
             void supabase.removeChannel(
