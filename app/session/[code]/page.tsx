@@ -142,9 +142,10 @@ export default function JoinPage({
   const loadResults = async (
     currentSessionId: string,
     currentQuestion: SessionQuestion,
+    currentSession?: Session,
   ) => {
     const canShowResults =
-      activeSession?.student_display_type === "results" ||
+      currentSession?.student_display_type === "results" ||
       currentQuestion.results_mode === "live";
 
     if (!canShowResults) {
