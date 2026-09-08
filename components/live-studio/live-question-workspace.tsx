@@ -373,7 +373,6 @@ response.id
                                     </div>
                                 </div>
                             </div>
-                            </div>
                         )}
                         distribution={
                             <div className="p-0">
