@@ -513,7 +513,7 @@ export function QuestionsWorkspace({
                                 session.
                             </p>
 
-                            <Button
+                            {!isCompleted ? <Button
                                 type="button"
                                 className="mt-6"
                                 onClick={
@@ -523,9 +523,9 @@ export function QuestionsWorkspace({
                                 <Plus className="mr-2 h-4 w-4" />
 
                                 Create Question
-                            </Button>
+                            </Button> : null}
                         </div>
-                    ) : null}
+                    )}
                 </main>
             </div>
         </div>
