@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, CheckCircle2, Clock3, Eye, Search, Users } from "lucide-react";
 import type { SessionParticipant, SessionQuestion, SessionResponse } from "./live-studio-types";
+import { getParticipantDisplayName } from "@/lib/participant-labels";
+import { getResponseDisplayLabel } from "@/lib/response-label";
 
 type ParticipantFilter = "all" | "responded" | "waiting";
 type SortKey = "name" | "roll_number" | "answer" | "submitted_at";
@@ -53,6 +55,9 @@ export function ResponseParticipants({
         if (Array.isArray(answer)) return answer.map(answerToString).join(", ");
         try { return JSON.stringify(answer); } catch { return String(answer); }
     };
+
+    const participantLabel = (participant: SessionParticipant) =>
+        getParticipantDisplayName(participant, participants);
 
     const selectedParticipant = useMemo(
         () => participants.find((participant) => participant.id === selectedParticipantId) ?? null,
@@ -131,8 +136,8 @@ export function ResponseParticipants({
                 </button>
                 <div className="mb-5 flex items-start justify-between gap-4">
                     <div>
-                        <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">{selectedParticipant.name || "Anonymous participant"}</h4>
-                        <p className="mt-1 text-sm text-slate-500">Roll No. {selectedParticipant.roll_number ?? "—"} · Session response history</p>
+                        <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">{participantLabel(selectedParticipant)}</h4>
+                        <p className="mt-1 text-sm text-slate-500">{selectedParticipant.is_anonymous ? "Anonymous participation · Session response history" : `Roll No. ${selectedParticipant.roll_number ?? "—"} · Session response history`}</p>
                     </div>
                     <span className="rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-300">
                         {selectedResponses.length} response{selectedResponses.length === 1 ? "" : "s"}
@@ -151,7 +156,7 @@ export function ResponseParticipants({
                                     <div key={response.id} className="grid grid-cols-[auto_minmax(0,1fr)_minmax(100px,.7fr)_auto] items-center gap-4 px-4 py-3 transition hover:bg-slate-50/80 dark:hover:bg-slate-900/50">
                                         <span className="text-sm font-bold text-slate-400">{number}</span>
                                         <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{question?.text || "Question unavailable"}</p>
-                                        <span className="truncate text-sm font-semibold text-indigo-700 dark:text-indigo-300">{answerToString(response.answer)}</span>
+                                        <span className="truncate text-sm font-semibold text-indigo-700 dark:text-indigo-300">{getResponseDisplayLabel(question, response.answer)}</span>
                                         <span className="text-right text-xs text-slate-500">{new Date(response.submitted_at).toLocaleString()}</span>
                                     </div>
                                 );
@@ -185,9 +190,9 @@ export function ResponseParticipants({
                         const response = responseByParticipant.get(participant.id);
                         const responded = Boolean(response);
                         return <div key={participant.id} className="grid grid-cols-[minmax(130px,1.2fr)_minmax(90px,.7fr)_minmax(140px,1.5fr)_auto_auto] items-center gap-4 px-4 py-3 transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-900/50">
-                            <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{participant.name || "Anonymous participant"}</p>
+                            <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{participantLabel(participant)}</p>
                             <span className="truncate text-sm text-slate-600 dark:text-slate-300">{participant.roll_number ?? "—"}</span>
-                            <div>{responded ? <span className="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{answerToString(response?.answer)}</span> : <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400"><Clock3 className="h-3.5 w-3.5" />Waiting</span>}</div>
+                            <div>{responded ? <span className="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{getResponseDisplayLabel(questions[0] ? questionById.get(response?.question_id ?? "") : null, response?.answer)}</span> : <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400"><Clock3 className="h-3.5 w-3.5" />Waiting</span>}</div>
                             <span className="text-right text-xs font-medium text-slate-500">{responded ? new Date(response!.submitted_at).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit",second:"2-digit"}) : "—"}</span>
                             <button type="button" onClick={() => setSelectedParticipantId(participant.id)} className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950/40" title="View all responses" aria-label="View all responses"><Eye className="h-4 w-4" /></button>
                         </div>;
