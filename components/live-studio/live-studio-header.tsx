@@ -87,6 +87,8 @@ export function LiveStudioHeader({
     onOpenSettings,
 }: LiveStudioHeaderProps) {
     const sessionName = session.name ?? template?.title ?? "Live Session";
+    const isPaused = session.status === "paused";
+    const isCompleted = session.status === "completed";
     const projectorLive = session.projector_display_type !== "waiting";
     const projectorTitle =
         session.projector_display_type === "results" ? "Results" :
@@ -116,8 +118,6 @@ export function LiveStudioHeader({
         setCopiedItem(item);
     };
 
-    const isPaused = session.status === "paused";
-    const isCompleted = session.status === "completed";
 
     return (
         <header className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
