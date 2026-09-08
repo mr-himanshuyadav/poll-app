@@ -59,13 +59,6 @@ type TemplateSession = {
   updated_at: string;
 };
 
-const emptyForm: FormState = {
-  text: "",
-  type: "multiple_choice",
-  options: ["", ""],
-  scaleMax: 5,
-};
-
 export default function TemplateEditor({
   params,
 }: {
@@ -249,58 +242,7 @@ export default function TemplateEditor({
           "ready",
     );
 
-  const saveQuestion = async () => {
-    const text =
-      form.text.trim();
-
-    if (!text) {
-      setError(
-        "Enter a question.",
-      );
-      return;
-    }
-
-    if (
-      form.type ===
-        "multiple_choice" &&
-      form.options.filter(
-        (option) =>
-          option.trim(),
-      ).length < 2
-    ) {
-      setError(
-        "A multiple-choice question needs at least two options.",
-      );
-      return;
-    }
-
-    setIsSaving(true);
-    setError(null);
-
-    const nextPosition =
-      questions.length === 0
-        ? 1
-        : Math.max(
-            ...questions.map(
-              (question) =>
-                question.position,
-            ),
-          ) + 1;
-
-    const options =
-      form.type ===
-      "multiple_choice"
-        ? form.options
-            .map((option) =>
-              option.trim(),
-            )
-            .filter(Boolean)
-        : Array.from(
-            {
-              length:
-                form.scaleMax,
-            },
-     const saveQuestion = async (
+  const saveQuestion = async (
     updates: Partial<SessionQuestion>,
   ) => {
     const text = updates.text?.trim() ?? "";
