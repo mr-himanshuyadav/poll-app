@@ -2,10 +2,9 @@
 
 import {
     useCallback,
-    RadioTower,
     useMemo,
     useState,
-    useEffect
+    useEffect,
 } from "react";
 
 import { useParams, useRouter } from "next/navigation";
@@ -1019,7 +1018,7 @@ export default function LiveStudioPage() {
                                     );
                                 }}
                             >
-                                <RadioTower className="mr-2 h-4 w-4" />
+                                <span className="mr-2 inline-flex h-2 w-2 rounded-full bg-current" />
 
                                 Replace & Display
                             </Button>
