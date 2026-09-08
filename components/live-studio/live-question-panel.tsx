@@ -33,6 +33,8 @@ interface LiveQuestionPanelProps {
 
     question: SessionQuestion | null;
 
+    activeQuestion: SessionQuestion | null;
+
     questions: SessionQuestion[];
 
     isUpdating?: boolean;
@@ -80,6 +82,7 @@ function getScaleLabel(
 
 export function LiveQuestionPanel({
     question,
+    activeQuestion,
     questions,
     isUpdating = false,
     onActivateQuestion,
@@ -177,6 +180,18 @@ export function LiveQuestionPanel({
 
     const canClose = isLive;
 
+    const anotherQuestionIsLive =
+        activeQuestion !== null &&
+        activeQuestion.id !== question.id;
+
+    const activeQuestionPosition =
+        anotherQuestionIsLive
+            ? getQuestionPosition(
+                  activeQuestion,
+                  questions,
+              )
+            : null;
+
     const scaleMin =
         getScaleNumber(
             question.config?.min,
@@ -225,7 +240,26 @@ export function LiveQuestionPanel({
         );
 
     return (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
+        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 ease-out dark:border-slate-800 dark:bg-slate-950">
+            {anotherQuestionIsLive ? (
+                <div className="animate-in fade-in slide-in-from-top-2 border-b border-amber-200 bg-amber-50/80 px-5 py-2.5 duration-300 dark:border-amber-900/60 dark:bg-amber-950/30 sm:px-6">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2 text-xs font-semibold text-amber-800 dark:text-amber-200">
+                            <span className="relative flex h-2.5 w-2.5 shrink-0">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-70" />
+                                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+                            </span>
+
+                            <span>
+                                Question {activeQuestionPosition ?? ""} is live for students
+                            </span>
+                        </div>
+
+                        <Radio className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    </div>
+                </div>
+            ) : null}
+
             <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-800 sm:px-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
