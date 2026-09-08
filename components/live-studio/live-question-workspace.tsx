@@ -385,12 +385,12 @@ response.id
                                     }
                                 />
                             </div>
+                        }
                         participants={
                             <ResponseParticipants
                                 participants={participants}
                                 responses={viewedQuestionResponses}
                             />
-                        }
                         }
                     />
                 </div>
