@@ -138,6 +138,9 @@ export default function LiveStudioPage() {
             null,
         );
 
+    const [viewedQuestionId, setViewedQuestionId] =
+        useState<string | null>(null);
+
     const {
         session,
         isLoading: isSessionLoading,
@@ -232,6 +235,40 @@ export default function LiveStudioPage() {
             questions,
             session?.active_question_id,
         ]);
+
+    const viewedQuestion =
+        useMemo(() => {
+            if (!viewedQuestionId) {
+                return null;
+            }
+
+            return (
+                questions.find(
+                    (question) =>
+                        question.id ===
+                        viewedQuestionId,
+                ) ?? null
+            );
+        }, [
+            questions,
+            viewedQuestionId,
+        ]);
+
+    useEffect(() => {
+        if (
+            viewedQuestionId ||
+            !session?.active_question_id
+        ) {
+            return;
+        }
+
+        setViewedQuestionId(
+            session.active_question_id,
+        );
+    }, [
+        session?.active_question_id,
+        viewedQuestionId,
+    ]);
 
     const selectedQuestion =
         useMemo(() => {
@@ -739,6 +776,7 @@ export default function LiveStudioPage() {
                     <LiveQuestionWorkspace
     sessionId={session.id}
     questions={questions}
+    viewedQuestion={viewedQuestion}
     activeQuestion={activeQuestion}
     responses={responses}
     participants={participants}
@@ -803,6 +841,9 @@ export default function LiveStudioPage() {
         await handleSetActiveQuestion(
             question.id,
         );
+    }}
+    onViewQuestion={(question) => {
+        setViewedQuestionId(question.id);
     }}
     onCloseQuestion={async () => {
         await handleSetActiveQuestion(
