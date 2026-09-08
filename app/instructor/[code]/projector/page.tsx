@@ -55,6 +55,11 @@ export default function ProjectorPage({
     const [phase, setPhase] =
         useState<ProjectorPhase>("connecting");
 
+    const [displayType, setDisplayType] =
+        useState<"waiting" | "question" | "results">(
+            "waiting",
+        );
+
     /*
      * ---------------------------------------------
      * LOAD QUESTION + RESPONSES
