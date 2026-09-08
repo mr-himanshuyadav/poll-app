@@ -9,6 +9,7 @@ import type {
 
 import { LiveQuestionPanel } from "./live-question-panel";
 import { ResponseProgressPanel } from "./response-progress-panel";
+import { ResponseWorkspace } from "./response-workspace";
 import { ResponseDistribution } from "./response-distribution";
 import { Users, CheckCircle2, Clock3, Plus, Pencil } from "lucide-react";
 import { useState } from "react";
@@ -290,24 +291,17 @@ response.id
                         }
                     />
 
-                    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_320px]">
-                            <div className="min-w-0">
-                                <ResponseDistribution
-                                    question={viewedQuestion}
-                                    analytics={questionAnalytics}
-                                    responses={viewedQuestionResponses}
-                                    visualizationType={
-                                        projectorVisualizationType ??
-                                        "horizontal-bar"
-                                    }
-                                    onVisualizationChange={
-                                        onProjectorVisualizationChange
-                                    }
-                                />
-                            </div>
-
-                            <div className="border-t border-slate-200 p-5 dark:border-slate-800 lg:border-l lg:border-t-0">
+                    <ResponseWorkspace
+                        overview={
+                            <div className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+                                <div>
+                                    <ResponseProgressPanel
+                                        totalParticipants={totalParticipants}
+                                        responseCount={responseCount}
+                                        activeQuestion={activeQuestion}
+                                    />
+                                </div>
+                                <div className="p-5">
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -373,8 +367,25 @@ response.id
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </section>
+                            </div>
+                        }
+                        distribution={
+                            <div className="p-0">
+                                <ResponseDistribution
+                                    question={viewedQuestion}
+                                    analytics={questionAnalytics}
+                                    responses={viewedQuestionResponses}
+                                    visualizationType={
+                                        projectorVisualizationType ??
+                                        "horizontal-bar"
+                                    }
+                                    onVisualizationChange={
+                                        onProjectorVisualizationChange
+                                    }
+                                />
+                            </div>
+                        }
+                    />
                 </div>
 
                 <aside className="space-y-6">
