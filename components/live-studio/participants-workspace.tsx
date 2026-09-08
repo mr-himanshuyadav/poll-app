@@ -101,7 +101,7 @@ export function ParticipantsWorkspace({
         }, [participants]);
 
     return (
-        <div className="mx-auto w-full max-w-[1600px] px-4 pb-24 pt-6 sm:px-6 lg:px-8 md:pb-8">
+        <div className="w-full px-4 pb-24 pt-6 sm:px-6 lg:px-8 md:pb-8">
             <div className="flex flex-col gap-5">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
