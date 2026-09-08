@@ -631,22 +631,39 @@ export default function ProjectorPage({
                 (counts[answer] ?? 0) + 1;
         }
 
+        const scaleLabels =
+            (question.config.scaleLabels as Record<string, string> | undefined) ?? {};
+
         const options =
             question.type === "scale" ||
             question.type === "rating"
-                ? Object.keys(counts)
-                    .sort((a, b) => Number(a) - Number(b))
+                ? Array.from(
+                    {
+                        length: Math.max(
+                            0,
+                            Number(question.config.max ?? 5) -
+                            Number(question.config.min ?? 1) + 1,
+                        ),
+                    },
+                    (_, index) =>
+                        Number(question.config.min ?? 1) + index,
+                  ).map((value) => String(value))
                 : question.options;
 
         const data = options.map((option) => {
             const count = counts[String(option)] ?? 0;
+            const label =
+                (question.type === "scale" || question.type === "rating") &&
+                scaleLabels[String(option)]?.trim()
+                    ? `${option} — ${scaleLabels[String(option)]}`
+                    : String(option);
             const percentage =
                 totalResponses === 0
                     ? 0
                     : (count / totalResponses) * 100;
 
             return {
-                option: String(option),
+                option: label,
                 count,
                 percentage,
             };
