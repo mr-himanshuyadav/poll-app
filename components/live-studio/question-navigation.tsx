@@ -177,19 +177,37 @@ export function QuestionNavigation({
                                     );
 
                                 return (
-                                    <button
+                                    <div
                                         key={
                                             question.id
                                         }
-                                        type="button"
-                                        disabled={
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-disabled={
                                             isUpdating
                                         }
-                                        onClick={() =>
+                                        onClick={() => {
+                                            if (!isUpdating) {
+                                                onSelectQuestion(
+                                                    question,
+                                                );
+                                            }
+                                        }}
+                                        onKeyDown={(event) => {
+                                            if (
+                                                isUpdating ||
+                                                (event.key !== "Enter" &&
+                                                    event.key !== " ")
+                                            ) {
+                                                return;
+                                            }
+
+                                            event.preventDefault();
+
                                             onSelectQuestion(
                                                 question,
-                                            )
-                                        }
+                                            );
+                                        }}
                                         className={[
                                             "relative w-full rounded-xl border p-3 text-left transition",
                                             isActive
@@ -257,7 +275,7 @@ export function QuestionNavigation({
                                                 ) : null}
                                             </div>
                                         </div>
-                                    </button>
+                                    </div>
                                 );
                             },
                         )}
