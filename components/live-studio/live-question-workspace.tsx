@@ -393,6 +393,8 @@ response.id
                             <ResponseParticipants
                                 participants={participants}
                                 responses={viewedQuestionResponses}
+                                allResponses={responses}
+                                questions={questions}
                             />
                         }
                         activity={
