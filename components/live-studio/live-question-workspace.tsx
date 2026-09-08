@@ -11,6 +11,7 @@ import { LiveQuestionPanel } from "./live-question-panel";
 import { ResponseProgressPanel } from "./response-progress-panel";
 import { ResponseWorkspace } from "./response-workspace";
 import { ResponseDistribution } from "./response-distribution";
+import { ResponseParticipants } from "./response-participants";
 import { Users, CheckCircle2, Clock3, Plus, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -384,6 +385,12 @@ response.id
                                     }
                                 />
                             </div>
+                        participants={
+                            <ResponseParticipants
+                                participants={participants}
+                                responses={viewedQuestionResponses}
+                            />
+                        }
                         }
                     />
                 </div>
