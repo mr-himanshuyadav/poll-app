@@ -100,6 +100,9 @@ export default function TemplateEditor({
   const [editingQuestionId, setEditingQuestionId] =
     useState<string | null>(null);
 
+  const [isDeletingTemplate, setIsDeletingTemplate] =
+    useState(false);
+
   const loadData = async () => {
     setIsLoading(true);
     setError(null);
@@ -403,6 +406,43 @@ export default function TemplateEditor({
     );
   };
 
+  const deleteTemplate = async () => {
+    if (!template || isDeletingTemplate) return;
+
+    const confirmed = window.confirm(
+      `Delete "${template.title}" and all ${questions.length} template question${questions.length === 1 ? "" : "s"}? This cannot be undone.`,
+    );
+
+    if (!confirmed) return;
+
+    setIsDeletingTemplate(true);
+    setError(null);
+
+    const { error: questionsError } = await supabase
+      .from("questions")
+      .delete()
+      .eq("template_id", templateId);
+
+    if (questionsError) {
+      setError(questionsError.message);
+      setIsDeletingTemplate(false);
+      return;
+    }
+
+    const { error: templateDeleteError } = await supabase
+      .from("quiz_templates")
+      .delete()
+      .eq("id", templateId);
+
+    if (templateDeleteError) {
+      setError(templateDeleteError.message);
+      setIsDeletingTemplate(false);
+      return;
+    }
+
+    router.replace("/instructor");
+  };
+
   if (isLoading) {
     return (
       <main className="min-h-screen bg-slate-50 px-4 py-10 dark:bg-slate-950">
@@ -463,16 +503,24 @@ export default function TemplateEditor({
               </p>
             </div>
 
-            <Button
-              variant="outline"
-              onClick={() =>
-                router.push(
-                  "/instructor",
-                )
-              }
-            >
-              Back to Command Center
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                onClick={() => router.push("/instructor")}
+              >
+                Back to Command Center
+              </Button>
+
+              <Button
+                variant="destructive"
+                disabled={isDeletingTemplate}
+                onClick={() => void deleteTemplate()}
+              >
+                {isDeletingTemplate
+                  ? "Deleting..."
+                  : "Delete Template"}
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -840,7 +888,6 @@ export default function TemplateEditor({
               }
               isSaving={isSaving}
               sessionResultsMode="on_command"
-              hideResultsVisibility
               onSave={async (updates) => {
                 if (editingQuestionId) {
                   await updateQuestion(
@@ -870,6 +917,11 @@ export default function TemplateEditor({
             <div className="mt-3 rounded-xl border bg-slate-50 p-4 text-xs leading-5 text-muted-foreground dark:bg-slate-950">
               Template questions use the same modern question editor as Live Studio. Result display is saved as <strong>Default</strong>, so every question follows the result setting of the session where it is launched.
             </div>
+            <style jsx>{`
+              .template-question-editor :global(section > div:nth-child(2) > div:last-child) {
+                display: none;
+              }
+            `}</style>
           </aside>
         </div>
       </div>
