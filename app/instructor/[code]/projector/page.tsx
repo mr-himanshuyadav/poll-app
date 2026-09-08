@@ -630,10 +630,7 @@ export default function ProjectorPage({
      */
 
     const showResults =
-        displayType === "results" ||
-        Boolean(
-            question?.results_visible,
-        );
+        displayType === "results";
 
     /*
      * ---------------------------------------------
