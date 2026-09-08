@@ -48,6 +48,14 @@ export type SessionResponse = PollResponse;
 export type Template = QuizTemplate;
 
 /**
+ * Where question results are visible.
+ */
+export type ResultVisibilityTarget =
+  | "projector"
+  | "students"
+  | "both";
+
+/**
  * Analytics for one answer option.
  */
 export interface QuestionOptionAnalytics {
