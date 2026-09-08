@@ -44,7 +44,8 @@ export type ResponseVisualizationType =
   | "vertical-bar"
   | "donut"
   | "ranked"
-  | "percentage";
+  | "percentage"
+  | "likert";
 
 export type SessionEventType =
   | "session_created"
