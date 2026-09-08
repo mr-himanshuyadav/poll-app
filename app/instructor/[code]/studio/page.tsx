@@ -9,6 +9,8 @@ import {
 
 import { useParams, useRouter } from "next/navigation";
 
+import { supabase } from "@/lib/supabase";
+
 import {
     AlertTriangle,
     ArrowLeft,
@@ -397,23 +399,55 @@ export default function LiveStudioPage() {
 
             try {
                 if (questionId) {
+                    const now =
+                        new Date().toISOString();
+
+                    // Defensive cleanup: a session must never have
+                    // more than one active question.
+                    const {
+                        error: closeOtherQuestionsError,
+                    } = await supabase
+                        .from("session_questions")
+                        .update({
+                            status: "closed",
+                            closed_at: now,
+                        })
+                        .eq(
+                            "session_id",
+                            session.id,
+                        )
+                        .eq(
+                            "status",
+                            "active",
+                        )
+                        .neq(
+                            "id",
+                            questionId,
+                        );
+
+                    if (
+                        closeOtherQuestionsError
+                    ) {
+                        throw closeOtherQuestionsError;
+                    }
+
+                    await updateQuestion(
+                        questionId,
+                        {
+                            status: "active",
+                            activated_at: now,
+                            closed_at: null,
+                        },
+                    );
+
                     await updateSession({
                         status: "live",
                         active_question_id:
                             questionId,
                         started_at:
                             session.started_at ??
-                            new Date().toISOString(),
+                            now,
                     });
-
-                    await updateQuestion(
-                        questionId,
-                        {
-                            status: "active",
-                            activated_at:
-                                new Date().toISOString(),
-                        },
-                    );
 
                     showNotice(
                         "success",
