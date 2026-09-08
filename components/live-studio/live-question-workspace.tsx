@@ -103,6 +103,9 @@ response.id
                         onCloseQuestion={
                             onCloseQuestion
                         }
+                        onConfirmReplaceLiveQuestion={
+                            onConfirmReplaceLiveQuestion
+                        }
                         onShowResults={
                             onShowResults
                         }
