@@ -298,7 +298,7 @@ response.id
                                     <ResponseProgressPanel
                                         totalParticipants={totalParticipants}
                                         responseCount={responseCount}
-                                        activeQuestion={activeQuestion}
+                                        activeQuestion={viewedQuestion ?? activeQuestion}
                                     />
                                 </div>
                                 <div className="p-5">
