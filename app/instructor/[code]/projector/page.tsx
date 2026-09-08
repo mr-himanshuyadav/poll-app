@@ -324,6 +324,7 @@ export default function ProjectorPage({
                     ) {
                         setQuestion(null);
                         setResponses([]);
+                        setDisplayType("waiting");
                         setPhase("waiting");
                         return;
                     }
@@ -339,6 +340,9 @@ export default function ProjectorPage({
                         updatedSession.projector_question_id,
                     );
 
+                    setDisplayType(
+                        updatedSession.projector_display_type,
+                    );
                     setPhase("live");
                 },
             )
@@ -621,6 +625,7 @@ export default function ProjectorPage({
      */
 
     const showResults =
+        displayType === "results" ||
         Boolean(
             question?.results_visible,
         );
