@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { CheckCircle2, CircleDot, Plus, Search, SlidersHorizontal } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +65,8 @@ export function QuestionsWorkspace({
 
     const [searchQuery, setSearchQuery] =
         useState("");
+    const [queueFilter, setQueueFilter] =
+        useState<"all" | "live" | "ready" | "closed">("all");
 
     const [isCreatingQuestion, setIsCreatingQuestion] =
         useState(false);
@@ -85,17 +87,32 @@ export function QuestionsWorkspace({
             return sortedQuestions;
         }
 
-        return sortedQuestions.filter(
-            (question) => {
-                const content =
-    question.text.toLowerCase();
+        return sortedQuestions.filter((question) => {
+            const content = question.text.toLowerCase();
 
-                return content.includes(query);
-            },
-        );
+            const matchesSearch =
+                !query || content.includes(query);
+
+            const isLive =
+                question.id === activeQuestion?.id ||
+                question.status === "active";
+
+            const matchesFilter =
+                queueFilter === "all" ||
+                (queueFilter === "live" && isLive) ||
+                (queueFilter === "ready" &&
+                    !isLive &&
+                    question.status !== "closed") ||
+                (queueFilter === "closed" &&
+                    question.status === "closed");
+
+            return matchesSearch && matchesFilter;
+        });
     }, [
         sortedQuestions,
         searchQuery,
+        queueFilter,
+        activeQuestion?.id,
     ]);
 
     const selectedQuestion = useMemo(() => {
@@ -180,26 +197,66 @@ export function QuestionsWorkspace({
 
             <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
                 <aside className="min-w-0">
-                    <div className="mb-4 relative">
+                    <div className="mb-3 relative">
                         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
                         <Input
                             value={searchQuery}
                             onChange={(event) =>
-                                setSearchQuery(
-                                    event.target.value,
-                                )
+                                setSearchQuery(event.target.value)
                             }
                             placeholder="Search questions..."
                             className="pl-9"
                         />
                     </div>
 
+                    <div className="mb-4 flex items-center gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-900/60">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center text-slate-400">
+                            <SlidersHorizontal className="h-4 w-4" />
+                        </div>
+                        {([
+                            ["all", "All", null],
+                            ["live", "Live", CircleDot],
+                            ["ready", "Ready", null],
+                            ["closed", "Closed", CheckCircle2],
+                        ] as const).map(([value, label, Icon]) => {
+                            const active = queueFilter === value;
+                            const count = sortedQuestions.filter((question) => {
+                                const isLive =
+                                    question.id === activeQuestion?.id ||
+                                    question.status === "active";
+                                return value === "all"
+                                    ? true
+                                    : value === "live"
+                                      ? isLive
+                                      : value === "ready"
+                                        ? !isLive && question.status !== "closed"
+                                        : question.status === "closed";
+                            }).length;
+
+                            return (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => setQueueFilter(value)}
+                                    className={[
+                                        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition-all duration-200",
+                                        active
+                                            ? "bg-white text-indigo-700 shadow-sm dark:bg-slate-800 dark:text-indigo-300"
+                                            : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200",
+                                    ].join(" ")}
+                                >
+                                    {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+                                    {label}
+                                    <span className="text-[10px] opacity-60">{count}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
                     <QuestionQueue
                         sessionId={sessionId}
-                        questions={
-                            filteredQuestions
-                        }
+                        questions={filteredQuestions}
                         selectedQuestionId={
                             selectedQuestionId
                         }
